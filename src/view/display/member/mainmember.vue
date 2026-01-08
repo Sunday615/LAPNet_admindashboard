@@ -900,6 +900,7 @@ onBeforeUnmount(() => {
   --danger: rgba(248, 113, 113, 0.95);
 
   min-height: 100vh;
+
   padding: 18px;
   color: var(--txt);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -951,10 +952,10 @@ onBeforeUnmount(() => {
    LAYOUT (no sidebar)
    ========================= */
 .layout {
-  width: 100%;
-  max-width: 1280px;
-
-  margin: 0 auto;
+    display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
 }
 
 /* Right content area */

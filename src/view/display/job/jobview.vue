@@ -1,386 +1,347 @@
-<!-- JobList.vue (UPDATED: ✅ Overlay hides duplicated features_heading / features_items (show only features.heading + features.items once) ) -->
+<!-- JobList.vue (UPDATED: ✅ remove local sidebar + job_id header -> No + FIX: GSAP scope (no more hiding global sidebar) ) -->
 <template>
-  <div class="app tech">
+  <div ref="rootEl" class="page tech">
     <!-- Ambient glow -->
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
-    <!-- Sidebar LEFT -->
-    <aside ref="sidebarEl" class="sidebar">
-      <router-link to="/" style="text-decoration: none;">
-        <div class="brand js-reveal">
-          <div class="brandMark">
-            <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-          </div>
-          <div class="brandText">
-            <div class="brandName">LAPNet</div>
-            <div class="brandSub">Admin Console</div>
-          </div>
-        </div>
-      </router-link>
+    <!-- Topbar -->
+    <header ref="topbarEl" class="topbar js-reveal">
+      <div class="welcome">
+        <div class="hello">Welcome Back,</div>
+        <div class="name">{{ userName }}</div>
+      </div>
 
-      <nav class="nav js-reveal">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.key"
-          :to="item.to"
-          class="navItem"
-          active-class="active"
-          @mouseenter="navHover($event, true)"
-          @mouseleave="navHover($event, false)"
+      <!-- Search -->
+      <div class="searchWrap">
+        <span class="searchIcon"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input v-model="q" class="search" placeholder="Search jobs..." />
+      </div>
+
+      <div class="topActions">
+        <button
+          class="iconBtn"
+          type="button"
+          aria-label="Refresh"
+          title="Refresh"
+          @click="fetchJobs"
+          @mouseenter="iconHover($event, true)"
+          @mouseleave="iconHover($event, false)"
         >
-          <span class="navIcon"><i :class="item.fa"></i></span>
-          <span class="navLabel">{{ item.label }}</span>
-          <span class="navPill" />
-        </RouterLink>
-      </nav>
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
 
-      <div class="spacer" />
-
-      <button
-        class="logout js-reveal"
-        type="button"
-        @click="logout"
-        @mouseenter="btnHover($event, true)"
-        @mouseleave="btnHover($event, false)"
-      >
-        <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-        Log Out
-      </button>
-    </aside>
-
-    <!-- Main -->
-    <main class="main">
-      <header ref="topbarEl" class="topbar js-reveal">
-        <div class="welcome">
-          <div class="hello">Welcome Back,</div>
-          <div class="name">{{ userName }}</div>
-        </div>
-
-        <!-- Search -->
-        <div class="searchWrap">
-          <span class="searchIcon"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input v-model="q" class="search" placeholder="Search jobs..." />
-        </div>
-
-        <div class="topActions">
-          <button
-            class="iconBtn"
-            type="button"
-            aria-label="Refresh"
-            title="Refresh"
-            @click="fetchJobs"
-            @mouseenter="iconHover($event, true)"
-            @mouseleave="iconHover($event, false)"
-          >
-            <i class="fa-solid fa-rotate-right"></i>
-          </button>
-
-          <div class="profile">
-            <div class="avatar">P</div>
-            <div class="profileText">
-              <div class="profileName">Parisa</div>
-              <div class="profileRole">Admin</div>
-            </div>
+        <div class="profile">
+          <div class="avatar">P</div>
+          <div class="profileText">
+            <div class="profileName">Parisa</div>
+            <div class="profileRole">Admin</div>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <section class="mainBody">
-        <div class="membersPage">
-          <!-- Header -->
-          <div class="pageTop js-reveal">
-            <div class="titleBlock">
-              <div class="pageTitle">Jobs</div>
-              <div class="pageSub">
-                Showing data from
-                <span class="mono">{{ API_JOBS }}</span>
-              </div>
-            </div>
-
-            <div class="actions">
-              <div class="filterWrap">
-                <span class="filterIcon"><i class="fa-solid fa-filter"></i></span>
-                <select v-model="filterKey" class="filterSelect">
-                  <option value="">Filter by: (All)</option>
-                  <option v-for="k in filterKeys" :key="k" :value="k">{{ k }}</option>
-                </select>
-                <input v-model="filterValue" class="filterInput" placeholder="value..." />
-              </div>
-
-              <button class="ghostBtn" type="button" @click="clearFilters">Clear</button>
+    <!-- Body -->
+    <section class="pageBody">
+      <div class="membersPage">
+        <!-- Header -->
+        <div class="pageTop js-reveal">
+          <div class="titleBlock">
+            <div class="pageTitle">Jobs</div>
+            <div class="pageSub">
+              Showing data from
+              <span class="mono">{{ API_JOBS }}</span>
             </div>
           </div>
 
-          <!-- Meta -->
-          <div class="metaRow js-reveal">
-            <div class="metaPill">
-              <i class="fa-solid fa-database"></i>
-              <span>ສະໝັກພະນັກງານທັງໝົດ:</span>
-              <b>{{ jobs.length }}</b>
+          <div class="actions">
+            <div class="filterWrap">
+              <span class="filterIcon"><i class="fa-solid fa-filter"></i></span>
+              <select v-model="filterKey" class="filterSelect">
+                <option value="">Filter by: (All)</option>
+                <option v-for="k in filterKeys" :key="k" :value="k">{{ k }}</option>
+              </select>
+              <input v-model="filterValue" class="filterInput" placeholder="value..." />
             </div>
 
-            <div class="metaPill" v-if="loading">
-              <span class="spinner"></span>
-              Loading...
-            </div>
+            <button class="ghostBtn" type="button" @click="clearFilters">Clear</button>
+          </div>
+        </div>
 
-            <div class="metaPill errorPill" v-else-if="error">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              {{ error }}
-            </div>
+        <!-- Meta -->
+        <div class="metaRow js-reveal">
+          <div class="metaPill">
+            <i class="fa-solid fa-database"></i>
+            <span>ສະໝັກພະນັກງານທັງໝົດ:</span>
+            <b>{{ jobs.length }}</b>
+          </div>
 
-            <div class="metaPill" v-else>
-              <i class="fa-solid fa-list"></i>
-              <span>ຄົ້ນຫາພົບ:</span>
-              <b>{{ rows.length }}</b>
-            </div>
+          <div class="metaPill" v-if="loading">
+            <span class="spinner"></span>
+            Loading...
+          </div>
 
-             <router-link to="/newinsert">
+          <div class="metaPill errorPill" v-else-if="error">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ error }}
+          </div>
+
+          <div class="metaPill" v-else>
+            <i class="fa-solid fa-list"></i>
+            <span>ຄົ້ນຫາພົບ:</span>
+            <b>{{ rows.length }}</b>
+          </div>
+
+          <router-link to="/newinsert">
             <div class="metaPill" id="add_news">
               <i class="fa-solid fa-plus"></i>
               <span>ເພີ່ມຮັບສະໝັກພະນັກງານ</span>
             </div>
-            </router-link>
-          </div>
-
-          <!-- Table -->
-          <div class="tableWrap js-reveal">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th
-                    v-for="col in tableCols"
-                    :key="col"
-                    class="th"
-                    role="button"
-                    tabindex="0"
-                    @click="toggleSort(col)"
-                    @keydown.enter.prevent="toggleSort(col)"
-                    @keydown.space.prevent="toggleSort(col)"
-                  >
-                    <span class="thLabel">{{ col }}</span>
-                    <span class="sortIcon" v-if="sortKey === col">
-                      <i :class="sortDir === 'asc' ? 'fa-solid fa-caret-up' : 'fa-solid fa-caret-down'"></i>
-                    </span>
-                  </th>
-
-                  <th class="th thLast">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                <tr
-                  v-for="(j, idx) in rows"
-                  :key="rowKey(j, idx)"
-                  class="tr js-reveal"
-                  @click="openOverlay(j)"
-                  @mouseenter="rowHover($event, true)"
-                  @mouseleave="rowHover($event, false)"
-                >
-                  <td v-for="col in tableCols" :key="col" class="td">
-                    {{ formatCell(safeValue(j?.[col])) }}
-                  </td>
-
-                  <!-- Actions -->
-                  <td class="td tdLast">
-                    <div class="actionRow">
-                      <!-- View -->
-                      <button
-                        class="pillBtn"
-                        type="button"
-                        title="View"
-                        @click.stop="openOverlay(j)"
-                        :disabled="isBusy(j)"
-                        @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)"
-                      >
-                        <i class="fa-regular fa-eye"></i>
-                        View
-                      </button>
-
-                      <!-- Toggle Active -->
-                      <button
-                        class="pillBtn toggleBtn"
-                        type="button"
-                        :class="{ on: isActive(j) }"
-                        :disabled="isBusy(j)"
-                        :title="isActive(j) ? 'Set Inactive' : 'Set Active'"
-                        @click.stop="toggleActive(j)"
-                        @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)"
-                      >
-                        <i :class="isActive(j) ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off'"></i>
-                        {{ isActive(j) ? "Active" : "Inactive" }}
-                      </button>
-
-                      <!-- ✅ Edit -->
-                      <button
-                        class="pillBtn"
-                        type="button"
-                        title="Edit"
-                        :disabled="isBusy(j)"
-                        @click.stop="askEdit(j)"
-                        @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)"
-                      >
-                        <i class="fa-regular fa-pen-to-square"></i>
-                        Edit
-                      </button>
-
-                      <!-- ✅ Delete -->
-                      <button
-                        class="pillBtn danger"
-                        type="button"
-                        title="Delete"
-                        :disabled="isBusy(j)"
-                        @click.stop="askDelete(j)"
-                        @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)"
-                      >
-                        <i class="fa-regular fa-trash-can"></i>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-
-                <tr v-if="!loading && !error && rows.length === 0">
-                  <td :colspan="tableCols.length + 1" class="empty">No results</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Overlay -->
-          <Teleport to="body">
-            <div v-if="selected" ref="overlayEl" class="overlay" @click.self="closeOverlay">
-              <div ref="modalEl" class="modal" @click.stop>
-                <div class="modalTop">
-                  <div class="modalTitle">
-                    <i class="fa-solid fa-briefcase"></i>
-                    {{ titleOf(selected) }}
-                  </div>
-
-                  <button
-                    class="iconBtn"
-                    type="button"
-                    aria-label="Close"
-                    @click="closeOverlay"
-                    @mouseenter="iconHover($event, true)"
-                    @mouseleave="iconHover($event, false)"
-                  >
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
-                </div>
-
-                <div class="modalBody">
-                  <div class="kvGrid">
-                    <div v-for="item in flatEntries" :key="item.k" class="kv">
-                      <div class="k">{{ item.k }}</div>
-
-                      <!-- list -->
-                      <div v-if="item.type === 'list'" class="v">
-                        <div class="listBox">
-                          <div v-for="(it, i) in item.items" :key="`${item.k}-${i}`" class="neoItem">
-                            <span class="neoDot"></span>
-                            <span class="neoText">{{ it }}</span>
-                          </div>
-                          <div v-if="!item.items.length" class="neoEmpty">-</div>
-                        </div>
-                      </div>
-
-                      <!-- default -->
-                      <div v-else class="v">
-                        {{ item.v }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <span class="modalGlow" />
-              </div>
-            </div>
-          </Teleport>
-
-          <!-- ✅ Newview-style Cool Confirm (Edit/Delete) -->
-          <Teleport to="body">
-            <div v-if="confirmOpen" class="confirmOverlay" @click.self="closeConfirm">
-              <div
-                ref="confirmEl"
-                class="confirmCard"
-                :class="{ danger: confirmAction === 'delete', info: confirmAction === 'edit' }"
-              >
-                <div class="confirmIcon">
-                  <div class="skull">
-                    <i
-                      :class="
-                        confirmAction === 'delete'
-                          ? 'fa-solid fa-triangle-exclamation'
-                          : 'fa-regular fa-pen-to-square'
-                      "
-                    ></i>
-                  </div>
-                  <span class="ring ringA"></span>
-                  <span class="ring ringB"></span>
-                </div>
-
-                <div class="confirmTitle">
-                  {{ confirmAction === "delete" ? "Delete Job?" : "Edit Job?" }}
-                </div>
-
-                <div class="confirmText">
-                  {{ confirmAction === "delete" ? "You are about to delete:" : "You are about to edit:" }}
-                  <b class="confirmName">{{ confirmName }}</b>
-
-                  <div class="confirmHint">
-                    {{
-                      confirmAction === "delete"
-                        ? "This action cannot be undone."
-                        : "You will be redirected to the editor."
-                    }}
-                  </div>
-                </div>
-
-                <div class="confirmActions">
-                  <button class="cBtn ghost" type="button" @click="closeConfirm" :disabled="confirmLoading">
-                    Cancel
-                  </button>
-
-                  <button
-                    class="cBtn"
-                    :class="confirmAction === 'delete' ? 'danger' : 'info'"
-                    type="button"
-                    @click="confirmProceed"
-                    :disabled="confirmLoading"
-                  >
-                    <span v-if="confirmLoading" class="miniSpin"></span>
-                    <span>
-                      <template v-if="confirmAction === 'delete'">
-                        {{ confirmLoading ? "Deleting..." : "Yes, Delete" }}
-                      </template>
-                      <template v-else>
-                        {{ confirmLoading ? "Opening..." : "Yes, Edit" }}
-                      </template>
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Teleport>
-
-          <!-- ✅ Newview-style Toast -->
-          <Teleport to="body">
-            <div v-if="toast.open" class="toast" :class="toast.type">
-              <i v-if="toast.type === 'success'" class="fa-solid fa-circle-check"></i>
-              <i v-else-if="toast.type === 'error'" class="fa-solid fa-circle-xmark"></i>
-              <i v-else class="fa-solid fa-circle-info"></i>
-              <div class="toastText">{{ toast.text }}</div>
-            </div>
-          </Teleport>
+          </router-link>
         </div>
-      </section>
-    </main>
+
+        <!-- Table -->
+        <div class="tableWrap js-reveal">
+          <table class="table">
+            <thead>
+              <tr>
+                <th
+                  v-for="col in tableCols"
+                  :key="col"
+                  class="th"
+                  role="button"
+                  tabindex="0"
+                  @click="toggleSort(col)"
+                  @keydown.enter.prevent="toggleSort(col)"
+                  @keydown.space.prevent="toggleSort(col)"
+                >
+                  <span class="thLabel">{{ headerLabel(col) }}</span>
+                  <span class="sortIcon" v-if="sortKey === col">
+                    <i :class="sortDir === 'asc' ? 'fa-solid fa-caret-up' : 'fa-solid fa-caret-down'"></i>
+                  </span>
+                </th>
+
+                <th class="th thLast">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr
+                v-for="(j, idx) in rows"
+                :key="rowKey(j, idx)"
+                class="tr js-reveal"
+                @click="openOverlay(j)"
+                @mouseenter="rowHover($event, true)"
+                @mouseleave="rowHover($event, false)"
+              >
+                <td v-for="col in tableCols" :key="col" class="td">
+                  <!-- ✅ job_id column becomes No (index) -->
+                  <template v-if="col === 'job_id'">
+                    {{ idx + 1 }}
+                  </template>
+                  <template v-else>
+                    {{ formatCell(safeValue(j?.[col])) }}
+                  </template>
+                </td>
+
+                <!-- Actions -->
+                <td class="td tdLast">
+                  <div class="actionRow">
+                    <!-- View -->
+                    <button
+                      class="pillBtn"
+                      type="button"
+                      title="View"
+                      @click.stop="openOverlay(j)"
+                      :disabled="isBusy(j)"
+                      @mouseenter="pillHover($event, true)"
+                      @mouseleave="pillHover($event, false)"
+                    >
+                      <i class="fa-regular fa-eye"></i>
+                      View
+                    </button>
+
+                    <!-- Toggle Active -->
+                    <button
+                      class="pillBtn toggleBtn"
+                      type="button"
+                      :class="{ on: isActive(j) }"
+                      :disabled="isBusy(j)"
+                      :title="isActive(j) ? 'Set Inactive' : 'Set Active'"
+                      @click.stop="toggleActive(j)"
+                      @mouseenter="pillHover($event, true)"
+                      @mouseleave="pillHover($event, false)"
+                    >
+                      <i :class="isActive(j) ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off'"></i>
+                      {{ isActive(j) ? "Active" : "Inactive" }}
+                    </button>
+
+                    <!-- Edit -->
+                    <button
+                      class="pillBtn"
+                      type="button"
+                      title="Edit"
+                      :disabled="isBusy(j)"
+                      @click.stop="askEdit(j)"
+                      @mouseenter="pillHover($event, true)"
+                      @mouseleave="pillHover($event, false)"
+                    >
+                      <i class="fa-regular fa-pen-to-square"></i>
+                      Edit
+                    </button>
+
+                    <!-- Delete -->
+                    <button
+                      class="pillBtn danger"
+                      type="button"
+                      title="Delete"
+                      :disabled="isBusy(j)"
+                      @click.stop="askDelete(j)"
+                      @mouseenter="pillHover($event, true)"
+                      @mouseleave="pillHover($event, false)"
+                    >
+                      <i class="fa-regular fa-trash-can"></i>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-if="!loading && !error && rows.length === 0">
+                <td :colspan="tableCols.length + 1" class="empty">No results</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Overlay -->
+        <Teleport to="body">
+          <div v-if="selected" ref="overlayEl" class="overlay" @click.self="closeOverlay">
+            <div ref="modalEl" class="modal" @click.stop>
+              <div class="modalTop">
+                <div class="modalTitle">
+                  <i class="fa-solid fa-briefcase"></i>
+                  {{ titleOf(selected) }}
+                </div>
+
+                <button
+                  class="iconBtn"
+                  type="button"
+                  aria-label="Close"
+                  @click="closeOverlay"
+                  @mouseenter="iconHover($event, true)"
+                  @mouseleave="iconHover($event, false)"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              <div class="modalBody">
+                <div class="kvGrid">
+                  <div v-for="item in flatEntries" :key="item.k" class="kv">
+                    <div class="k">{{ item.k }}</div>
+
+                    <!-- list -->
+                    <div v-if="item.type === 'list'" class="v">
+                      <div class="listBox">
+                        <div v-for="(it, i) in item.items" :key="`${item.k}-${i}`" class="neoItem">
+                          <span class="neoDot"></span>
+                          <span class="neoText">{{ it }}</span>
+                        </div>
+                        <div v-if="!item.items.length" class="neoEmpty">-</div>
+                      </div>
+                    </div>
+
+                    <!-- default -->
+                    <div v-else class="v">
+                      {{ item.v }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <span class="modalGlow" />
+            </div>
+          </div>
+        </Teleport>
+
+        <!-- Confirm (Edit/Delete) -->
+        <Teleport to="body">
+          <div v-if="confirmOpen" class="confirmOverlay" @click.self="closeConfirm">
+            <div
+              ref="confirmEl"
+              class="confirmCard"
+              :class="{ danger: confirmAction === 'delete', info: confirmAction === 'edit' }"
+            >
+              <div class="confirmIcon">
+                <div class="skull">
+                  <i
+                    :class="
+                      confirmAction === 'delete'
+                        ? 'fa-solid fa-triangle-exclamation'
+                        : 'fa-regular fa-pen-to-square'
+                    "
+                  ></i>
+                </div>
+                <span class="ring ringA"></span>
+                <span class="ring ringB"></span>
+              </div>
+
+              <div class="confirmTitle">
+                {{ confirmAction === "delete" ? "Delete Job?" : "Edit Job?" }}
+              </div>
+
+              <div class="confirmText">
+                {{ confirmAction === "delete" ? "You are about to delete:" : "You are about to edit:" }}
+                <b class="confirmName">{{ confirmName }}</b>
+
+                <div class="confirmHint">
+                  {{
+                    confirmAction === "delete"
+                      ? "This action cannot be undone."
+                      : "You will be redirected to the editor."
+                  }}
+                </div>
+              </div>
+
+              <div class="confirmActions">
+                <button class="cBtn ghost" type="button" @click="closeConfirm" :disabled="confirmLoading">
+                  Cancel
+                </button>
+
+                <button
+                  class="cBtn"
+                  :class="confirmAction === 'delete' ? 'danger' : 'info'"
+                  type="button"
+                  @click="confirmProceed"
+                  :disabled="confirmLoading"
+                >
+                  <span v-if="confirmLoading" class="miniSpin"></span>
+                  <span>
+                    <template v-if="confirmAction === 'delete'">
+                      {{ confirmLoading ? "Deleting..." : "Yes, Delete" }}
+                    </template>
+                    <template v-else>
+                      {{ confirmLoading ? "Opening..." : "Yes, Edit" }}
+                    </template>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
+
+        <!-- Toast -->
+        <Teleport to="body">
+          <div v-if="toast.open" class="toast" :class="toast.type">
+            <i v-if="toast.type === 'success'" class="fa-solid fa-circle-check"></i>
+            <i v-else-if="toast.type === 'error'" class="fa-solid fa-circle-xmark"></i>
+            <i v-else class="fa-solid fa-circle-info"></i>
+            <div class="toastText">{{ toast.text }}</div>
+          </div>
+        </Teleport>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -391,27 +352,40 @@ import gsap from "gsap";
 
 const router = useRouter();
 
-const sidebarEl = ref(null);
+/* ✅ root scope for GSAP (fix: don't affect global sidebar in App.vue) */
+const rootEl = ref(null);
+
 const topbarEl = ref(null);
 
 const userName = "Arkhan";
 
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", fa: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
-  { key: "protocols", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", fa: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
-  // { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-people-group" },
-  // { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-users-rectangle" },
-];
+/* =========================
+   ✅ API (ENV base)
+   ========================= */
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_JOBS = `${API_BASE}/api/jobs`;
+const API_JOBS_LIST = `${API_BASE}/api/jobs-list`;
+
+/* =========================
+   ✅ Scroll lock for overlays
+   ========================= */
+let prevBodyOverflow = "";
+function lockScroll(on) {
+  const body = document.body;
+  if (on) {
+    prevBodyOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+  } else {
+    body.style.overflow = prevBodyOverflow || "";
+  }
+}
+function syncLock() {
+  lockScroll(!!selected.value || confirmOpen.value);
+}
 
 /* =========================
    DATA
    ========================= */
-const API_JOBS = "http://localhost:3000/api/jobs";
-const API_JOBS_LIST = "http://localhost:3000/api/jobs-list";
-
 const jobs = ref([]);
 const loading = ref(false);
 const error = ref("");
@@ -454,7 +428,7 @@ async function apiRequest(path, init = {}) {
 }
 
 /* =========================
-   ✅ Newview-style Confirm (Edit/Delete)
+   ✅ Confirm (Edit/Delete)
    ========================= */
 const confirmOpen = ref(false);
 const confirmLoading = ref(false);
@@ -469,6 +443,7 @@ async function openConfirm(action, job) {
   confirmTarget.value = job;
   confirmOpen.value = true;
   confirmLoading.value = false;
+  syncLock();
 
   await nextTick();
   if (confirmEl.value) {
@@ -485,10 +460,11 @@ function closeConfirm() {
   confirmOpen.value = false;
   confirmLoading.value = false;
   confirmTarget.value = null;
+  syncLock();
 }
 
 /* =========================
-   ✅ Toast (newview style)
+   ✅ Toast
    ========================= */
 const toast = ref({ open: false, type: "success", text: "" });
 let toastTimer = null;
@@ -504,8 +480,10 @@ function showToast(type, text) {
 /* =========================
    Helpers
    ========================= */
-function logout() {
-  console.log("logout");
+function headerLabel(col) {
+  // ✅ job_id -> No
+  if (col === "job_id") return "No";
+  return col;
 }
 
 function rowKey(j, i) {
@@ -678,7 +656,7 @@ function toggleActive(job) {
 }
 
 /* =========================
-   ✅ Edit/Delete with Newview Confirm
+   ✅ Edit/Delete with Confirm
    ========================= */
 function askEdit(job) {
   openConfirm("edit", job);
@@ -817,7 +795,6 @@ const rows = computed(() => {
 
 /* =========================
    Flatten ALL fields for overlay
-   ✅ HIDE duplicated: features_heading + features_items (only show features.heading + features.items)
    ========================= */
 function toText(v) {
   if (v === null || v === undefined) return "-";
@@ -913,7 +890,7 @@ function flattenAny(val, path, out) {
 
     for (const [k, v] of entries) {
       if (k === "password" || k === "pwd") continue;
-      if (isHiddenKey(k)) continue; // ✅ HERE: hides features_heading + features_items + images
+      if (isHiddenKey(k)) continue;
       const p = path ? `${path}.${k}` : k;
 
       const maybeArr = asArrayMaybe(v);
@@ -943,26 +920,33 @@ const flatEntries = computed(() => {
    ========================= */
 async function openOverlay(j) {
   selected.value = j;
+  syncLock();
   await nextTick();
 
-  gsap.fromTo(overlayEl.value, { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" });
-  gsap.fromTo(
-    modalEl.value,
-    { opacity: 0, y: 12, scale: 0.985 },
-    { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out" }
-  );
+  if (overlayEl.value) gsap.fromTo(overlayEl.value, { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" });
+  if (modalEl.value) {
+    gsap.fromTo(
+      modalEl.value,
+      { opacity: 0, y: 12, scale: 0.985 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out" }
+    );
+  }
 }
 
 function closeOverlay() {
   if (!overlayEl.value || !modalEl.value) {
     selected.value = null;
+    syncLock();
     return;
   }
 
   const tl = gsap.timeline({ defaults: { ease: "power2.inOut" } });
   tl.to(modalEl.value, { opacity: 0, y: 10, scale: 0.985, duration: 0.18 }, 0)
     .to(overlayEl.value, { opacity: 0, duration: 0.18 }, 0)
-    .add(() => (selected.value = null));
+    .add(() => {
+      selected.value = null;
+      syncLock();
+    });
 }
 
 /* =========================
@@ -995,15 +979,13 @@ async function fetchJobs() {
 
     jobs.value = list;
 
+    // ✅ scoped reveal (important: do NOT use global selectors)
     requestAnimationFrame(() => {
-      gsap.set(".membersPage .js-reveal", { opacity: 0, y: 10 });
-      gsap.to(".membersPage .js-reveal", {
-        opacity: 1,
-        y: 0,
-        duration: 0.42,
-        stagger: 0.04,
-        ease: "power3.out",
-      });
+      const container = rootEl.value;
+      if (!container) return;
+      const els = container.querySelectorAll(".membersPage .js-reveal");
+      gsap.set(els, { opacity: 0, y: 10 });
+      gsap.to(els, { opacity: 1, y: 0, duration: 0.42, stagger: 0.04, ease: "power3.out" });
     });
   } catch (err) {
     if (err?.name === "AbortError") return;
@@ -1018,16 +1000,8 @@ async function fetchJobs() {
 /* =========================
    GSAP hovers / reveal
    ========================= */
-function btnHover(e, enter) {
-  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
-}
 function iconHover(e, enter) {
   gsap.to(e.currentTarget, { scale: enter ? 1.06 : 1, duration: 0.18, ease: "power2.out" });
-}
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
 }
 function rowHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
@@ -1043,15 +1017,22 @@ function onKey(e) {
   else if (selected.value) closeOverlay();
 }
 
+/* ✅ scoped GSAP context (fix global sidebar hidden bug) */
+let gsapCtx = null;
+
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
-  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  gsap.set(".js-reveal", { opacity: 0, y: 10 });
+  gsapCtx = gsap.context(() => {
+    gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
-  tl.from(sidebarEl.value, { x: -24, opacity: 0, duration: 0.55 }, 0)
-    .from(topbarEl.value, { y: -10, opacity: 0, duration: 0.45 }, 0.08)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.14);
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.from(topbarEl.value, { y: -10, opacity: 0, duration: 0.45 }, 0).to(
+      ".membersPage .js-reveal",
+      { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 },
+      0.12
+    );
+  }, rootEl);
 
   fetchJobs();
 });
@@ -1060,28 +1041,31 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
   if (abortCtrl) abortCtrl.abort();
   if (toastTimer) clearTimeout(toastTimer);
+  lockScroll(false);
+
+  if (gsapCtx) {
+    gsapCtx.revert();
+    gsapCtx = null;
+  }
 });
 </script>
 
 <style scoped>
 /* =========================
-   DARK BLUE TECH THEME (same as your page)
+   DARK BLUE TECH THEME (page-only)
    ========================= */
-   #add_news {
+#add_news {
   background-color: #28a475;
 }
-#add_news:hover{
- background-color: #1e6f56;
- transition: background-color 0.3s ease;
-}
-:root {
-  color-scheme: dark;
+#add_news:hover {
+  background-color: #1e6f56;
+  transition: background-color 0.3s ease;
 }
 * {
   box-sizing: border-box;
 }
 
-.app.tech {
+.page.tech {
   --bg0: #050914;
   --bg1: #070e23;
   --panel: rgba(255, 255, 255, 0.045);
@@ -1094,25 +1078,27 @@ onBeforeUnmount(() => {
   --txt: rgba(255, 255, 255, 0.92);
   --muted: rgba(255, 255, 255, 0.55);
 
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px 1fr;
+  position: relative;
+  isolation: isolate; /* ✅ keep bg layers behind, do not affect global sidebar */
+  overflow: hidden;
+
+  min-height: 100%;
+  padding: 18px;
   background: radial-gradient(1100px 620px at 18% 14%, rgba(56, 189, 248, 0.16), transparent 58%),
     radial-gradient(900px 520px at 82% 18%, rgba(99, 102, 241, 0.14), transparent 60%),
     radial-gradient(800px 520px at 70% 90%, rgba(14, 165, 233, 0.1), transparent 62%),
     linear-gradient(180deg, var(--bg1), var(--bg0));
   color: var(--txt);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  overflow: hidden;
-  position: relative;
 }
 
-.app.tech::before {
+.page.tech::before {
   content: "";
-  position: fixed;
+  position: absolute; /* ✅ was fixed (could overlay global sidebar) */
   inset: 0;
   pointer-events: none;
   opacity: 0.22;
+  z-index: 0;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 46px 46px;
@@ -1120,10 +1106,11 @@ onBeforeUnmount(() => {
 }
 
 .glow {
-  position: fixed;
+  position: absolute; /* ✅ was fixed (could overlay global sidebar) */
   pointer-events: none;
   filter: blur(52px);
   opacity: 0.75;
+  z-index: 0;
 }
 .glow-a {
   width: 560px;
@@ -1140,147 +1127,14 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
 
-/* Sidebar */
-.sidebar {
-  padding: 22px 18px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(8, 12, 28, 0.55);
-  backdrop-filter: blur(14px);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-shadow: 14px 0 44px rgba(0, 0, 0, 0.35);
+/* ensure content above bg layers */
+.topbar,
+.pageBody {
   position: relative;
-  overflow: hidden;
-}
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.25),
-    rgba(14, 165, 233, 0.22),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holoShift 7s linear infinite;
-}
-@keyframes holoShift {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-.brand {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-}
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.65), rgba(99, 102, 241, 0.45));
-  box-shadow: 0 18px 42px rgba(56, 189, 248, 0.12);
-  border: 1px solid rgb(255, 255, 255);
-}
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-.brandSub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-}
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  border-color: rgba(56, 189, 248, 0.24);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.9);
-}
-.navLabel {
-  font-weight: 800;
-}
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-.spacer {
-  flex: 1;
-}
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
+  z-index: 1;
 }
 
-/* Main */
-.main {
-  padding: 18px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+/* Topbar */
 .topbar {
   display: grid;
   grid-template-columns: 1fr 380px 280px;
@@ -1364,15 +1218,16 @@ onBeforeUnmount(() => {
   color: var(--muted);
   margin-top: 2px;
 }
-.mainBody {
-  flex: 1;
+
+/* Page body scroll */
+.pageBody {
   overflow: auto;
   padding-right: 6px;
 }
-.mainBody::-webkit-scrollbar {
+.pageBody::-webkit-scrollbar {
   width: 10px;
 }
-.mainBody::-webkit-scrollbar-thumb {
+.pageBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
 }
@@ -1718,7 +1573,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
-/* ✅ Confirm Delete / Edit Modal (newview style) */
+/* Confirm */
 .confirmOverlay {
   position: fixed;
   inset: 0;
@@ -1897,7 +1752,7 @@ onBeforeUnmount(() => {
   border-top-color: rgba(239, 68, 68, 0.95);
 }
 
-/* ✅ Toast (newview style) */
+/* Toast */
 .toast {
   position: fixed;
   right: 18px;
@@ -1950,16 +1805,8 @@ onBeforeUnmount(() => {
 
 /* responsive */
 @media (max-width: 1100px) {
-  .app.tech {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel,
-  .profileText {
-    display: none;
-  }
   .topbar {
-    grid-template-columns: 1fr 1fr 160px;
+    grid-template-columns: 1fr 1fr 220px;
   }
   .tdLast {
     width: 360px;

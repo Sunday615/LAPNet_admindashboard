@@ -3,39 +3,7 @@
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
-    <!-- Sidebar LEFT -->
-    <aside ref="sidebarEl" class="sidebar">
-      <router-link to="/" style="text-decoration: none">
-        <div class="brand js-reveal">
-          <div class="brandMark">
-            <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-          </div>
-          <div class="brandText">
-            <div class="brandName">LAPNet</div>
-            <div class="brandSub">Admin Console</div>
-          </div>
-        </div>
-      </router-link>
-
-      <nav class="nav js-reveal">
-        <RouterLink v-for="item in navItems" :key="item.key" :to="item.to" class="navItem" active-class="active"
-          @mouseenter="navHover($event, true)" @mouseleave="navHover($event, false)">
-          <span class="navIcon"><i :class="item.fa"></i></span>
-          <span class="navLabel">{{ item.label }}</span>
-          <span class="navPill" />
-        </RouterLink>
-      </nav>
-
-      <div class="spacer" />
-
-      <button class="logout js-reveal" type="button" @click="logout" @mouseenter="btnHover($event, true)"
-        @mouseleave="btnHover($event, false)">
-        <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-        Log Out
-      </button>
-    </aside>
-
-    <!-- Main -->
+    <!-- Main (Sidebar removed - use Global Sidebar in App.vue) -->
     <main class="main">
       <header ref="topbarEl" class="topbar js-reveal">
         <div class="welcome">
@@ -49,8 +17,15 @@
         </div>
 
         <div class="topActions">
-          <button class="iconBtn" type="button" aria-label="Refresh" title="Refresh" @click="fetchNews"
-            @mouseenter="iconHover($event, true)" @mouseleave="iconHover($event, false)">
+          <button
+            class="iconBtn"
+            type="button"
+            aria-label="Refresh"
+            title="Refresh"
+            @click="fetchNews"
+            @mouseenter="iconHover($event, true)"
+            @mouseleave="iconHover($event, false)"
+          >
             <i class="fa-solid fa-rotate-right"></i>
           </button>
 
@@ -131,9 +106,17 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th v-for="col in tableCols" :key="col" class="th" :class="{ colWide: isTitleCol(col) }" role="button"
-                    tabindex="0" @click="toggleSort(col)" @keydown.enter.prevent="toggleSort(col)"
-                    @keydown.space.prevent="toggleSort(col)">
+                  <th
+                    v-for="col in tableCols"
+                    :key="col"
+                    class="th"
+                    :class="{ colWide: isTitleCol(col) }"
+                    role="button"
+                    tabindex="0"
+                    @click="toggleSort(col)"
+                    @keydown.enter.prevent="toggleSort(col)"
+                    @keydown.space.prevent="toggleSort(col)"
+                  >
                     <span class="thLabel">{{ colLabel(col) }}</span>
                     <span class="sortIcon" v-if="sortKey === col">
                       <i :class="sortDir === 'asc' ? 'fa-solid fa-caret-up' : 'fa-solid fa-caret-down'"></i>
@@ -145,8 +128,14 @@
               </thead>
 
               <tbody ref="tbodyEl">
-                <tr v-for="(n, idx) in pagedRows" :key="rowKey(n, idx)" class="tr js-reveal rowAnim"
-                  @click="openOverlay(n)" @mouseenter="rowHover($event, true)" @mouseleave="rowHover($event, false)">
+                <tr
+                  v-for="(n, idx) in pagedRows"
+                  :key="rowKey(n, idx)"
+                  class="tr js-reveal rowAnim"
+                  @click="openOverlay(n)"
+                  @mouseenter="rowHover($event, true)"
+                  @mouseleave="rowHover($event, false)"
+                >
                   <td v-for="col in tableCols" :key="col" class="td" :class="{ colWide: isTitleCol(col) }">
                     <!-- NO -->
                     <template v-if="isNoCol(col)">
@@ -157,8 +146,13 @@
                     <template v-else-if="isTitleCol(col)">
                       <div class="titleCell">
                         <!-- รูปอยู่ซ้าย -->
-                        <img v-if="heroUrlOf(n)" class="thumbMini" :src="heroUrlOf(n)" alt="Hero"
-                          @click.stop="openOverlay(n)" />
+                        <img
+                          v-if="heroUrlOf(n)"
+                          class="thumbMini"
+                          :src="heroUrlOf(n)"
+                          alt="Hero"
+                          @click.stop="openOverlay(n)"
+                        />
 
                         <!-- header_news อยู่ขวา -->
                         <div class="titleText">
@@ -166,7 +160,6 @@
                         </div>
                       </div>
                     </template>
-
 
                     <!-- Date dd/mm/yy -->
                     <template v-else-if="isDateTimeCol(col)">
@@ -182,22 +175,41 @@
                   <!-- Actions -->
                   <td class="td tdLast">
                     <div class="actionRow">
-                      <button class="pillBtn" type="button" title="View" @click.stop="openOverlay(n)"
-                        :disabled="isBusy(n)" @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)">
+                      <button
+                        class="pillBtn"
+                        type="button"
+                        title="View"
+                        @click.stop="openOverlay(n)"
+                        :disabled="isBusy(n)"
+                        @mouseenter="pillHover($event, true)"
+                        @mouseleave="pillHover($event, false)"
+                      >
                         <i class="fa-regular fa-eye"></i>
                         View
                       </button>
 
-                      <button class="pillBtn" type="button" title="Edit" @click.stop="askEdit(n)" :disabled="isBusy(n)"
-                        @mouseenter="pillHover($event, true)" @mouseleave="pillHover($event, false)">
+                      <button
+                        class="pillBtn"
+                        type="button"
+                        title="Edit"
+                        @click.stop="askEdit(n)"
+                        :disabled="isBusy(n)"
+                        @mouseenter="pillHover($event, true)"
+                        @mouseleave="pillHover($event, false)"
+                      >
                         <i class="fa-regular fa-pen-to-square"></i>
                         Edit
                       </button>
 
-                      <button class="pillBtn danger" type="button" title="Delete" @click.stop="askDelete(n)"
-                        :disabled="isBusy(n)" @mouseenter="pillHover($event, true)"
-                        @mouseleave="pillHover($event, false)">
+                      <button
+                        class="pillBtn danger"
+                        type="button"
+                        title="Delete"
+                        @click.stop="askDelete(n)"
+                        :disabled="isBusy(n)"
+                        @mouseenter="pillHover($event, true)"
+                        @mouseleave="pillHover($event, false)"
+                      >
                         <i class="fa-regular fa-trash-can"></i>
                         Delete
                       </button>
@@ -227,8 +239,14 @@
               <button v-if="pageRange.start > 1" class="pBtn" type="button" @click="goPage(1, $event)">1</button>
               <span v-if="pageRange.start > 2" class="pDots">…</span>
 
-              <button v-for="p in pageRange.pages" :key="'p' + p" class="pBtn" :class="{ active: p === page }"
-                type="button" @click="goPage(p, $event)">
+              <button
+                v-for="p in pageRange.pages"
+                :key="'p' + p"
+                class="pBtn"
+                :class="{ active: p === page }"
+                type="button"
+                @click="goPage(p, $event)"
+              >
                 {{ p }}
               </button>
 
@@ -254,8 +272,14 @@
                     {{ titleOf(selected) }}
                   </div>
 
-                  <button class="iconBtn" type="button" aria-label="Close" @click="closeOverlay"
-                    @mouseenter="iconHover($event, true)" @mouseleave="iconHover($event, false)">
+                  <button
+                    class="iconBtn"
+                    type="button"
+                    aria-label="Close"
+                    @click="closeOverlay"
+                    @mouseenter="iconHover($event, true)"
+                    @mouseleave="iconHover($event, false)"
+                  >
                     <i class="fa-solid fa-xmark"></i>
                   </button>
                 </div>
@@ -272,14 +296,25 @@
                     </div>
 
                     <div class="mediaGrid">
-                      <button v-if="heroUrlOf(selected)" class="mediaItem hero" type="button"
-                        @click.stop="openImage(heroUrlOf(selected))" title="Click to view">
+                      <button
+                        v-if="heroUrlOf(selected)"
+                        class="mediaItem hero"
+                        type="button"
+                        @click.stop="openImage(heroUrlOf(selected))"
+                        title="Click to view"
+                      >
                         <img :src="heroUrlOf(selected)" alt="Hero" />
                         <span class="mediaTag">Hero</span>
                       </button>
 
-                      <button v-for="(src, i) in galleryUrlsOf(selected)" :key="src + i" class="mediaItem" type="button"
-                        @click.stop="openImage(src)" title="Click to view">
+                      <button
+                        v-for="(src, i) in galleryUrlsOf(selected)"
+                        :key="src + i"
+                        class="mediaItem"
+                        type="button"
+                        @click.stop="openImage(src)"
+                        title="Click to view"
+                      >
                         <img :src="src" :alt="`Gallery ${i + 1}`" />
                         <span class="mediaTag">#{{ i + 1 }}</span>
                       </button>
@@ -405,23 +440,12 @@ import gsap from "gsap";
 
 const router = useRouter();
 
-const sidebarEl = ref(null);
 const topbarEl = ref(null);
 
 const tbodyEl = ref(null);
 const pagerEl = ref(null);
 
 const userName = "Arkhan";
-
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", fa: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
-  { key: "protocols", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", fa: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
-  { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-people-group" },
-  { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-users-rectangle" },
-];
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const NEWS_API = `${API_BASE}/api/news`;
@@ -532,10 +556,6 @@ function showToast(type, text) {
   toastTimer = setTimeout(() => {
     toast.value.open = false;
   }, 2200);
-}
-
-function logout() {
-  console.log("logout");
 }
 
 /* =========================
@@ -698,10 +718,6 @@ function isGalleryKey(k) {
 function isDateTimeCol(k) {
   const s = String(k || "").toLowerCase();
   return s === "date_time" || s === "date-time" || s === "datetime" || s === "datetime";
-}
-
-function dateValueOf(n) {
-  return n?.date_time ?? n?.dateTime ?? n?.datetime ?? n?.timestamp ?? "-";
 }
 
 function rowKey(n, i) {
@@ -868,9 +884,7 @@ const tableCols = computed(() => {
     )
   );
 
-  const noKey = cleaned.has("idnews")
-    ? "idnews"
-    : pickFirstExisting(cleaned, ["news_id", "newsId", "id", "_id"]) || "idnews";
+  const noKey = cleaned.has("idnews") ? "idnews" : pickFirstExisting(cleaned, ["news_id", "newsId", "id", "_id"]) || "idnews";
 
   const titleKey = pickFirstExisting(cleaned, ["header_news", "title", "headline"]) || "header_news";
   const catKey = pickFirstExisting(cleaned, ["category", "type", "group"]);
@@ -1103,7 +1117,11 @@ async function openOverlay(n) {
   await nextTick();
 
   gsap.fromTo(overlayEl.value, { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" });
-  gsap.fromTo(modalEl.value, { opacity: 0, y: 12, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out" });
+  gsap.fromTo(
+    modalEl.value,
+    { opacity: 0, y: 12, scale: 0.985 },
+    { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out" }
+  );
 }
 
 function closeOverlay() {
@@ -1145,7 +1163,13 @@ async function fetchNews() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
-    const list = Array.isArray(data) ? data : Array.isArray(data?.news) ? data.news : Array.isArray(data?.data) ? data.data : [];
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.news)
+        ? data.news
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
 
     news.value = list;
     page.value = 1;
@@ -1166,16 +1190,8 @@ async function fetchNews() {
 }
 
 /* GSAP hovers */
-function btnHover(e, enter) {
-  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
-}
 function iconHover(e, enter) {
   gsap.to(e.currentTarget, { scale: enter ? 1.06 : 1, duration: 0.18, ease: "power2.out" });
-}
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
 }
 function rowHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
@@ -1199,9 +1215,11 @@ onMounted(() => {
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
-  tl.from(sidebarEl.value, { x: -24, opacity: 0, duration: 0.55 }, 0)
-    .from(topbarEl.value, { y: -10, opacity: 0, duration: 0.45 }, 0.08)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.14);
+  tl.from(topbarEl.value, { y: -10, opacity: 0, duration: 0.45 }, 0.05).to(
+    ".js-reveal",
+    { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 },
+    0.12
+  );
 
   fetchNews();
 });
@@ -1212,7 +1230,6 @@ onBeforeUnmount(() => {
   if (toastTimer) clearTimeout(toastTimer);
 });
 </script>
-
 
 <style scoped>
 /* ======= SMALL UPDATES: reduce header column size + actions column ======= */
@@ -1439,7 +1456,6 @@ onBeforeUnmount(() => {
   from {
     transform: scale(0.97);
   }
-
   to {
     transform: scale(1);
   }
@@ -1458,24 +1474,20 @@ onBeforeUnmount(() => {
 
 /* ======= Modern ambient animations ======= */
 @keyframes floatGlowA {
-
   0%,
   100% {
     transform: translate(0px, 0px) scale(1);
   }
-
   50% {
     transform: translate(28px, -18px) scale(1.06);
   }
 }
 
 @keyframes floatGlowB {
-
   0%,
   100% {
     transform: translate(0px, 0px) scale(1);
   }
-
   50% {
     transform: translate(-22px, 16px) scale(1.05);
   }
@@ -1486,16 +1498,13 @@ onBeforeUnmount(() => {
     transform: translateX(-70%);
     opacity: 0;
   }
-
   25% {
     opacity: 0.55;
   }
-
   55% {
     transform: translateX(70%);
     opacity: 0;
   }
-
   100% {
     transform: translateX(70%);
     opacity: 0;
@@ -1503,7 +1512,6 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .glow-a,
   .glow-b {
     animation: none !important;
@@ -1540,7 +1548,7 @@ onBeforeUnmount(() => {
   --muted: rgba(255, 255, 255, 0.55);
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 1fr; /* ✅ sidebar removed */
   background: radial-gradient(1100px 620px at 18% 14%, rgba(56, 189, 248, 0.16), transparent 58%),
     radial-gradient(900px 520px at 82% 18%, rgba(99, 102, 241, 0.14), transparent 60%),
     radial-gradient(800px 520px at 70% 90%, rgba(14, 165, 233, 0.1), transparent 62%),
@@ -1586,156 +1594,6 @@ onBeforeUnmount(() => {
   top: -160px;
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
   animation: floatGlowB 12s ease-in-out infinite;
-}
-
-/* Sidebar */
-.sidebar {
-  padding: 22px 18px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(8, 12, 28, 0.55);
-  backdrop-filter: blur(14px);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-shadow: 14px 0 44px rgba(0, 0, 0, 0.35);
-  position: relative;
-  overflow: hidden;
-}
-
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(90deg,
-      rgba(56, 189, 248, 0.45),
-      rgba(99, 102, 241, 0.25),
-      rgba(14, 165, 233, 0.22),
-      rgba(56, 189, 248, 0.45));
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holoShift 7s linear infinite;
-}
-
-@keyframes holoShift {
-  0% {
-    transform: translateX(-16%);
-  }
-
-  100% {
-    transform: translateX(16%);
-  }
-}
-
-.brand {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-}
-
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.65), rgba(99, 102, 241, 0.45));
-  box-shadow: 0 18px 42px rgba(56, 189, 248, 0.12);
-  border: 1px solid rgb(255, 255, 255);
-}
-
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-
-.brandSub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-  will-change: transform;
-}
-
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  border-color: rgba(56, 189, 248, 0.24);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.navLabel {
-  font-weight: 800;
-}
-
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
-  will-change: transform;
 }
 
 /* main */
@@ -2392,7 +2250,13 @@ onBeforeUnmount(() => {
   content: "";
   position: absolute;
   inset: -2px;
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.35), rgba(99, 102, 241, 0.22), rgba(56, 189, 248, 0.18), rgba(239, 68, 68, 0.35));
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.35),
+    rgba(99, 102, 241, 0.22),
+    rgba(56, 189, 248, 0.18),
+    rgba(239, 68, 68, 0.35)
+  );
   opacity: 0.18;
   filter: blur(16px);
   pointer-events: none;
@@ -2446,12 +2310,10 @@ onBeforeUnmount(() => {
     transform: scale(0.96);
     opacity: 0.55;
   }
-
   60% {
     transform: scale(1.05);
     opacity: 0.18;
   }
-
   100% {
     transform: scale(0.96);
     opacity: 0.55;
@@ -2549,7 +2411,13 @@ onBeforeUnmount(() => {
 }
 
 .confirmCard.edit::before {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.3), rgba(99, 102, 241, 0.18), rgba(14, 165, 233, 0.16), rgba(56, 189, 248, 0.3));
+  background: linear-gradient(
+    90deg,
+    rgba(56, 189, 248, 0.3),
+    rgba(99, 102, 241, 0.18),
+    rgba(14, 165, 233, 0.16),
+    rgba(56, 189, 248, 0.3)
+  );
   opacity: 0.18;
 }
 
@@ -2590,7 +2458,6 @@ onBeforeUnmount(() => {
     transform: translateY(8px);
     opacity: 0;
   }
-
   to {
     transform: translateY(0);
     opacity: 1;
@@ -2620,11 +2487,9 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1100px) {
   .app.tech {
-    grid-template-columns: 86px 1fr;
+    grid-template-columns: 1fr; /* ✅ sidebar removed */
   }
 
-  .brandText,
-  .navLabel,
   .profileText {
     display: none;
   }

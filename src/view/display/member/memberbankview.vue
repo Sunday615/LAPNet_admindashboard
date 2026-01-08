@@ -4,50 +4,6 @@
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
-    <!-- Sidebar LEFT -->
-    <aside ref="sidebarEl" class="sidebar">
-      <router-link to="/" style="text-decoration: none;">
-        <div class="brand js-reveal">
-          <div class="brandMark">
-            <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-          </div>
-          <div class="brandText">
-            <div class="brandName">LAPNet</div>
-            <div class="brandSub">Admin Console</div>
-          </div>
-        </div>
-      </router-link>
-
-      <nav class="nav js-reveal">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.key"
-          :to="item.to"
-          class="navItem"
-          active-class="active"
-          @mouseenter="navHover($event, true)"
-          @mouseleave="navHover($event, false)"
-        >
-          <span class="navIcon"><i :class="item.fa"></i></span>
-          <span class="navLabel">{{ item.label }}</span>
-          <span class="navPill" />
-        </RouterLink>
-      </nav>
-
-      <div class="spacer" />
-
-      <button
-        class="logout js-reveal"
-        type="button"
-        @click="logout"
-        @mouseenter="btnHover($event, true)"
-        @mouseleave="btnHover($event, false)"
-      >
-        <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-        Log Out
-      </button>
-    </aside>
-
     <!-- Main -->
     <main class="main">
       <header ref="topbarEl" class="topbar js-reveal">
@@ -495,18 +451,9 @@ import gsap from "gsap";
 const router = useRouter();
 
 const rootEl = ref(null);
-const sidebarEl = ref(null);
 const topbarEl = ref(null);
 
 const userName = "Arkhan";
-
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", fa: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
-  { key: "protocols", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", fa: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
-];
 
 /* =========================
    DATA
@@ -1015,10 +962,6 @@ function isCrossborderItemsPath(path) {
 /* =========================
    Helpers
    ========================= */
-function logout() {
-  console.log("logout");
-}
-
 function rowKey(m, i) {
   return m?.idmember ?? m?.member_id ?? m?.memberId ?? m?.id ?? m?._id ?? m?.uuid ?? `${i}`;
 }
@@ -1047,8 +990,7 @@ function formatCell(v, col = "") {
   if (typeof v === "number") return String(v);
 
   if (typeof v === "string") {
-    // ✅ BanknameLa show full text (no truncate)
-    if (isFullTextCol(col)) return v;
+    if (isFullTextCol(col)) return v; // ✅ no truncate
     return v.length > 40 ? v.slice(0, 40) + "…" : v;
   }
 
@@ -1079,7 +1021,6 @@ function toText(v) {
 }
 
 function flattenAny(val, path, out) {
-  // ✅ hard-remove hidden keys (top-level + nested)
   if (path && isHiddenUiPath(path)) return;
 
   if (val === null || val === undefined) {
@@ -1196,7 +1137,7 @@ function flattenAny(val, path, out) {
       if (k === "password" || k === "pwd") continue;
       if (isImageKey(k)) continue;
 
-      if (isHiddenUiKey(k)) continue; // ✅ hide those keys in overlay
+      if (isHiddenUiKey(k)) continue;
       if (isHiddenOverlayIdKey(k)) continue;
       if (String(k).toLowerCase() === ID_MEMBER_COL) continue;
 
@@ -1359,7 +1300,6 @@ const tableCols = computed(() => {
   const keysSet = new Set();
   members.value.slice(0, 25).forEach((m) => Object.keys(m || {}).forEach((k) => keysSet.add(k)));
 
-  // ✅ remove time + remove specified keys
   const keys = Array.from(keysSet).filter(
     (k) =>
       !isImageKey(k) &&
@@ -1369,7 +1309,6 @@ const tableCols = computed(() => {
       String(k).toLowerCase() !== ID_MEMBER_COL
   );
 
-  // ✅ force include BanknameLa + Linkfb + Linkweb if exists
   const preferred = [
     "bank_name",
     "bankName",
@@ -1618,21 +1557,10 @@ async function fetchMembers() {
 /* =========================
    Modern hover micro-interactions (quickTo)
    ========================= */
-function btnHover(e, enter) {
-  const el = e.currentTarget;
-  const q = ensureHoverQuick(el);
-  q?.y(enter ? -2 : 0);
-}
 function iconHover(e, enter) {
   const el = e.currentTarget;
   const q = ensureHoverQuick(el);
   q?.scale(enter ? 1.06 : 1);
-}
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  const q = ensureHoverQuick(el);
-  q?.x(enter ? 4 : 0);
 }
 function rowHover(e, enter) {
   const el = e.currentTarget;
@@ -1667,26 +1595,22 @@ onMounted(async () => {
   gsapCtx = gsap.context(() => {
     const sel = gsap.utils.selector(rootEl.value);
 
-    gsap.set(sel(".js-reveal"), { autoAlpha: 0, y: 12, filter: "blur(6px)" });
+    const revealEls = sel(".js-reveal");
+    gsap.set(revealEls, { autoAlpha: 0, y: 12, filter: "blur(6px)" });
+
+    const others = Array.from(revealEls).filter((el) => el !== topbarEl.value);
 
     const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
     tl.fromTo(
-      sidebarEl.value,
-      { autoAlpha: 0, x: -28, filter: "blur(10px)" },
-      { autoAlpha: 1, x: 0, filter: "blur(0px)", duration: DUR.slow },
+      topbarEl.value,
+      { autoAlpha: 0, y: -14, filter: "blur(10px)" },
+      { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.slow },
       0
-    )
-      .fromTo(
-        topbarEl.value,
-        { autoAlpha: 0, y: -14, filter: "blur(10px)" },
-        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.slow },
-        0.06
-      )
-      .to(
-        sel(".js-reveal"),
-        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.06, ease: "power3.out" },
-        0.1
-      );
+    ).to(
+      others,
+      { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.06, ease: "power3.out" },
+      0.08
+    );
   }, rootEl.value);
 
   await fetchMembers();
@@ -1718,6 +1642,7 @@ onBeforeUnmount(() => {
   background-color: #1e6f56;
   transition: background-color 0.3s ease;
 }
+
 .app.tech {
   --bg0: #050914;
   --bg1: #070e23;
@@ -1732,8 +1657,7 @@ onBeforeUnmount(() => {
   --muted: rgba(255, 255, 255, 0.55);
 
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px 1fr;
+  display: block; /* ✅ no sidebar grid anymore */
   background: radial-gradient(1100px 620px at 18% 14%, rgba(56, 189, 248, 0.16), transparent 58%),
     radial-gradient(900px 520px at 82% 18%, rgba(99, 102, 241, 0.14), transparent 60%),
     radial-gradient(800px 520px at 70% 90%, rgba(14, 165, 233, 0.1), transparent 62%),
@@ -1780,148 +1704,6 @@ onBeforeUnmount(() => {
 }
 
 /* =========================
-   Sidebar
-   ========================= */
-.sidebar {
-  padding: 22px 18px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(8, 12, 28, 0.55);
-  backdrop-filter: blur(14px);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-shadow: 14px 0 44px rgba(0, 0, 0, 0.35);
-  position: relative;
-  overflow: hidden;
-  will-change: transform, opacity;
-}
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.25),
-    rgba(14, 165, 233, 0.22),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holoShift 7s linear infinite;
-}
-@keyframes holoShift {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-
-.brand {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-}
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.65), rgba(99, 102, 241, 0.45));
-  box-shadow: 0 18px 42px rgba(56, 189, 248, 0.12);
-  border: 1px solid rgb(255, 255, 255);
-}
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-.brandSub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-}
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-  will-change: transform;
-}
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  border-color: rgba(56, 189, 248, 0.24);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.9);
-}
-.navLabel {
-  font-weight: 800;
-}
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
-  will-change: transform;
-}
-
-/* =========================
    Main
    ========================= */
 .main {
@@ -1931,6 +1713,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 10px;
 }
+
 .topbar {
   display: grid;
   grid-template-columns: 1fr 380px 280px;
@@ -2186,7 +1969,6 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 .td.fullText {
-  /* ✅ allow full BanknameLa text */
   white-space: normal;
   word-break: break-word;
 }
@@ -2586,7 +2368,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
 }
 
-/* Confirm Modal + Toast (เดิมทั้งหมด) */
+/* Confirm Modal + Toast */
 .confirmOverlay {
   position: fixed;
   inset: 0;
@@ -2830,14 +2612,6 @@ onBeforeUnmount(() => {
 
 /* responsive */
 @media (max-width: 1100px) {
-  .app.tech {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel,
-  .profileText {
-    display: none;
-  }
   .topbar {
     grid-template-columns: 1fr 1fr 160px;
   }

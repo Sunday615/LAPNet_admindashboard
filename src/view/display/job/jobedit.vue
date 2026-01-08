@@ -1,4 +1,4 @@
-<!-- JobEdit.vue (UPDATED: ✅ Fetch from /api/jobs-list + ✅ Read features.items + ✅ Preview can delete & edit inline) -->
+<!-- JobEdit.vue (UPDATED: ✅ Sidebar removed — App.vue provides sidebar) -->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
@@ -6,52 +6,7 @@
 
     <main class="layout">
       <!-- ===================== -->
-      <!-- SIDEBAR -->
-      <!-- ===================== -->
-      <aside ref="sideEl" class="sidebar js-side">
-        <router-link to="/" style="text-decoration: none;">
-          <div class="brand js-reveal">
-            <div class="brandMark">
-              <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-            </div>
-            <div class="brandText">
-              <div class="brandName">LAPNet</div>
-              <div class="brandSub">Admin Console</div>
-            </div>
-          </div>
-        </router-link>
-
-        <nav class="nav">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.key"
-            :to="item.to"
-            class="navItem js-sideItem"
-            active-class="active"
-            @mouseenter="navHover($event, true)"
-            @mouseleave="navHover($event, false)"
-          >
-            <span class="navIcon"><i :class="item.icon"></i></span>
-            <span class="navLabel">{{ item.label }}</span>
-            <span class="navPill" />
-          </RouterLink>
-        </nav>
-
-        <div class="spacer"></div>
-
-        <button
-          class="logout js-sideItem"
-          type="button"
-          @mouseenter="btnHover($event, true)"
-          @mouseleave="btnHover($event, false)"
-        >
-          <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-          Log Out
-        </button>
-      </aside>
-
-      <!-- ===================== -->
-      <!-- RIGHT CONTENT -->
+      <!-- RIGHT CONTENT (ONLY) -->
       <!-- ===================== -->
       <section class="content">
         <header ref="headEl" class="head js-reveal">
@@ -386,20 +341,9 @@ import gsap from "gsap";
 const router = useRouter();
 const route = useRoute();
 
-const sideEl = ref(null);
 const headEl = ref(null);
 const cardEl = ref(null);
 const actionsEl = ref(null);
-
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", icon: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", icon: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", icon: "fa-solid fa-newspaper" },
-  { key: "joblist", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", icon: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", icon: "fa-solid fa-bullhorn" },
-//   { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", icon: "fa-solid fa-people-group" },
-//   { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", icon: "fa-solid fa-users-rectangle" },
-];
 
 const departments = ["Administration", "Accounting & Finance", "IT", "Operation", "Internal Audit"];
 const levels = ["Intern", "Junior", "Mid", "Senior", "Lead", "Manager", "Director", "Other"];
@@ -571,11 +515,6 @@ function goBack() {
 
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
-}
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
 }
 
 function setError(key, msg) {
@@ -903,16 +842,13 @@ async function onSubmit() {
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
-  gsap.set(".js-side", { opacity: 0, x: -18 });
-  gsap.set(".js-sideItem", { opacity: 0, y: 10 });
+  // Sidebar removed => only animate reveals + card
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  tl.to(".js-side", { opacity: 1, x: 0, duration: 0.55 }, 0)
-    .to(".js-sideItem", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.12)
-    .to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0.12)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.18);
+  tl.to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0)
+    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.08);
 
   loadJob();
 });
@@ -925,7 +861,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* =========================
-   SAME STYLE AS INSERT (copied)
+   PAGE TECH (keep)
    ========================= */
 .page.tech {
   --bg0: #050914;
@@ -978,157 +914,29 @@ onBeforeUnmount(() => {
   top: -160px;
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
+
 .divider {
   height: 1px;
   width: 100%;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
   margin: 6px 0 2px;
 }
+
+/* ✅ Layout without sidebar */
 .layout {
-  display: grid;
-  grid-template-columns: 270px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.sidebar {
-  position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
-  border-radius: 22px;
-  padding: 16px;
-  background: rgba(8, 12, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.22),
-    rgba(14, 165, 233, 0.2),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holo 7s linear infinite;
-}
-@keyframes holo {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.5), rgba(99, 102, 241, 0.28));
-  border: 1px solid #fff;
-}
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-.brandSub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-}
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  color: rgba(255, 255, 255, 0.95);
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-}
-.navLabel {
-  font-weight: 800;
-  font-size: 13px;
-}
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-.spacer {
-  flex: 1;
-}
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
+  display: block;
 }
 
+/* =========================
+   CONTENT
+   ========================= */
 .content {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
+/* Header */
 .head {
   display: flex;
   align-items: center;
@@ -1189,6 +997,8 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.86);
   font-weight: 700;
 }
+
+/* Card */
 .card {
   position: relative;
   background: var(--glass2);
@@ -1215,6 +1025,14 @@ onBeforeUnmount(() => {
   pointer-events: none;
   animation: holo 7s linear infinite;
 }
+@keyframes holo {
+  0% {
+    transform: translateX(-16%);
+  }
+  100% {
+    transform: translateX(16%);
+  }
+}
 .cardTop {
   display: flex;
   align-items: flex-start;
@@ -1233,6 +1051,8 @@ onBeforeUnmount(() => {
   color: var(--muted);
   text-align: right;
 }
+
+/* Form */
 .form {
   display: flex;
   flex-direction: column;
@@ -1285,6 +1105,7 @@ onBeforeUnmount(() => {
   color: var(--danger);
 }
 
+/* Bullets */
 .bulletRow {
   display: flex;
   gap: 10px;
@@ -1332,8 +1153,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 10px;
 }
-
-/* ✅ IMPORTANT: keep ONE dotList li definition (with correct columns for edit buttons) */
 .dotList li {
   display: grid;
   grid-template-columns: 10px 1fr auto auto auto; /* dot | text/input | edit/save | cancel | delete */
@@ -1344,7 +1163,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(56, 189, 248, 0.18);
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.06));
 }
-
 .dot {
   width: 8px;
   height: 8px;
@@ -1358,8 +1176,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 1.35;
 }
-
-/* ✅ Inline edit input */
 .editInp {
   width: 100%;
   border: 1px solid rgba(56, 189, 248, 0.22);
@@ -1374,8 +1190,6 @@ onBeforeUnmount(() => {
 .editInp:focus {
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
-
-/* ✅ Small action buttons inside list */
 .sBtn {
   width: 34px;
   height: 34px;
@@ -1395,8 +1209,6 @@ onBeforeUnmount(() => {
   border-color: rgba(255, 255, 255, 0.25);
   box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
 }
-
-/* Delete button (kept) */
 .xBtn {
   width: 32px;
   height: 32px;
@@ -1413,7 +1225,6 @@ onBeforeUnmount(() => {
 .xBtn i {
   font-size: 14px;
 }
-
 .emptyHint {
   display: inline-flex;
   align-items: center;
@@ -1442,6 +1253,8 @@ onBeforeUnmount(() => {
 .ghostBtn {
   background: rgba(255, 255, 255, 0.02);
 }
+
+/* Actions */
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -1473,7 +1286,7 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* Overlay (same as insert) */
+/* Overlay */
 .ov {
   position: fixed;
   inset: 0;
@@ -1632,27 +1445,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, rgba(248, 113, 113, 0.22), rgba(99, 102, 241, 0.12));
 }
 
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel {
-    display: none;
-  }
-  .sidebar {
-    padding: 14px 10px;
-  }
-}
 @media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: relative;
-    height: auto;
-    top: auto;
-  }
   .row {
     grid-template-columns: 1fr;
   }

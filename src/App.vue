@@ -51,38 +51,7 @@
     <!-- ✅ GLOBAL MAIN -->
     <main class="main">
       <!-- ✅ GLOBAL TOPBAR -->
-      <header ref="topbarEl" class="topbar js-reveal">
-        <div class="welcome">
-          <div class="hello">Welcome Back,</div>
-          <div class="name">{{ userName }}</div>
-        </div>
-
-        <div class="searchWrap">
-          <span class="searchIcon"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input class="search" placeholder="Search" />
-        </div>
-
-        <div class="topActions">
-          <button
-            class="iconBtn"
-            type="button"
-            aria-label="Notifications"
-            @mouseenter="iconHover($event, true)"
-            @mouseleave="iconHover($event, false)"
-          >
-            <i class="fa-regular fa-bell"></i>
-            <span class="dot"></span>
-          </button>
-
-          <div class="profile">
-            <div class="avatar">P</div>
-            <div class="profileText">
-              <div class="profileName">Parisa</div>
-              <div class="profileRole">Admin</div>
-            </div>
-          </div>
-        </div>
-      </header>
+      
 
       <!-- ✅ ROUTE PAGES -->
       <section class="mainBody">
@@ -105,8 +74,10 @@ const navItems = [
   { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", fa: "fa-solid fa-chart-line" },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
   { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
-  { key: "protocols", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", fa: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
+  { key: "protocols", label: "ປະກາດຮັບສະໝັກພະນັກງານ", to: "/joblist", fa: "fa-solid fa-user-plus" },
+  { key: "announcement", label: "ປະກາດແຈ້ງການ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
+  { key: "board_director", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-users" },
+  { key: "lapnet_employee", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-user-plus" },
 ];
 
 function logout() {
@@ -317,6 +288,7 @@ onMounted(() => {
 }
 .navLabel {
   font-weight: 800;
+  font-size: 14px;
 }
 .navPill {
   position: absolute;

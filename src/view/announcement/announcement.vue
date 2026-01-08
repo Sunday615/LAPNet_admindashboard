@@ -1,56 +1,13 @@
-<!-- AnnouncementInsert.vue (UPDATED: Create + Edit (Upsert) + image upload + existing image preview) -->
+<!-- AnnouncementInsert.vue (UPDATED: Sidebar removed — using global sidebar in App.vue) -->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
     <main class="layout">
-      <!-- Sidebar -->
-      <aside ref="sideEl" class="sidebar js-side">
-        <router-link to="/" style="text-decoration: none;">
-          <div class="brand js-reveal">
-            <div class="brandMark">
-              <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-            </div>
-            <div class="brandText">
-              <div class="brandName">LAPNet</div>
-              <div class="brandSub">Admin Console</div>
-            </div>
-          </div>
-        </router-link>
-
-        <nav class="nav">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.key"
-            :to="item.to"
-            class="navItem js-sideItem"
-            active-class="active"
-            @mouseenter="navHover($event, true)"
-            @mouseleave="navHover($event, false)"
-          >
-            <span class="navIcon"><i :class="item.icon"></i></span>
-            <span class="navLabel">{{ item.label }}</span>
-            <span class="navPill" />
-          </RouterLink>
-        </nav>
-
-        <div class="spacer"></div>
-
-        <button
-          class="logout js-sideItem"
-          type="button"
-          @mouseenter="btnHover($event, true)"
-          @mouseleave="btnHover($event, false)"
-        >
-          <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-          Log Out
-        </button>
-      </aside>
-
-      <!-- Right content -->
+      <!-- Right content (full width) -->
       <section class="content">
-        <header ref="headEl" class="head js-reveal">
+        <header class="head js-reveal">
           <div class="headLeft">
             <button
               class="backBtn"
@@ -61,6 +18,7 @@
             >
               <i class="fa-solid fa-arrow-left"></i>
             </button>
+
             <div>
               <div class="title">{{ isEditMode ? "Edit Announcement" : "Create Announcement" }}</div>
               <div class="sub">
@@ -215,11 +173,7 @@
               <!-- Preview Card -->
               <div class="previewCard">
                 <div class="imgBox clickable" @click="triggerPickImage" title="Click to upload">
-                  <img
-                    v-if="imagePreview"
-                    :src="imagePreview"
-                    alt="announcement preview"
-                  />
+                  <img v-if="imagePreview" :src="imagePreview" alt="announcement preview" />
                   <img
                     v-else-if="existingImageUrl && !removeExistingImage"
                     :src="existingImageUrl"
@@ -380,8 +334,6 @@ import gsap from "gsap";
 const router = useRouter();
 const route = useRoute();
 
-const sideEl = ref(null);
-const headEl = ref(null);
 const cardEl = ref(null);
 const actionsEl = ref(null);
 const fileEl = ref(null);
@@ -480,16 +432,6 @@ const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "http://localhost:3000";
 const API_URL = `${API_ORIGIN}/api/announcement`;
 const API_BASE = API_ORIGIN;
 
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", icon: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", icon: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", icon: "fa-solid fa-newspaper" },
-  { key: "joblist", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", icon: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", icon: "fa-solid fa-bullhorn" },
-  // { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", icon: "fa-solid fa-people-group" },
-  // { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", icon: "fa-solid fa-users-rectangle" },
-];
-
 /* ✅ edit mode by query (?id=) or params (:id) */
 const announcementId = computed(() => String(route.query?.id ?? route.params?.id ?? "").trim());
 const isEditMode = computed(() => !!announcementId.value);
@@ -534,10 +476,10 @@ const errors = reactive({
 const saving = ref(false);
 
 /* ✅ image preview state */
-const imagePreview = ref("");      // new selected file preview (object url)
+const imagePreview = ref(""); // new selected file preview (object url)
 let lastObjectUrl = "";
 
-const existingImageUrl = ref("");  // existing image from backend (absolute url)
+const existingImageUrl = ref(""); // existing image from backend (absolute url)
 const removeExistingImage = ref(false); // optional signal (backend must support)
 
 /* helpers */
@@ -851,11 +793,6 @@ async function onSubmit() {
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
 }
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
-}
 
 onMounted(async () => {
   window.addEventListener("keydown", onKey);
@@ -863,16 +800,13 @@ onMounted(async () => {
   refreshTimestamp();
   tsTimer = setInterval(refreshTimestamp, 1000);
 
-  gsap.set(".js-side", { opacity: 0, x: -18 });
-  gsap.set(".js-sideItem", { opacity: 0, y: 10 });
+  // entrance animation (no sidebar)
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  tl.to(".js-side", { opacity: 1, x: 0, duration: 0.55 }, 0)
-    .to(".js-sideItem", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.12)
-    .to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0.12)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.18);
+  tl.to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0)
+    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.06);
 
   // ✅ if edit, fetch existing row
   await fetchExistingAnnouncement();
@@ -948,150 +882,9 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
 
-/* Layout */
+/* Layout (sidebar removed) */
 .layout {
-  display: grid;
-  grid-template-columns: 270px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-
-/* Sidebar */
-.sidebar {
-  position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
-  border-radius: 22px;
-  padding: 16px;
-  background: rgba(8, 12, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.22),
-    rgba(14, 165, 233, 0.2),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holo 7s linear infinite;
-}
-@keyframes holo {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.5), rgba(99, 102, 241, 0.28));
-  border: 1px solid #fff;
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-.brandSub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-}
-.navItem {
-  text-decoration: none;
-  position: relative;
   width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  color: rgba(255, 255, 255, 0.95);
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-}
-.navLabel {
-  font-weight: 800;
-  font-size: 13px;
-}
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-.spacer {
-  flex: 1;
-}
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
 }
 
 /* Right content */
@@ -1177,6 +970,15 @@ onBeforeUnmount(() => {
   pointer-events: none;
   animation: holo 7s linear infinite;
 }
+@keyframes holo {
+  0% {
+    transform: translateX(-16%);
+  }
+  100% {
+    transform: translateX(16%);
+  }
+}
+
 .cardTop {
   display: flex;
   align-items: flex-start;
@@ -1677,27 +1479,7 @@ onBeforeUnmount(() => {
 }
 
 /* responsive */
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel {
-    display: none;
-  }
-  .sidebar {
-    padding: 14px 10px;
-  }
-}
 @media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: relative;
-    height: auto;
-    top: auto;
-  }
   .row {
     grid-template-columns: 1fr;
   }

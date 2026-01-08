@@ -4,49 +4,7 @@
     <div class="glow glow-b"></div>
 
     <main class="layout">
-      <!-- Sidebar -->
-      <aside ref="sideEl" class="sidebar js-side">
-        <router-link to="/" style="text-decoration: none">
-          <div class="brand js-reveal">
-            <div class="brandMark">
-              <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-            </div>
-            <div class="brandText">
-              <div class="brandName">LAPNet</div>
-              <div class="brandSub">Admin Console</div>
-            </div>
-          </div>
-        </router-link>
-
-        <nav class="nav">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.key"
-            :to="item.to"
-            class="navItem js-sideItem"
-            active-class="active"
-            @mouseenter="navHover($event, true)"
-            @mouseleave="navHover($event, false)"
-          >
-            <span class="navIcon"><i :class="item.icon"></i></span>
-            <span class="navLabel">{{ item.label }}</span>
-            <span class="navPill" />
-          </RouterLink>
-        </nav>
-
-        <div class="spacer"></div>
-
-        <button
-          class="logout js-sideItem"
-          type="button"
-          @click="logout"
-          @mouseenter="btnHover($event, true)"
-          @mouseleave="btnHover($event, false)"
-        >
-          <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-          Log Out
-        </button>
-      </aside>
+      <!-- ✅ Sidebar removed (you said global sidebar is in App.vue) -->
 
       <!-- Content -->
       <section class="content">
@@ -431,7 +389,11 @@
                 <span class="ovTag">{{ overlay.type === "success" ? "TECH SUCCESS" : "TECH ERROR" }}</span>
                 <span class="ovDot"></span>
                 <span class="ovHint">
-                  {{ overlay.type === "success" ? "ກົດປຸ່ມເພື່ອໄປໜ້າ View All Commercial Bank" : "ກົດປຸ່ມ OK ເພື່ອປິດ" }}
+                  {{
+                    overlay.type === "success"
+                      ? "ກົດປຸ່ມເພື່ອໄປໜ້າ View All Commercial Bank"
+                      : "ກົດປຸ່ມ OK ເພື່ອປິດ"
+                  }}
                 </span>
               </div>
             </div>
@@ -505,7 +467,6 @@ function resolveMediaUrl(src) {
 /* =========================
    REFS
    ========================= */
-const sideEl = ref(null);
 const headEl = ref(null);
 const cardEl = ref(null);
 const actionsEl = ref(null);
@@ -515,19 +476,6 @@ const fileEl = ref(null);
 const overlayEl = ref(null);
 const ovCardEl = ref(null);
 let prevBodyOverflow = "";
-
-/* =========================
-   NAV ITEMS
-   ========================= */
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", icon: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", icon: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", icon: "fa-solid fa-newspaper" },
-  { key: "joblist", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", icon: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", icon: "fa-solid fa-bullhorn" },
-  // { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", icon: "fa-solid fa-people-group" },
-  // { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", icon: "fa-solid fa-users-rectangle" },
-];
 
 /* =========================
    OPTIONS
@@ -893,11 +841,8 @@ function toggleAll(section) {
   const items = getItemsBySection(section);
   if (!opts.length || !items) return;
 
-  if (isAllSelected(section)) {
-    items.splice(0, items.length);
-  } else {
-    items.splice(0, items.length, ...opts);
-  }
+  if (isAllSelected(section)) items.splice(0, items.length);
+  else items.splice(0, items.length, ...opts);
 }
 
 /* =========================
@@ -984,11 +929,7 @@ async function loadMember() {
 
     // ✅ color: can be Color JSON/object OR gradA/gradB columns
     const colorObj =
-      readColorLike(m?.Color) ||
-      readColorLike(m?.color) ||
-      readColorLike(m?.Colour) ||
-      readColorLike(m?.colour) ||
-      null;
+      readColorLike(m?.Color) || readColorLike(m?.color) || readColorLike(m?.Colour) || readColorLike(m?.colour) || null;
 
     const gradAFromCols = pickStr(m, ["gradA", "GradA", "primary", "Primary"], "");
     const gradBFromCols = pickStr(m, ["gradB", "GradB", "secondary", "Secondary"], "");
@@ -1142,7 +1083,8 @@ async function onSubmit() {
     if (updated && typeof updated === "object") memberRaw.value = updated;
 
     // refresh preview (important if backend changes paths)
-    originalImageUrl = resolveMediaUrl(pickStr(memberRaw.value || {}, ["image_url", "imageUrl", "image", "Image"], "")) || originalImageUrl;
+    originalImageUrl =
+      resolveMediaUrl(pickStr(memberRaw.value || {}, ["image_url", "imageUrl", "image", "Image"], "")) || originalImageUrl;
     clearNewFile();
 
     // update snapshot
@@ -1189,9 +1131,6 @@ async function onSubmit() {
 function goBack() {
   router.back();
 }
-function logout() {
-  console.log("logout");
-}
 
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
@@ -1199,26 +1138,17 @@ function btnHover(e, enter) {
 function chipHover(e, enter) {
   gsap.to(e.currentTarget, { scale: enter ? 1.02 : 1, duration: 0.18, ease: "power2.out" });
 }
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
-}
 
 /* enter animation */
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
-  gsap.set(".js-side", { opacity: 0, x: -18 });
-  gsap.set(".js-sideItem", { opacity: 0, y: 10 });
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  tl.to(".js-side", { opacity: 1, x: 0, duration: 0.55 }, 0)
-    .to(".js-sideItem", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.12)
-    .to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0.12)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.18);
+  tl.to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0)
+    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.08);
 
   loadMember();
 });
@@ -1231,9 +1161,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* ====== (your CSS unchanged) ====== */
-/* (I keep your full CSS as-is below) */
-
 /* =========================
    TECH THEME (DARK BLUE)
    ========================= */
@@ -1283,7 +1210,6 @@ onBeforeUnmount(() => {
   filter: blur(52px);
   opacity: 0.75;
 }
-
 .glow-a {
   width: 560px;
   height: 560px;
@@ -1291,7 +1217,6 @@ onBeforeUnmount(() => {
   top: 120px;
   background: radial-gradient(circle at 30% 30%, rgba(56, 189, 248, 0.4), transparent 62%);
 }
-
 .glow-b {
   width: 560px;
   height: 560px;
@@ -1301,168 +1226,12 @@ onBeforeUnmount(() => {
 }
 
 /* =========================
-   LAYOUT: sidebar + content
+   LAYOUT (sidebar removed)
    ========================= */
 .layout {
-  display: grid;
-  grid-template-columns: 270px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-
-/* Sidebar */
-.sidebar {
-  position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
-  border-radius: 22px;
-  padding: 16px;
-  background: rgba(8, 12, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.22),
-    rgba(14, 165, 233, 0.2),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holo 7s linear infinite;
-}
-
-@keyframes holo {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-
-.brand {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.5), rgba(99, 102, 241, 0.28));
-  border: 1px solid #fff;
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-
-.brandSub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-}
-
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  color: rgba(255, 255, 255, 0.95);
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.navLabel {
-  font-weight: 800;
-  font-size: 13px;
-}
-
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
-  position: relative;
 }
 
 /* Right content area */
@@ -1479,29 +1248,24 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 14px;
 }
-
 .headLeft {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
 .title {
   font-size: 22px;
   font-weight: 900;
   letter-spacing: 0.2px;
 }
-
 .sub {
   margin-top: 4px;
   font-size: 13px;
   color: var(--muted);
 }
-
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
-
 .backBtn {
   width: 42px;
   height: 42px;
@@ -1513,7 +1277,6 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.88);
   cursor: pointer;
 }
-
 .pill {
   display: inline-flex;
   align-items: center;
@@ -1537,7 +1300,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
-
 .card::before {
   content: "";
   position: absolute;
@@ -1554,6 +1316,14 @@ onBeforeUnmount(() => {
   pointer-events: none;
   animation: holo 7s linear infinite;
 }
+@keyframes holo {
+  0% {
+    transform: translateX(-16%);
+  }
+  100% {
+    transform: translateX(16%);
+  }
+}
 
 .cardTop {
   display: flex;
@@ -1562,7 +1332,6 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 10px;
 }
-
 .cardTitle {
   display: flex;
   align-items: center;
@@ -1570,7 +1339,6 @@ onBeforeUnmount(() => {
   font-weight: 900;
   letter-spacing: 0.2px;
 }
-
 .cardHint {
   font-size: 12px;
   color: var(--muted);
@@ -1620,20 +1388,17 @@ onBeforeUnmount(() => {
   gap: 12px;
   margin-top: 6px;
 }
-
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-
 .label > span {
   display: block;
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 8px;
 }
-
 .inputWrap {
   display: flex;
   align-items: center;
@@ -1643,11 +1408,9 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
-
 .inputWrap i {
   opacity: 0.75;
 }
-
 .inp {
   width: 100%;
   border: 0;
@@ -1656,12 +1419,10 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.92);
   font-size: 14px;
 }
-
 .inputWrap:focus-within {
   border-color: rgba(56, 189, 248, 0.25);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
-
 .err {
   margin-top: 8px;
   font-size: 12px;
@@ -1680,13 +1441,11 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
-
 .colorPick {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .colorLabel {
   display: inline-flex;
   align-items: center;
@@ -1695,7 +1454,6 @@ onBeforeUnmount(() => {
   color: var(--muted);
   font-weight: 800;
 }
-
 .colorWrap {
   display: grid;
   grid-template-columns: 54px 1fr;
@@ -1706,12 +1464,10 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
-
 .colorWrap:focus-within {
   border-color: rgba(56, 189, 248, 0.25);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
-
 .colorInp {
   width: 44px;
   height: 34px;
@@ -1721,13 +1477,10 @@ onBeforeUnmount(() => {
   background: transparent;
   cursor: pointer;
 }
-
 .hexInp {
   font-weight: 800;
   letter-spacing: 0.2px;
 }
-
-/* swatch preview */
 .gradSwatch {
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1736,7 +1489,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
-
 .gradSwatch::after {
   content: "";
   position: absolute;
@@ -1745,7 +1497,6 @@ onBeforeUnmount(() => {
   opacity: 0.35;
   pointer-events: none;
 }
-
 .swatchText {
   position: absolute;
   left: 12px;
@@ -1772,7 +1523,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
-
 .fBtn {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
@@ -1786,7 +1536,6 @@ onBeforeUnmount(() => {
   font-weight: 500;
   font-size: 12px;
 }
-
 .fBtn.on {
   border-color: rgba(56, 189, 248, 0.28);
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.12));
@@ -1801,7 +1550,6 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex: 0 0 auto;
 }
-
 .flag {
   width: 22px;
   height: 22px;
@@ -1809,7 +1557,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
 }
-
 .fLabel {
   flex: 1 1 auto;
   min-width: 0;
@@ -1828,7 +1575,6 @@ onBeforeUnmount(() => {
   --g2: #6366f1;
   position: relative;
 }
-
 .previewWrap::before {
   content: "";
   position: absolute;
@@ -1840,12 +1586,10 @@ onBeforeUnmount(() => {
   filter: blur(14px);
   pointer-events: none;
 }
-
 .previewWrap > * {
   position: relative;
   z-index: 1;
 }
-
 .previewTop {
   display: flex;
   justify-content: space-between;
@@ -1853,20 +1597,17 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 10px;
 }
-
 .previewTitle {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 900;
 }
-
 .previewActions {
   display: flex;
   gap: 10px;
   align-items: center;
 }
-
 .miniBtn {
   border-radius: 12px;
   padding: 8px 10px;
@@ -1880,14 +1621,12 @@ onBeforeUnmount(() => {
   font-weight: 800;
   font-size: 12px;
 }
-
 .previewCard {
   display: grid;
   grid-template-columns: 160px 1fr;
   gap: 12px;
   align-items: start;
 }
-
 .fileHidden {
   position: absolute;
   width: 1px;
@@ -1895,7 +1634,6 @@ onBeforeUnmount(() => {
   opacity: 0;
   pointer-events: none;
 }
-
 .imgBox {
   width: 160px;
   height: 160px;
@@ -1906,22 +1644,18 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
 }
-
 .imgBox img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .imgBox.clickable {
   cursor: pointer;
 }
-
 .imgBox.clickable:hover {
   border-color: rgba(56, 189, 248, 0.3);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
-
 .imgEmpty {
   display: flex;
   flex-direction: column;
@@ -1931,23 +1665,19 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
 }
-
 .imgHint {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.55);
 }
-
 .previewMeta .pTitle {
   font-weight: 600;
   font-size: 14px;
 }
-
 .previewMeta .pSub {
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
 }
-
 .metaMini {
   margin-top: 10px;
   display: grid;
@@ -1974,14 +1704,12 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.85);
   word-break: break-word;
 }
-
 .pLinks {
   margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .plink {
   display: inline-flex;
   align-items: center;
@@ -1995,18 +1723,15 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 800;
 }
-
 .plink.muted {
   color: rgba(255, 255, 255, 0.6);
 }
-
 .chips {
   margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -2019,26 +1744,22 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 500;
 }
-
 .chip.ghost {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.7);
 }
-
 .chipFlagPair {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-
 .chipFlag {
   width: 18px;
   height: 18px;
   border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
-
 .chipText {
   margin-left: 8px;
 }
@@ -2050,7 +1771,6 @@ onBeforeUnmount(() => {
   gap: 10px;
   padding-top: 6px;
 }
-
 .btn {
   border-radius: 14px;
   padding: 12px 14px;
@@ -2063,12 +1783,10 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
-
 .btn.primary {
   border-color: rgba(56, 189, 248, 0.3);
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.28), rgba(99, 102, 241, 0.14));
 }
-
 .btn.ghost {
   background: rgba(255, 255, 255, 0.03);
 }
@@ -2086,7 +1804,6 @@ onBeforeUnmount(() => {
   background: rgba(5, 9, 20, 0.72);
   backdrop-filter: blur(12px);
 }
-
 .ovCard {
   width: min(980px, 96vw);
   border-radius: 22px;
@@ -2096,7 +1813,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 26px 90px rgba(0, 0, 0, 0.62);
 }
-
 .ovGlow {
   position: absolute;
   inset: -2px;
@@ -2104,19 +1820,16 @@ onBeforeUnmount(() => {
   opacity: 0.9;
   filter: blur(18px);
 }
-
 .ov.success .ovGlow {
   background: radial-gradient(circle at 18% 22%, rgba(56, 189, 248, 0.22), transparent 60%),
     radial-gradient(circle at 82% 26%, rgba(34, 197, 94, 0.18), transparent 62%),
     radial-gradient(circle at 70% 92%, rgba(99, 102, 241, 0.16), transparent 62%);
 }
-
 .ov.error .ovGlow {
   background: radial-gradient(circle at 18% 22%, rgba(248, 113, 113, 0.22), transparent 60%),
     radial-gradient(circle at 82% 26%, rgba(99, 102, 241, 0.16), transparent 62%),
     radial-gradient(circle at 70% 92%, rgba(56, 189, 248, 0.14), transparent 62%);
 }
-
 .ovTop {
   display: grid;
   grid-template-columns: 56px 1fr 42px;
@@ -2127,7 +1840,6 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
-
 .ovIcon {
   width: 46px;
   height: 46px;
@@ -2139,28 +1851,23 @@ onBeforeUnmount(() => {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
   font-size: 20px;
 }
-
 .ov.success .ovIcon {
   border-color: rgba(56, 189, 248, 0.3);
   box-shadow: 0 18px 44px rgba(56, 189, 248, 0.12);
 }
-
 .ov.error .ovIcon {
   border-color: rgba(248, 113, 113, 0.28);
   box-shadow: 0 18px 44px rgba(248, 113, 113, 0.12);
 }
-
 .ovHead {
   min-width: 0;
 }
-
 .ovTitle {
   font-size: 18px;
   font-weight: 950;
   letter-spacing: 0.2px;
   color: rgba(255, 255, 255, 0.94);
 }
-
 .ovSub {
   margin-top: 6px;
   display: flex;
@@ -2170,7 +1877,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 800;
 }
-
 .ovTag {
   display: inline-flex;
   align-items: center;
@@ -2180,14 +1886,12 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.18);
   letter-spacing: 0.4px;
 }
-
 .ovDot {
   width: 6px;
   height: 6px;
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.35);
 }
-
 .ovX {
   width: 42px;
   height: 42px;
@@ -2199,13 +1903,11 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
 }
-
 .ovBody {
   padding: 16px;
   position: relative;
   z-index: 1;
 }
-
 .ovMsg {
   font-size: 14px;
   line-height: 1.6;
@@ -2217,7 +1919,6 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.03);
   white-space: pre-line;
 }
-
 .ovActions {
   display: flex;
   justify-content: flex-end;
@@ -2225,7 +1926,6 @@ onBeforeUnmount(() => {
   margin-top: 14px;
   flex-wrap: wrap;
 }
-
 .ovBtn {
   border-radius: 14px;
   padding: 12px 14px;
@@ -2240,44 +1940,20 @@ onBeforeUnmount(() => {
   min-width: 170px;
   justify-content: center;
 }
-
 .ovBtn.ghost {
   background: rgba(255, 255, 255, 0.03);
 }
-
 .ov.success .ovBtn.primary {
   border-color: rgba(56, 189, 248, 0.32);
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.28), rgba(34, 197, 94, 0.12));
 }
-
 .ov.error .ovBtn.primary {
   border-color: rgba(248, 113, 113, 0.28);
   background: linear-gradient(90deg, rgba(248, 113, 113, 0.22), rgba(99, 102, 241, 0.12));
 }
 
 /* responsive */
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel {
-    display: none;
-  }
-  .sidebar {
-    padding: 14px 10px;
-  }
-}
-
 @media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: relative;
-    height: auto;
-    top: auto;
-  }
   .row {
     grid-template-columns: 1fr;
   }

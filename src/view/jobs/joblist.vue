@@ -1,58 +1,11 @@
-<!-- JoinUsInsert.vue (UPDATED ✅ insert to MySQL table jobs_list via /api/jobs + ✅ Overlay Popup like your sample) -->
+<!-- JoinUsInsert.vue (NO SIDEBAR) -->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
     <main class="layout">
-      <!-- ===================== -->
-      <!-- SIDEBAR -->
-      <!-- ===================== -->
-      <aside ref="sideEl" class="sidebar js-side">
-         <router-link to="/" style="text-decoration: none;">
-      <div class="brand js-reveal">
-        <div class="brandMark">
-          <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
-        </div>
-        <div class="brandText">
-          <div class="brandName">LAPNet</div>
-          <div class="brandSub">Admin Console</div>
-        </div>
-      </div>
-      </router-link>
-
-        <nav class="nav">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.key"
-            :to="item.to"
-            class="navItem js-sideItem"
-            active-class="active"
-            @mouseenter="navHover($event, true)"
-            @mouseleave="navHover($event, false)"
-          >
-            <span class="navIcon"><i :class="item.icon"></i></span>
-            <span class="navLabel">{{ item.label }}</span>
-            <span class="navPill" />
-          </RouterLink>
-        </nav>
-
-        <div class="spacer"></div>
-
-        <button
-          class="logout js-sideItem"
-          type="button"
-          @mouseenter="btnHover($event, true)"
-          @mouseleave="btnHover($event, false)"
-        >
-          <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
-          Log Out
-        </button>
-      </aside>
-
-      <!-- ===================== -->
-      <!-- RIGHT CONTENT -->
-      <!-- ===================== -->
+      <!-- RIGHT CONTENT (full width) -->
       <section class="content">
         <header ref="headEl" class="head js-reveal">
           <div class="headLeft">
@@ -138,12 +91,7 @@
               <span>ເນື້ອໃນລາຍລະອຽດ</span>
               <div class="inputWrap">
                 <i class="fa-solid fa-heading"></i>
-                <input
-                  v-model.trim="form.detailTitle"
-                  class="inp"
-                  type="text"
-                  placeholder="e.g. Responsibilities / Requirements"
-                />
+                <input v-model.trim="form.detailTitle" class="inp" type="text" placeholder="e.g. Responsibilities / Requirements" />
               </div>
               <div v-if="errors.detailTitle" class="err">{{ errors.detailTitle }}</div>
             </label>
@@ -223,23 +171,11 @@
 
             <!-- ACTIONS -->
             <div ref="actionsEl" class="actions js-reveal">
-              <button
-                class="btn ghost"
-                type="button"
-                @click="resetForm"
-                @mouseenter="btnHover($event, true)"
-                @mouseleave="btnHover($event, false)"
-              >
+              <button class="btn ghost" type="button" @click="resetForm" @mouseenter="btnHover($event, true)" @mouseleave="btnHover($event, false)">
                 <i class="fa-solid fa-rotate-left"></i> Reset
               </button>
 
-              <button
-                class="btn primary"
-                type="submit"
-                :disabled="saving"
-                @mouseenter="btnHover($event, true)"
-                @mouseleave="btnHover($event, false)"
-              >
+              <button class="btn primary" type="submit" :disabled="saving" @mouseenter="btnHover($event, true)" @mouseleave="btnHover($event, false)">
                 <i class="fa-solid fa-floppy-disk"></i>
                 {{ saving ? "Saving..." : "Save Job Post" }}
               </button>
@@ -249,7 +185,7 @@
       </section>
     </main>
 
-    <!-- ✅ TECH OVERLAY ALERT (like your sample) -->
+    <!-- ✅ TECH OVERLAY ALERT -->
     <Teleport to="body">
       <div v-if="overlay.show" ref="overlayEl" class="ov" :class="overlay.type" @click.self="closeOverlay">
         <div ref="ovCardEl" class="ovCard">
@@ -283,13 +219,7 @@
             <div class="ovMsg">{{ overlay.message }}</div>
 
             <div class="ovActions">
-              <button
-                class="ovBtn ghost"
-                type="button"
-                @click="closeOverlay"
-                @mouseenter="btnHover($event, true)"
-                @mouseleave="btnHover($event, false)"
-              >
+              <button class="ovBtn ghost" type="button" @click="closeOverlay" @mouseenter="btnHover($event, true)" @mouseleave="btnHover($event, false)">
                 <i class="fa-solid fa-circle-xmark"></i>
                 Close
               </button>
@@ -321,40 +251,20 @@ import gsap from "gsap";
 
 const router = useRouter();
 
-const sideEl = ref(null);
 const headEl = ref(null);
 const cardEl = ref(null);
 const actionsEl = ref(null);
 
-const navItems = [
-  { key: "dashboard", label: "ພາບລວມ", to: "/dashboard", icon: "fa-solid fa-chart-line" },
-  { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", icon: "fa-solid fa-building-columns" },
-  { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", icon: "fa-solid fa-newspaper" },
-  { key: "joblist", label: "ປະກາດຮັບສະມັກພະນັກງານ", to: "/joblist", icon: "fa-solid fa-user-plus" },
-  { key: "announcement", label: "ປະກາດ", to: "/announcement", icon: "fa-solid fa-bullhorn" },
-  // { key: "boarddirector", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", icon: "fa-solid fa-people-group" },
-  // { key: "lapnet", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", icon: "fa-solid fa-users-rectangle" },
-];
-
-const departments = [
-  "Administration",
-  "Accounting & Finance",
-  "IT",
-  "Operation",
-  "Internal Audit",
-
-];
+const departments = ["Administration", "Accounting & Finance", "IT", "Operation", "Internal Audit"];
 const levels = ["Intern", "Junior", "Mid", "Senior", "Lead", "Manager", "Director", "Other"];
 
 /** ✅ API BASE */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 function nowTimestamp() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(
-    d.getSeconds()
-  )}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 const form = reactive({
@@ -375,23 +285,19 @@ const errors = reactive({
 });
 
 const bulletDraft = ref("");
-
-/** ✅ server state */
 const saving = ref(false);
 
-/* =========================
-   ✅ Overlay State (like sample)
-   ========================= */
+/* ✅ Overlay State */
 const overlayEl = ref(null);
 const ovCardEl = ref(null);
 let prevBodyOverflow = "";
 
 const overlay = reactive({
   show: false,
-  type: "success", // success | error
+  type: "success",
   title: "",
   message: "",
-  nextRoute: "", // success => /joblist
+  nextRoute: "",
 });
 
 function lockScroll(on) {
@@ -408,12 +314,7 @@ function showOverlay({ type = "success", title = "", message = "", nextRoute } =
   overlay.type = type;
   overlay.title = title || (type === "success" ? "Success" : "Error");
   overlay.message = message || "";
-  overlay.nextRoute =
-    typeof nextRoute === "string"
-      ? nextRoute
-      : type === "success"
-        ? "/່jobview"
-        : "";
+  overlay.nextRoute = typeof nextRoute === "string" ? nextRoute : type === "success" ? "/jobview" : "";
 
   overlay.show = true;
   lockScroll(true);
@@ -453,7 +354,6 @@ async function goOverlay() {
     onComplete: async () => {
       overlay.show = false;
       lockScroll(false);
-
       try {
         await router.push(go);
       } catch {
@@ -470,13 +370,10 @@ function onKey(e) {
   if (e.key === "Escape" && overlay.show) closeOverlay();
 }
 
-/* =========================
-   ✅ Page helpers
-   ========================= */
+/* Page helpers */
 function goBack() {
   router.back();
 }
-
 function setError(key, msg) {
   errors[key] = msg || "";
 }
@@ -484,13 +381,11 @@ function setError(key, msg) {
 function normalizeBullet(v) {
   return (v || "").trim().replace(/\s+/g, " ").replace(/^[-•\u2022]\s*/, "");
 }
-
 function addBullet(v) {
   const b = normalizeBullet(v);
   if (!b) return;
   form.bullets.push(b);
 }
-
 function addBulletsFromDraft() {
   const raw = bulletDraft.value || "";
   const parts = raw
@@ -505,7 +400,6 @@ function addBulletsFromDraft() {
 
   gsap.fromTo(".dotList li", { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.18, ease: "power2.out", stagger: 0.02 });
 }
-
 function onPasteBullets(e) {
   const text = e.clipboardData?.getData("text") || "";
   if (!text.includes("\n")) return;
@@ -519,12 +413,10 @@ function onPasteBullets(e) {
 
   gsap.fromTo(".dotList li", { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.18, ease: "power2.out", stagger: 0.02 });
 }
-
 function removeBullet(idx) {
   if (idx < 0 || idx >= form.bullets.length) return;
   form.bullets.splice(idx, 1);
 }
-
 function clearBullets() {
   form.bullets.splice(0);
 }
@@ -548,7 +440,6 @@ function resetFields() {
   bulletDraft.value = "";
   Object.keys(errors).forEach((k) => (errors[k] = ""));
 }
-
 function resetForm() {
   resetFields();
 }
@@ -610,25 +501,15 @@ async function onSubmit() {
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
 }
-function navHover(e, enter) {
-  const el = e.currentTarget;
-  if (el.classList.contains("active")) return;
-  gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
-}
 
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
-  gsap.set(".js-side", { opacity: 0, x: -18 });
-  gsap.set(".js-sideItem", { opacity: 0, y: 10 });
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  tl.to(".js-side", { opacity: 1, x: 0, duration: 0.55 }, 0)
-    .to(".js-sideItem", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.12)
-    .to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0.12)
-    .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.18);
+  tl.to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0).to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.06);
 });
 
 onBeforeUnmount(() => {
@@ -638,9 +519,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* =========================
-   (your existing styles)
-   ========================= */
 .page.tech {
   --bg0: #050914;
   --bg1: #070e23;
@@ -692,157 +570,28 @@ onBeforeUnmount(() => {
   top: -160px;
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
+
 .divider {
   height: 1px;
   width: 100%;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
   margin: 6px 0 2px;
 }
+
+/* ✅ NO SIDEBAR */
 .layout {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: start;
 }
-.sidebar {
-  position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
-  border-radius: 22px;
-  padding: 16px;
-  background: rgba(8, 12, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.sidebar::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(
-    90deg,
-    rgba(56, 189, 248, 0.45),
-    rgba(99, 102, 241, 0.22),
-    rgba(14, 165, 233, 0.2),
-    rgba(56, 189, 248, 0.45)
-  );
-  opacity: 0.14;
-  filter: blur(14px);
-  pointer-events: none;
-  animation: holo 7s linear infinite;
-}
-@keyframes holo {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.brandMark {
-  width: 50px;
-  height: 50px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.5), rgba(99, 102, 241, 0.28));
-  border: 1px solid #fff;
-}
-.brandName {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-.brandSub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 2px;
-}
-.navItem {
-  text-decoration: none;
-  position: relative;
-  width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.78);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.navItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  color: rgba(255, 255, 255, 0.95);
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.12);
-}
-.navIcon {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-}
-.navLabel {
-  font-weight: 800;
-  font-size: 13px;
-}
-.navPill {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0);
-}
-.navItem.active .navPill {
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-.spacer {
-  flex: 1;
-}
-.logout {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  cursor: pointer;
-}
-
 .content {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
+/* Header */
 .head {
   display: flex;
   align-items: center;
@@ -886,6 +635,8 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.86);
   font-weight: 700;
 }
+
+/* Card */
 .card {
   position: relative;
   background: var(--glass2);
@@ -912,6 +663,14 @@ onBeforeUnmount(() => {
   pointer-events: none;
   animation: holo 7s linear infinite;
 }
+@keyframes holo {
+  0% {
+    transform: translateX(-16%);
+  }
+  100% {
+    transform: translateX(16%);
+  }
+}
 .cardTop {
   display: flex;
   align-items: flex-start;
@@ -930,6 +689,8 @@ onBeforeUnmount(() => {
   color: var(--muted);
   text-align: right;
 }
+
+/* Form */
 .form {
   display: flex;
   flex-direction: column;
@@ -1077,6 +838,7 @@ onBeforeUnmount(() => {
   font-weight: 800;
   font-size: 12px;
 }
+
 .miniBtn {
   border-radius: 12px;
   padding: 8px 10px;
@@ -1093,6 +855,7 @@ onBeforeUnmount(() => {
 .ghostBtn {
   background: rgba(255, 255, 255, 0.02);
 }
+
 .actions {
   display: flex;
   justify-content: flex-end;
@@ -1123,9 +886,7 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* =========================
-   ✅ OVERLAY ALERT (same style)
-   ========================= */
+/* ✅ OVERLAY ALERT */
 .ov {
   position: fixed;
   inset: 0;
@@ -1284,27 +1045,8 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, rgba(248, 113, 113, 0.22), rgba(99, 102, 241, 0.12));
 }
 
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 86px 1fr;
-  }
-  .brandText,
-  .navLabel {
-    display: none;
-  }
-  .sidebar {
-    padding: 14px 10px;
-  }
-}
+/* responsive */
 @media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: relative;
-    height: auto;
-    top: auto;
-  }
   .row {
     grid-template-columns: 1fr;
   }
