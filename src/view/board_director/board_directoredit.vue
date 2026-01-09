@@ -1,10 +1,17 @@
-<!-- BoardDirectorInsert.vue (UPDATED: success alert -> View / Close, route: /board_directorview) -->
+<!-- BoardDirectorEdit.vue
+  ✅ ใช้ template เดิมจาก Insert แต่ปรับเป็นหน้า EDIT
+  - route: /boarddirectoredit?id=123
+  - GET:  /api/boarddirector/:id   (มี fallback เป็น /api/boarddirector?id=)
+  - PUT:  /api/boarddirector/:id   (fallback PATCH ถ้า PUT ไม่ได้)
+  - multipart/form-data (อัปโหลดรูปใหม่ได้ / หรือใช้รูปเดิมได้)
+  - fields ให้ตรง table: (idboarddirector, name, role, profile, bankname, committee, createat, banklogo)
+-->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
-    <!-- ✅ COOL TOAST ALERT (with actions on success) -->
+    <!-- ✅ COOL TOAST ALERT -->
     <div class="toastWrap" aria-live="polite" aria-atomic="true">
       <div v-if="toast.show" ref="toastEl" class="toast" :class="toast.type" role="status">
         <div class="toastIcon">
@@ -17,17 +24,11 @@
             {{ toast.type === "success" ? "Saved!" : "Error" }}
           </div>
           <div class="toastText">{{ toast.message }}</div>
-
-          <!-- ✅ ACTIONS: View / Close (only when success) -->
-          <div v-if="toast.type === 'success'" class="toastActions">
-            <button class="toastAct primary" type="button" @click="toastGoView">
-              <i class="fa-solid fa-eye"></i> View
-            </button>
-            <button class="toastAct" type="button" @click="toastClose">
-              <i class="fa-solid fa-xmark"></i> Close
-            </button>
-          </div>
         </div>
+
+        <button class="toastClose" type="button" @click="hideToast" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
     </div>
 
@@ -46,19 +47,33 @@
             </button>
             <div>
               <div class="title">Board Director</div>
-              <div class="sub">ເພີ່ມສະພາບໍລິຫານງານຂອງບໍລິສັດ</div>
+              <div class="sub">
+                ແກ້ໄຂຂໍ້ມູນສະພາບໍລິຫານງານ • ID:
+                <b>{{ id || "-" }}</b>
+              </div>
             </div>
           </div>
 
           <div class="headRight js-reveal">
-            <span class="pill"><i class="fa-solid fa-shield-halved"></i> Admin</span>
+            <span class="pill"><i class="fa-solid fa-pen-to-square"></i> Edit Mode</span>
+            <span class="pillSoft mini" v-if="form.createat">
+              <i class="fa-regular fa-clock"></i>
+              {{ form.createat }}
+            </span>
           </div>
         </header>
 
         <section ref="cardEl" class="card js-card">
           <div class="cardTop">
-            <div class="cardTitle"><i class="fa-solid fa-people-group"></i> Board Director Information</div>
-            <div class="cardHint"></div>
+            <div class="cardTitle">
+              <i class="fa-solid fa-people-group"></i>
+              Edit Board Director Information
+            </div>
+            <div class="cardHint">
+              <span v-if="loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</span>
+              <span v-else-if="saving"><i class="fa-solid fa-spinner fa-spin"></i> Saving...</span>
+              <span v-else>Update & Save changes</span>
+            </div>
           </div>
 
           <form class="form" @submit.prevent="onSubmit">
@@ -153,22 +168,30 @@
               <div class="upCard">
                 <div class="upTop">
                   <div class="upTitle"><i class="fa-solid fa-circle-nodes"></i> Bank Logo</div>
-                  <button
-                    v-if="logoPreview"
-                    class="miniBtn"
-                    type="button"
-                    @click="clearLogo"
-                    @mouseenter="btnHover($event, true)"
-                    @mouseleave="btnHover($event, false)"
-                  >
-                    <i class="fa-solid fa-trash"></i> Remove
-                  </button>
+
+                  <div style="display: flex; gap: 10px; align-items: center">
+                    <span class="badge" v-if="bankLogoIsExisting && !form.bankLogo">
+                      <i class="fa-solid fa-link"></i> Existing
+                    </span>
+
+                    <button
+                      v-if="logoPreview || bankLogoIsExisting"
+                      class="miniBtn"
+                      type="button"
+                      @click="clearLogo"
+                      @mouseenter="btnHover($event, true)"
+                      @mouseleave="btnHover($event, false)"
+                    >
+                      <i class="fa-solid fa-trash"></i> Remove
+                    </button>
+                  </div>
                 </div>
 
                 <input ref="logoEl" class="fileHidden" type="file" accept="image/*" @change="onPickLogo" />
 
                 <div class="imgBox small clickable" @click="triggerPickLogo" title="Click to upload bank logo">
                   <img v-if="logoPreview" :src="logoPreview" alt="bank logo preview" />
+                  <img v-else-if="bankLogoIsExisting" :src="existingBankLogoUrl" alt="bank logo existing" />
                   <div v-else class="imgEmpty">
                     <i class="fa-regular fa-image"></i>
                     <div>No logo</div>
@@ -177,28 +200,40 @@
                 </div>
 
                 <div v-if="errors.bankLogo" class="err" style="margin-top: 10px">{{ errors.bankLogo }}</div>
+
+                <div v-if="form.bankLogoPath && !form.bankLogo" class="pathHint">
+                  <i class="fa-solid fa-paperclip"></i> {{ form.bankLogoPath }}
+                </div>
               </div>
 
               <!-- Person profile -->
               <div class="upCard">
                 <div class="upTop">
                   <div class="upTitle"><i class="fa-solid fa-user-astronaut"></i> Profile Person</div>
-                  <button
-                    v-if="profilePreview"
-                    class="miniBtn"
-                    type="button"
-                    @click="clearProfile"
-                    @mouseenter="btnHover($event, true)"
-                    @mouseleave="btnHover($event, false)"
-                  >
-                    <i class="fa-solid fa-trash"></i> Remove
-                  </button>
+
+                  <div style="display: flex; gap: 10px; align-items: center">
+                    <span class="badge" v-if="profileIsExisting && !form.profileImage">
+                      <i class="fa-solid fa-link"></i> Existing
+                    </span>
+
+                    <button
+                      v-if="profilePreview || profileIsExisting"
+                      class="miniBtn"
+                      type="button"
+                      @click="clearProfile"
+                      @mouseenter="btnHover($event, true)"
+                      @mouseleave="btnHover($event, false)"
+                    >
+                      <i class="fa-solid fa-trash"></i> Remove
+                    </button>
+                  </div>
                 </div>
 
                 <input ref="profileEl" class="fileHidden" type="file" accept="image/*" @change="onPickProfile" />
 
                 <div class="imgBox clickable" @click="triggerPickProfile" title="Click to upload person profile">
                   <img v-if="profilePreview" :src="profilePreview" alt="profile preview" />
+                  <img v-else-if="profileIsExisting" :src="existingProfileUrl" alt="profile existing" />
                   <div v-else class="imgEmpty">
                     <i class="fa-regular fa-image"></i>
                     <div>No profile</div>
@@ -207,6 +242,10 @@
                 </div>
 
                 <div v-if="errors.profileImage" class="err" style="margin-top: 10px">{{ errors.profileImage }}</div>
+
+                <div v-if="form.profilePath && !form.profileImage" class="pathHint">
+                  <i class="fa-solid fa-paperclip"></i> {{ form.profilePath }}
+                </div>
               </div>
             </div>
 
@@ -228,7 +267,7 @@
 
                   <span class="pillSoft">
                     <i class="fa-regular fa-clock"></i>
-                    {{ form.timestamp }}
+                    {{ form.createat || "-" }}
                   </span>
                 </div>
               </div>
@@ -238,6 +277,7 @@
                   <div class="logoLine">
                     <div class="logoMini">
                       <img v-if="logoPreview" :src="logoPreview" alt="logo mini" />
+                      <img v-else-if="bankLogoIsExisting" :src="existingBankLogoUrl" alt="logo mini existing" />
                       <div v-else class="logoEmpty"><i class="fa-solid fa-circle-nodes"></i></div>
                     </div>
                     <div class="bankText">
@@ -257,6 +297,7 @@
                 <div class="rightCol">
                   <div class="avatar">
                     <img v-if="profilePreview" :src="profilePreview" alt="profile" />
+                    <img v-else-if="profileIsExisting" :src="existingProfileUrl" alt="profile existing" />
                     <div v-else class="avatarEmpty">
                       <i class="fa-solid fa-user"></i>
                     </div>
@@ -272,8 +313,8 @@
               <button
                 class="btn ghost"
                 type="button"
-                :disabled="saving"
-                @click="resetForm"
+                :disabled="saving || loading"
+                @click="resetToLoaded"
                 @mouseenter="btnHover($event, true)"
                 @mouseleave="btnHover($event, false)"
               >
@@ -281,14 +322,26 @@
               </button>
 
               <button
+                class="btn"
+                type="button"
+                :disabled="saving || loading"
+                @click="reload"
+                @mouseenter="btnHover($event, true)"
+                @mouseleave="btnHover($event, false)"
+              >
+                <i class="fa-solid" :class="loading ? 'fa-spinner fa-spin' : 'fa-rotate-right'"></i>
+                {{ loading ? "Loading..." : "Reload" }}
+              </button>
+
+              <button
                 class="btn primary"
                 type="submit"
-                :disabled="saving"
+                :disabled="saving || loading"
                 @mouseenter="btnHover($event, true)"
                 @mouseleave="btnHover($event, false)"
               >
                 <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-                {{ saving ? "Saving..." : "Save Director" }}
+                {{ saving ? "Saving..." : "Save Changes" }}
               </button>
             </div>
           </form>
@@ -299,11 +352,16 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, nextTick } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
 const router = useRouter();
+const route = useRoute();
+
+/** ✅ เปลี่ยน path นี้ให้ตรงกับหน้า list/view ของคุณ */
+const LIST_PATH = "/board_directorview"; // <<<<<< เปลี่ยนได้ถ้าหน้าจริงไม่ใช่นี้
+let redirectTimer = null;
 
 const headEl = ref(null);
 const cardEl = ref(null);
@@ -312,10 +370,31 @@ const actionsEl = ref(null);
 const logoEl = ref(null);
 const profileEl = ref(null);
 
+const loading = ref(false);
 const saving = ref(false);
 
+let abortCtrl = null;
+
+// ✅ toast state
+const toastEl = ref(null);
+const toast = reactive({
+  show: false,
+  type: "success", // success | error
+  message: "",
+});
+let toastTimer = null;
+
+/* ✅ API base */
+const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "";
+const BASE_URL = API_BASE ? `${API_BASE}/api/boarddirector` : "/api/boarddirector";
+
+const id = computed(() => {
+  const v = route.query?.id;
+  return v === undefined || v === null ? "" : String(v);
+});
+
 /* ===================== */
-/* COMMITTEES */
+/* COMMITTEES (ใช้ของเดิมจาก insert) */
 /* ===================== */
 const committees = [
   { key: "ປະທານສະພາບໍລິຫານ", label: "ປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-crown" },
@@ -326,30 +405,62 @@ const committees = [
   { key: "ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ", label: "ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ", icon: "fa-solid fa-award" },
 ];
 
-const DEFAULT_COMMITTEE = committees[0]?.key || "";
-
 function committeeLabel(key) {
   return committees.find((x) => x.key === key)?.label || key;
 }
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-function nowTimestamp() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(
-    d.getMinutes()
-  )}:${pad2(d.getSeconds())}`;
+/* ===================== */
+/* Helpers */
+/* ===================== */
+function resolveMediaUrl(src) {
+  if (!src) return "";
+  const s = String(src).trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
+  if (API_BASE) {
+    if (s.startsWith("/")) return `${API_BASE}${s}`;
+    return `${API_BASE}/${s}`;
+  }
+  return s.startsWith("/") ? s : `/${s}`;
 }
 
+function parseCommitteeValue(val) {
+  if (Array.isArray(val)) return String(val[0] ?? "").trim();
+  return String(val ?? "").trim();
+}
+
+function unwrapApiOne(payload) {
+  if (!payload) return null;
+  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (payload?.data && typeof payload.data === "object") return payload.data;
+  if (payload?.row && typeof payload.row === "object") return payload.row;
+  if (typeof payload === "object") return payload;
+  return null;
+}
+
+function goBack() {
+  router.back();
+}
+
+function setCommittee(key) {
+  form.committee = key;
+  gsap.fromTo(".committeePill", { y: 2, opacity: 0.7 }, { y: 0, opacity: 1, duration: 0.18, ease: "power2.out" });
+}
+
+/* ===================== */
+/* Form state */
+/* ===================== */
 const form = reactive({
-  committee: DEFAULT_COMMITTEE,
+  idboarddirector: "",
+  committee: committees[0]?.key || "",
   bankName: "",
   personName: "",
   role: "",
-  timestamp: nowTimestamp(),
+  createat: "",
   bankLogo: null,
   profileImage: null,
+  bankLogoPath: "",
+  profilePath: "",
 });
 
 const errors = reactive({
@@ -360,36 +471,27 @@ const errors = reactive({
   profileImage: "",
 });
 
+function setError(k, msg) {
+  errors[k] = msg || "";
+}
+
+/* ===================== */
+/* Preview URLs */
+/* ===================== */
 const logoPreview = ref("");
 const profilePreview = ref("");
 let logoUrl = "";
 let profileUrl = "";
 
-function goBack() {
-  router.back();
-}
-
-function setError(k, msg) {
-  errors[k] = msg || "";
-}
-
-function setCommittee(key) {
-  form.committee = key;
-  gsap.fromTo(".committeePill", { y: 2, opacity: 0.7 }, { y: 0, opacity: 1, duration: 0.18, ease: "power2.out" });
-}
-
-function validate() {
-  setError("bankName", form.bankName ? "" : "Bank name is required.");
-  setError("personName", form.personName ? "" : "Person name is required.");
-  setError("role", form.role ? "" : "Role is required.");
-  setError("bankLogo", form.bankLogo ? "" : "Bank logo is required.");
-  setError("profileImage", form.profileImage ? "" : "Profile image is required.");
-  return !Object.values(errors).some(Boolean);
-}
-
 function revoke(u) {
   if (u) URL.revokeObjectURL(u);
 }
+
+const bankLogoIsExisting = computed(() => !!String(form.bankLogoPath || "").trim());
+const profileIsExisting = computed(() => !!String(form.profilePath || "").trim());
+
+const existingBankLogoUrl = computed(() => resolveMediaUrl(form.bankLogoPath));
+const existingProfileUrl = computed(() => resolveMediaUrl(form.profilePath));
 
 function triggerPickLogo() {
   logoEl.value?.click();
@@ -427,77 +529,37 @@ function onPickProfile(e) {
 function clearLogo() {
   form.bankLogo = null;
   setLogoPreview(null);
+  form.bankLogoPath = "";
   if (logoEl.value) logoEl.value.value = "";
 }
 function clearProfile() {
   form.profileImage = null;
   setProfilePreview(null);
+  form.profilePath = "";
   if (profileEl.value) profileEl.value.value = "";
 }
 
-function resetForm() {
-  form.committee = DEFAULT_COMMITTEE;
-  form.bankName = "";
-  form.personName = "";
-  form.role = "";
-  form.timestamp = nowTimestamp();
+/* ===================== */
+/* Validation */
+/* ===================== */
+function validate() {
+  setError("bankName", form.bankName ? "" : "Bank name is required.");
+  setError("personName", form.personName ? "" : "Person name is required.");
+  setError("role", form.role ? "" : "Role is required.");
 
-  clearLogo();
-  clearProfile();
+  const hasLogo = !!form.bankLogo || !!String(form.bankLogoPath || "").trim();
+  const hasProfile = !!form.profileImage || !!String(form.profilePath || "").trim();
 
-  Object.keys(errors).forEach((k) => (errors[k] = ""));
+  setError("bankLogo", hasLogo ? "" : "Bank logo is required (upload or keep existing).");
+  setError("profileImage", hasProfile ? "" : "Profile image is required (upload or keep existing).");
+
+  return !Object.values(errors).some(Boolean);
 }
 
 /* ===================== */
-/* ✅ API URL */
+/* Toast */
 /* ===================== */
-const API_BASE = import.meta.env?.VITE_API_URL || "";
-const INSERT_URL = API_BASE ? `${API_BASE}/api/boarddirector` : "/api/boarddirector";
-
-/* ✅ helper: extract inserted id from backend response (flexible) */
-function extractInsertedId(payload) {
-  if (!payload) return null;
-
-  const cands = [
-    payload.idboarddirector,
-    payload.idBoardDirector,
-    payload.id,
-    payload.insertId,
-
-    payload?.data?.idboarddirector,
-    payload?.data?.idBoardDirector,
-    payload?.data?.id,
-    payload?.data?.insertId,
-
-    payload?.result?.idboarddirector,
-    payload?.result?.id,
-    payload?.result?.insertId,
-
-    payload?.row?.idboarddirector,
-    payload?.row?.id,
-  ];
-
-  const found = cands.find((x) => x !== undefined && x !== null && String(x).trim() !== "");
-  return found ?? null;
-}
-
-/* ===================== */
-/* ✅ COOL TOAST HELPERS */
-/* ===================== */
-const toastEl = ref(null);
-const toast = reactive({
-  show: false,
-  type: "success", // success | error
-  message: "",
-  persistent: false, // success = persistent (wait user action)
-});
-let toastTimer = null;
-
-// callbacks for success actions
-let toastOnClose = null;
-let toastOnView = null;
-
-async function showToast(type, message, opts = {}) {
+async function showToast(type, message) {
   if (toastTimer) {
     clearTimeout(toastTimer);
     toastTimer = null;
@@ -505,11 +567,7 @@ async function showToast(type, message, opts = {}) {
 
   toast.type = type;
   toast.message = message;
-  toast.persistent = !!opts.persistent;
   toast.show = true;
-
-  toastOnClose = typeof opts.onClose === "function" ? opts.onClose : null;
-  toastOnView = typeof opts.onView === "function" ? opts.onView : null;
 
   await nextTick();
 
@@ -522,13 +580,12 @@ async function showToast(type, message, opts = {}) {
     );
   }
 
-  // ✅ error auto-hide, success waits for user (View / Close)
-  if (!toast.persistent) {
-    toastTimer = setTimeout(() => hideToast(), 3000);
-  }
+  toastTimer = setTimeout(() => {
+    hideToast();
+  }, 3000);
 }
 
-function hideToast(afterFn) {
+function hideToast() {
   if (!toast.show) return;
 
   if (toastTimer) {
@@ -539,8 +596,6 @@ function hideToast(afterFn) {
   const el = toastEl.value;
   if (!el) {
     toast.show = false;
-    toast.persistent = false;
-    afterFn?.();
     return;
   }
 
@@ -553,58 +608,160 @@ function hideToast(afterFn) {
     ease: "power2.in",
     onComplete: () => {
       toast.show = false;
-      toast.persistent = false;
-      afterFn?.();
     },
   });
 }
 
-// ✅ success actions
-function toastClose() {
-  hideToast(() => {
-    toastOnClose?.();
-    toastOnClose = null;
-    toastOnView = null;
-  });
+/* ===================== */
+/* Load existing record */
+/* ===================== */
+const loadedSnapshot = ref(null);
+
+function snapshotCurrent() {
+  return {
+    idboarddirector: form.idboarddirector,
+    committee: form.committee,
+    bankName: form.bankName,
+    personName: form.personName,
+    role: form.role,
+    createat: form.createat,
+    bankLogoPath: form.bankLogoPath,
+    profilePath: form.profilePath,
+  };
 }
 
-function toastGoView() {
-  hideToast(() => {
-    toastOnView?.();
-    toastOnClose = null;
-    toastOnView = null;
-  });
+function applySnapshot(s) {
+  if (!s) return;
+
+  form.idboarddirector = s.idboarddirector || "";
+  form.committee = s.committee || (committees[0]?.key || "");
+  form.bankName = s.bankName || "";
+  form.personName = s.personName || "";
+  form.role = s.role || "";
+  form.createat = s.createat || "";
+  form.bankLogoPath = s.bankLogoPath || "";
+  form.profilePath = s.profilePath || "";
+
+  form.bankLogo = null;
+  form.profileImage = null;
+  setLogoPreview(null);
+  setProfilePreview(null);
+
+  Object.keys(errors).forEach((k) => (errors[k] = ""));
 }
 
+async function fetchOne() {
+  if (!id.value) {
+    await showToast("error", "Missing id in URL (use /boarddirectoredit?id=...)");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    if (abortCtrl) abortCtrl.abort();
+    abortCtrl = new AbortController();
+
+    let res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
+      method: "GET",
+      signal: abortCtrl.signal,
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) {
+      res = await fetch(`${BASE_URL}?id=${encodeURIComponent(id.value)}`, {
+        method: "GET",
+        signal: abortCtrl.signal,
+        headers: { Accept: "application/json" },
+      });
+    }
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    const one = unwrapApiOne(data);
+    if (!one) throw new Error("No record found");
+
+    const snap = {
+      idboarddirector: String(one.idboarddirector ?? id.value),
+      committee: parseCommitteeValue(one.committee) || (committees[0]?.key || ""),
+      bankName: String(one.bankname ?? ""),
+      personName: String(one.name ?? ""),
+      role: String(one.role ?? ""),
+      createat: String(one.createat ?? ""),
+      bankLogoPath: String(one.banklogo ?? ""),
+      profilePath: String(one.profile ?? ""),
+    };
+
+    applySnapshot(snap);
+    loadedSnapshot.value = snap;
+
+    await showToast("success", "Loaded successfully");
+  } catch (err) {
+    if (err?.name === "AbortError") return;
+    console.error(err);
+    await showToast("error", err?.message || "Failed to load data");
+  } finally {
+    loading.value = false;
+  }
+}
+
+function resetToLoaded() {
+  applySnapshot(loadedSnapshot.value);
+  gsap.fromTo(cardEl.value, { x: -6 }, { x: 0, duration: 0.35, ease: "elastic.out(1, 0.45)" });
+}
+
+async function reload() {
+  await fetchOne();
+}
+
+/* ===================== */
+/* Save (multipart/form-data) */
+/* ===================== */
 async function onSubmit() {
-  form.timestamp = nowTimestamp();
+  if (!id.value) {
+    await showToast("error", "Missing id");
+    return;
+  }
 
   if (!validate()) {
     gsap.fromTo(cardEl.value, { x: -6 }, { x: 0, duration: 0.35, ease: "elastic.out(1, 0.45)" });
     return;
   }
 
-  // ✅ multipart/form-data
   const fd = new FormData();
-  fd.append("committee", form.committee);
-  fd.append("bankName", form.bankName);
-  fd.append("role", form.role);
-  fd.append("personName", form.personName);
-  fd.append("timestamp", form.timestamp);
 
-  if (form.bankLogo) fd.append("bankLogo", form.bankLogo);
-  if (form.profileImage) fd.append("profileImage", form.profileImage);
+  fd.append("idboarddirector", String(form.idboarddirector || id.value));
+  fd.append("committee", form.committee);
+  fd.append("bankname", form.bankName);
+  fd.append("name", form.personName);
+  fd.append("role", form.role);
+
+  if (form.createat) fd.append("createat", form.createat);
+
+  if (form.bankLogo) fd.append("banklogo", form.bankLogo);
+  else fd.append("banklogo", form.bankLogoPath || "");
+
+  if (form.profileImage) fd.append("profile", form.profileImage);
+  else fd.append("profile", form.profilePath || "");
 
   saving.value = true;
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 20000);
 
-    const res = await fetch(INSERT_URL, {
-      method: "POST",
+    let res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
+      method: "PUT",
       body: fd,
       signal: controller.signal,
     });
+
+    if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 415)) {
+      res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
+        method: "PATCH",
+        body: fd,
+        signal: controller.signal,
+      });
+    }
 
     clearTimeout(t);
 
@@ -616,36 +773,54 @@ async function onSubmit() {
     }
 
     if (!res.ok) {
-      throw new Error(data?.message || `Insert failed (HTTP ${res.status})`);
+      throw new Error(data?.message || `Update failed (HTTP ${res.status})`);
     }
 
-    // ✅ get new id for highlight
-    const newId = extractInsertedId(data);
+    await showToast("success", data?.message || "Board Director updated successfully!");
 
-    // ✅ SUCCESS: show alert with View / Close
-    await showToast("success", data?.message || "Board Director saved successfully!", {
-      persistent: true,
-      onClose: () => {
-        gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
-        resetForm();
-      },
-      onView: () => {
-        resetForm();
-        // ✅ pass highlight id to view page
-        if (newId) {
-          router.push({ path: "/board_directorview", query: { highlight: String(newId) } });
-        } else {
-          router.push("/board_directorview");
-        }
-      },
-    });
+    // refresh snapshot
+    if (data) {
+      const one = unwrapApiOne(data) || null;
+      if (one) {
+        const snap = {
+          idboarddirector: String(one.idboarddirector ?? form.idboarddirector ?? id.value),
+          committee: parseCommitteeValue(one.committee) || form.committee,
+          bankName: String(one.bankname ?? form.bankName),
+          personName: String(one.name ?? form.personName),
+          role: String(one.role ?? form.role),
+          createat: String(one.createat ?? form.createat),
+          bankLogoPath: String(one.banklogo ?? form.bankLogoPath),
+          profilePath: String(one.profile ?? form.profilePath),
+        };
+        loadedSnapshot.value = snap;
+        applySnapshot(snap);
+      } else {
+        loadedSnapshot.value = snapshotCurrent();
+      }
+    } else {
+      loadedSnapshot.value = snapshotCurrent();
+    }
+
+    gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
+
+    /** ✅ NEW: redirect กลับหน้า view/list แล้ว highlight แถวที่แก้ */
+    if (redirectTimer) clearTimeout(redirectTimer);
+    redirectTimer = setTimeout(() => {
+      router.push({
+        path: LIST_PATH,
+        query: {
+          highlight: String(id.value),
+          ts: String(Date.now()),
+        },
+      });
+    }, 450);
   } catch (err) {
     const msg =
       err?.name === "AbortError"
         ? "Request timeout. Server slow or route not responding."
         : err?.message || "Something went wrong.";
 
-    await showToast("error", msg, { persistent: false });
+    await showToast("error", msg);
   } finally {
     saving.value = false;
   }
@@ -659,7 +834,7 @@ function chipHover(e, enter) {
   gsap.to(e.currentTarget, { scale: enter ? 1.02 : 1, duration: 0.18, ease: "power2.out" });
 }
 
-onMounted(() => {
+onMounted(async () => {
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
@@ -669,18 +844,21 @@ onMounted(() => {
     { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 },
     0.08
   );
+
+  await fetchOne();
 });
 
 onBeforeUnmount(() => {
   if (toastTimer) clearTimeout(toastTimer);
+  if (abortCtrl) abortCtrl.abort();
+  if (redirectTimer) clearTimeout(redirectTimer);
   revoke(logoUrl);
   revoke(profileUrl);
 });
 </script>
-
 <style scoped>
 /* =========================
-   TECH THEME (DARK BLUE)
+   TECH THEME (DARK BLUE) - SAME AS INSERT
    ========================= */
 .page.tech {
   --bg0: #050914;
@@ -713,7 +891,6 @@ onBeforeUnmount(() => {
   background-size: 46px 46px;
   mask-image: radial-gradient(circle at 35% 18%, black 0%, transparent 60%);
 }
-
 .glow {
   position: fixed;
   pointer-events: none;
@@ -746,11 +923,11 @@ onBeforeUnmount(() => {
 .toast {
   pointer-events: auto;
   min-width: 320px;
-  max-width: 460px;
+  max-width: 420px;
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 44px 1fr 36px;
   gap: 10px;
-  align-items: start;
+  align-items: center;
 
   padding: 12px 12px;
   border-radius: 18px;
@@ -779,7 +956,12 @@ onBeforeUnmount(() => {
   border-color: rgba(248, 113, 113, 0.28);
 }
 .toast.error::before {
-  background: linear-gradient(90deg, rgba(248, 113, 113, 0.55), rgba(99, 102, 241, 0.18), rgba(248, 113, 113, 0.55));
+  background: linear-gradient(
+    90deg,
+    rgba(248, 113, 113, 0.55),
+    rgba(99, 102, 241, 0.18),
+    rgba(248, 113, 113, 0.55)
+  );
 }
 
 .toastIcon {
@@ -801,7 +983,7 @@ onBeforeUnmount(() => {
 .toastBody {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 .toastTitle {
   font-weight: 1000;
@@ -815,43 +997,26 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 1.35;
 }
-
-/* ✅ Toast action buttons */
-.toastActions {
-  margin-top: 6px;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-.toastAct {
-  border-radius: 12px;
-  padding: 8px 10px;
-  cursor: pointer;
+.toastClose {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 900;
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
 }
-.toastAct.primary {
-  border-color: rgba(56, 189, 248, 0.35);
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.28), rgba(99, 102, 241, 0.14));
-}
-.toastAct:hover {
+.toastClose:hover {
   border-color: rgba(56, 189, 248, 0.25);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
 
-/* Layout (sidebar removed) */
+/* Layout */
 .layout {
   width: 100%;
 }
-
-/* Content */
 .content {
   display: flex;
   flex-direction: column;
@@ -902,6 +1067,18 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.86);
   font-weight: 700;
 }
+.pillSoft.mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 800;
+  font-size: 12px;
+}
 
 /* Card */
 .card {
@@ -931,8 +1108,12 @@ onBeforeUnmount(() => {
   animation: holo 7s linear infinite;
 }
 @keyframes holo {
-  0% { transform: translateX(-16%); }
-  100% { transform: translateX(16%); }
+  0% {
+    transform: translateX(-16%);
+  }
+  100% {
+    transform: translateX(16%);
+  }
 }
 .cardTop {
   display: flex;
@@ -1003,7 +1184,7 @@ onBeforeUnmount(() => {
 .divider {
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.12), rgba(255,255,255,0));
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
   margin: 6px 0 2px;
 }
 .sectionTitle {
@@ -1011,7 +1192,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   font-weight: 900;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   padding: 6px 0;
 }
 
@@ -1048,6 +1229,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 16px 34px rgba(56, 189, 248, 0.12);
 }
+
 .cIcon {
   width: 18px;
   display: grid;
@@ -1068,6 +1250,7 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.95);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
 }
+
 .committeePill {
   margin-left: auto;
   display: inline-flex;
@@ -1108,6 +1291,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   font-weight: 900;
 }
+
 .fileHidden {
   position: absolute;
   width: 1px;
@@ -1115,6 +1299,7 @@ onBeforeUnmount(() => {
   opacity: 0;
   pointer-events: none;
 }
+
 .imgBox {
   width: 100%;
   height: 220px;
@@ -1173,6 +1358,7 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 10px;
   padding-top: 6px;
+  flex-wrap: wrap;
 }
 .btn {
   border-radius: 14px;
@@ -1320,6 +1506,30 @@ onBeforeUnmount(() => {
 .avatarEmpty {
   color: rgba(255, 255, 255, 0.7);
   font-size: 34px;
+}
+
+/* small badge + path hint */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 900;
+  font-size: 12px;
+}
+.pathHint {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  word-break: break-all;
 }
 
 /* responsive */

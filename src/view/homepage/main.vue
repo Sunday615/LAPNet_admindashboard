@@ -40,6 +40,44 @@
         <span class="cardSheen" />
       </div>
 
+     <!-- Announcement -->
+      <div
+        ref="announcementCardEl"
+        class="statCard js-reveal clickable"
+        role="button"
+        tabindex="0"
+        @click="goAnnouncement"
+        @keydown.enter.prevent="goAnnouncement"
+        @keydown.space.prevent="goAnnouncement"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
+        <div class="statTop">
+          <div class="statIcon">
+            <i class="fa-solid fa-bullhorn"></i>
+          </div>
+          <button class="statRefresh" type="button" @click.stop="fetchAnnouncementTotal" title="Refresh">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+
+        <div class="statLabel">Total Announcement</div>
+
+        <div class="statValue">
+          <span v-if="announcementLoading" class="loadingWrap">
+            <span class="spinner"></span>
+            Loading...
+          </span>
+          <span v-else-if="announcementError" class="statError">{{ announcementError }}</span>
+          <span v-else>{{ announcementTotal }}</span>
+        </div>
+
+        <div class="statHint">
+          {{ ANNOUNCE_API.replace(API_BASE, "") }}
+        </div>
+        <span class="statGlow" />
+        <span class="cardSheen" />
+      </div>
       <!-- News -->
       <div
         ref="newsCardEl"
@@ -118,44 +156,47 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Announcement -->
+      
+
+       <!-- Board Director (NEW) -->
       <div
-        ref="announcementCardEl"
+        ref="boardCardEl"
         class="statCard js-reveal clickable"
         role="button"
         tabindex="0"
-        @click="goAnnouncement"
-        @keydown.enter.prevent="goAnnouncement"
-        @keydown.space.prevent="goAnnouncement"
+        @click="goBoardDirector"
+        @keydown.enter.prevent="goBoardDirector"
+        @keydown.space.prevent="goBoardDirector"
         @mouseenter="cardHover($event, true)"
         @mouseleave="cardHover($event, false)"
       >
         <div class="statTop">
           <div class="statIcon">
-            <i class="fa-solid fa-bullhorn"></i>
+            <i class="fa-solid fa-user-tie"></i>
           </div>
-          <button class="statRefresh" type="button" @click.stop="fetchAnnouncementTotal" title="Refresh">
+          <button class="statRefresh" type="button" @click.stop="fetchBoardTotal" title="Refresh">
             <i class="fa-solid fa-rotate-right"></i>
           </button>
         </div>
 
-        <div class="statLabel">Total Announcement</div>
+        <div class="statLabel">Total Board Director</div>
 
         <div class="statValue">
-          <span v-if="announcementLoading" class="loadingWrap">
+          <span v-if="boardLoading" class="loadingWrap">
             <span class="spinner"></span>
             Loading...
           </span>
-          <span v-else-if="announcementError" class="statError">{{ announcementError }}</span>
-          <span v-else>{{ announcementTotal }}</span>
+          <span v-else-if="boardError" class="statError">{{ boardError }}</span>
+          <span v-else>{{ boardTotal }}</span>
         </div>
 
         <div class="statHint">
-          {{ ANNOUNCE_API.replace(API_BASE, "") }}
+          {{ BOARD_API.replace(API_BASE, "") }}
         </div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
+
 
       <!-- Graph Card -->
       <div ref="chartCardEl" class="chartCard js-reveal">
@@ -247,7 +288,13 @@
         <div ref="chartWrapEl" class="chartWrap" @mouseleave="clearHover">
           <div class="chartBgNoise"></div>
 
-          <svg class="chartSvg" viewBox="0 0 900 280" preserveAspectRatio="none" @mousemove="onChartMove" @touchmove.prevent="onChartMove">
+          <svg
+            class="chartSvg"
+            viewBox="0 0 900 280"
+            preserveAspectRatio="none"
+            @mousemove="onChartMove"
+            @touchmove.prevent="onChartMove"
+          >
             <defs>
               <linearGradient id="glowSweep" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stop-color="rgba(56,189,248,0)" />
@@ -448,9 +495,6 @@
         <span class="chartGlow" />
         <span class="cardSheen" />
       </div>
-
-
-  
     </div>
   </div>
 </template>
@@ -466,6 +510,10 @@ const dashEl = ref(null);
 function goMembers() {
   router.push("/members");
 }
+function goBoardDirector() {
+  // เปลี่ยน path ให้ตรงกับ route ของคุณได้ เช่น "/boarddirector" หรือ "/boarddirectors"
+  router.push("/Board_directorview");
+}
 function goNews() {
   router.push("/news");
 }
@@ -477,6 +525,7 @@ function goAnnouncement() {
 }
 
 const statCardEl = ref(null);
+const boardCardEl = ref(null); // NEW
 const newsCardEl = ref(null);
 const jobsCardEl = ref(null);
 const announcementCardEl = ref(null);
@@ -487,12 +536,14 @@ const calendarCardEl = ref(null);
 /* API base */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const MEMBERS_API = `${API_BASE}/api/members`;
+const BOARD_API = `${API_BASE}/api/boarddirector`; // NEW (ปรับ endpoint ให้ตรงกับ backend ของคุณ)
 const NEWS_API = `${API_BASE}/api/news`;
 const JOBS_API = `${API_BASE}/api/jobs`;
 const ANNOUNCE_API = `${API_BASE}/api/announcement`;
 
 /* Raw items */
 const memberItems = ref([]);
+const boardItems = ref([]); // NEW
 const newsItems = ref([]);
 const jobItems = ref([]);
 const announcementItems = ref([]);
@@ -529,6 +580,12 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
       ? data.jobs
       : Array.isArray(data?.announcement)
       ? data.announcement
+      : Array.isArray(data?.boarddirectors)
+      ? data.boarddirectors
+      : Array.isArray(data?.boarddirector)
+      ? data.boarddirector
+      : Array.isArray(data?.directors)
+      ? data.directors
       : [];
 
     itemsRef.value = list;
@@ -555,6 +612,19 @@ async function fetchMemberTotal() {
   if (!list) return;
   memberTotal.value = list.length;
   if (statCardEl.value) gsap.fromTo(statCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+}
+
+/* Board Director total (NEW) */
+const boardTotal = ref(0);
+const boardLoading = ref(false);
+const boardError = ref("");
+const boardAbortCtrl = ref(null);
+
+async function fetchBoardTotal() {
+  const list = await fetchList(BOARD_API, boardAbortCtrl, boardLoading, boardError, boardItems);
+  if (!list) return;
+  boardTotal.value = list.length;
+  if (boardCardEl.value) gsap.fromTo(boardCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
 
 /* News total */
@@ -606,6 +676,7 @@ async function fetchAnnouncementTotal() {
 
 function refreshAll() {
   fetchMemberTotal();
+  fetchBoardTotal(); // NEW
   fetchNewsTotal();
   fetchJobTotal();
   fetchAnnouncementTotal();
@@ -789,9 +860,8 @@ const activeSeries = computed(() => {
   }
 });
 
-const anyLoading = computed(
-  () => memberLoading.value || newsLoading.value || jobLoading.value || announcementLoading.value
-);
+// NOTE: chart loading/error ไม่รวม boarddirector (เพราะไม่ได้เอาไปคำนวณกราฟ)
+const anyLoading = computed(() => memberLoading.value || newsLoading.value || jobLoading.value || announcementLoading.value);
 
 const anyError = computed(() => {
   const e = memberError.value || newsError.value || jobError.value || announcementError.value;
@@ -1045,7 +1115,7 @@ watch([rangeKey, categoryKey, anyLoading, anyError], async () => {
   }
 });
 
-/* Calendar */
+/* Calendar (เดิม) */
 const CAL_STORAGE_KEY = "lapnet_admin_calendar_events_v1";
 
 const eventTypes = [
@@ -1263,6 +1333,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   memberAbortCtrl.value?.abort?.();
+  boardAbortCtrl.value?.abort?.(); // NEW
   newsAbortCtrl.value?.abort?.();
   jobAbortCtrl.value?.abort?.();
   announcementAbortCtrl.value?.abort?.();

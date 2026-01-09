@@ -1,15 +1,14 @@
 <!-- CompanyStructureInsert.vue
      ✅ Sidebar removed (using global sidebar in App.vue)
+     ✅ UPDATED: "Head of Department" -> "Row" (Dropdown items: 1,2,3,4)
 -->
+<!-- CompanyStructureInsert.vue -->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
     <div class="glow glow-b"></div>
 
     <main class="layout">
-      <!-- ===================== -->
-      <!-- RIGHT CONTENT -->
-      <!-- ===================== -->
       <section class="content">
         <header ref="headEl" class="head js-reveal">
           <div class="headLeft">
@@ -25,7 +24,7 @@
 
             <div>
               <div class="title">Company Structure</div>
-              <div class="sub">Add employee image + name + role + department + head of department</div>
+              <div class="sub">Add employee image + name + role + department + row</div>
             </div>
           </div>
 
@@ -41,9 +40,6 @@
           </div>
 
           <form class="form" @submit.prevent="onSubmit">
-            <!-- ===================== -->
-            <!-- EMPLOYEE BASIC -->
-            <!-- ===================== -->
             <div class="row">
               <label class="label">
                 <span>Employee Name</span>
@@ -55,7 +51,7 @@
               </label>
 
               <label class="label">
-                <span>Role / Position</span>
+                <span>Role </span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-id-badge"></i>
                   <input v-model.trim="form.role" class="inp" type="text" placeholder="e.g. Senior Developer" />
@@ -64,7 +60,7 @@
               </label>
             </div>
 
-            <div class="row">
+            <div class="row single">
               <label class="label">
                 <span>Department</span>
                 <div class="inputWrap">
@@ -77,24 +73,24 @@
                 </div>
                 <div v-if="errors.department" class="err">{{ errors.department }}</div>
               </label>
+            </div>
 
+            <div class="row single">
               <label class="label">
-                <span>Head of Department</span>
+                <span>Position</span>
                 <div class="inputWrap">
-                  <i class="fa-solid fa-crown"></i>
-                  <select v-model="form.isHead" class="inp select">
-                    <option :value="false">No</option>
-                    <option :value="true">Yes</option>
+                  <i class="fa-solid fa-layer-group"></i>
+                  <select v-model="form.row" class="inp select">
+                    <option value="" disabled>ເລືອກຕຳແໜ່ງ</option>
+                    <option v-for="x in rowItems" :key="x" :value="x">{{ x }}</option>
                   </select>
                 </div>
+                <div v-if="errors.row" class="err">{{ errors.row }}</div>
               </label>
             </div>
 
             <div class="divider"></div>
 
-            <!-- ===================== -->
-            <!-- UPLOAD + PREVIEW -->
-            <!-- ===================== -->
             <div class="sectionTitle js-reveal">
               <i class="fa-regular fa-image"></i> Upload & Preview
             </div>
@@ -150,9 +146,9 @@
                       <div v-else class="avatarEmpty"><i class="fa-solid fa-user"></i></div>
                     </div>
 
-                    <div class="statusPill" :class="{ head: form.isHead }">
+                    <div class="statusPill" :class="{ head: form.row === '1' }">
                       <span class="dot"></span>
-                      <span>{{ form.isHead ? "Head of Department" : "Employee" }}</span>
+                      <span>{{ form.row ? `Row ${form.row}` : "Row" }}</span>
                     </div>
                   </div>
 
@@ -166,9 +162,9 @@
                         {{ form.department || "Department" }}
                       </span>
 
-                      <span class="metaChip" :class="{ head: form.isHead }">
-                        <i class="fa-solid fa-crown"></i>
-                        {{ form.isHead ? "Head" : "Staff" }}
+                      <span class="metaChip" :class="{ head: form.row === '1' }">
+                        <i class="fa-solid fa-layer-group"></i>
+                        {{ form.row ? `ຕຳແໜ່ງ ${form.row}` : "Row" }}
                       </span>
                     </div>
 
@@ -181,9 +177,6 @@
               </div>
             </div>
 
-            <!-- ===================== -->
-            <!-- ACTIONS -->
-            <!-- ===================== -->
             <div ref="actionsEl" class="actions js-reveal">
               <button
                 class="btn ghost"
@@ -195,19 +188,36 @@
                 <i class="fa-solid fa-rotate-left"></i> Reset
               </button>
 
-              <button class="btn primary" type="submit" @mouseenter="btnHover($event, true)" @mouseleave="btnHover($event, false)">
-                <i class="fa-solid fa-floppy-disk"></i> Save Employee
+              <button
+                class="btn primary"
+                type="submit"
+                :disabled="saving"
+                @mouseenter="btnHover($event, true)"
+                @mouseleave="btnHover($event, false)"
+              >
+                <i class="fa-solid fa-floppy-disk"></i>
+                {{ saving ? "Saving..." : "Save Employee" }}
               </button>
             </div>
           </form>
         </section>
       </section>
     </main>
+
+    <!-- ✅ Toast -->
+    <Teleport to="body">
+      <div v-if="toast.open" class="toast" :class="toast.type">
+        <i v-if="toast.type === 'success'" class="fa-solid fa-circle-check"></i>
+        <i v-else-if="toast.type === 'error'" class="fa-solid fa-circle-xmark"></i>
+        <i v-else class="fa-solid fa-circle-info"></i>
+        <div class="toastText">{{ toast.text }}</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 
@@ -218,19 +228,11 @@ const cardEl = ref(null);
 const actionsEl = ref(null);
 const fileEl = ref(null);
 
-const departments = [
-  "Engineering",
-  "Product",
-  "Design",
-  "Operations",
-  "Finance",
-  "HR",
-  "Marketing",
-  "Sales",
-  "Customer Support",
-  "Compliance",
-  "Other",
-];
+const departments = ["CEO", "COO", "Administration", "Finance & Accounting", "IT", "Operation", "Internal Audit"];
+const rowItems = ["ຜູ້ອຳນວຍການ", "ຮອງຜູ້ອຳນວຍການ", "ຫົວຫນ້າພະແນກ", "ຮອງຫົວໜ້າພະແນກ", "ວິຊາການ"];
+
+const API_BASE = import.meta.env?.VITE_API_BASE_URL || "http://localhost:3000";
+const EMP_API = `${API_BASE}/api/emp_lapnet`;
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -246,7 +248,7 @@ const form = reactive({
   empName: "",
   role: "",
   department: "",
-  isHead: false,
+  row: "",
   timestamp: nowTimestamp(),
   image: null,
 });
@@ -255,8 +257,20 @@ const errors = reactive({
   empName: "",
   role: "",
   department: "",
+  row: "",
   image: "",
 });
+
+const saving = ref(false);
+
+// Toast
+const toast = ref({ open: false, type: "success", text: "" });
+let toastTimer = null;
+function showToast(type, text) {
+  toast.value = { open: true, type, text };
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value.open = false), 2200);
+}
 
 const imagePreview = ref("");
 let lastObjectUrl = "";
@@ -273,6 +287,7 @@ function validate() {
   setError("empName", form.empName ? "" : "Employee name is required.");
   setError("role", form.role ? "" : "Role is required.");
   setError("department", form.department ? "" : "Department is required.");
+  setError("row", form.row ? "" : "Position is required.");
   setError("image", form.image ? "" : "Employee image is required.");
   return !Object.values(errors).some(Boolean);
 }
@@ -309,33 +324,56 @@ function resetForm() {
   form.empName = "";
   form.role = "";
   form.department = "";
-  form.isHead = false;
+  form.row = "";
   form.timestamp = nowTimestamp();
   clearImage();
   Object.keys(errors).forEach((k) => (errors[k] = ""));
 }
 
-function onSubmit() {
+async function onSubmit() {
   form.timestamp = nowTimestamp();
 
   if (!validate()) {
     gsap.fromTo(cardEl.value, { x: -6 }, { x: 0, duration: 0.35, ease: "elastic.out(1, 0.45)" });
+    showToast("error", "Please fill all required fields.");
     return;
   }
 
-  const payload = {
-    empName: form.empName,
-    role: form.role,
-    department: form.department,
-    isHead: form.isHead,
-    timestamp: form.timestamp,
-    image: form.image ? { name: form.image.name, size: form.image.size, type: form.image.type } : null,
-  };
+  try {
+    saving.value = true;
 
-  console.log("COMPANY STRUCTURE SUBMIT:", payload);
+    // ✅ map frontend -> DB fields
+    const fd = new FormData();
+    fd.append("name", form.empName);
+    fd.append("role", form.role);
+    fd.append("department", form.department);
+    fd.append("position", form.row);        // DB = position
+    fd.append("create_at", form.timestamp); // DB = create_at
+    if (form.image) fd.append("image", form.image);
 
-  gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
-  resetForm();
+    const res = await fetch(EMP_API, { method: "POST", body: fd });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${txt}`);
+    }
+
+    const created = await res.json();
+    showToast("success", `Saved: ${created?.name || "Employee"}`);
+
+    gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
+
+    // ✅ redirect to list page + highlight row (ปรับ path ตามโปรเจคคุณ)
+    // ตัวอย่าง: "/company_structure_list"
+    await nextTick();
+    resetForm();
+
+    router.push({ path: "/company_structure_list", query: { highlight: String(created.emp_id) } });
+  } catch (e) {
+    console.error(e);
+    showToast("error", "Save failed. Check API / DB.");
+  } finally {
+    saving.value = false;
+  }
 }
 
 /* GSAP hover helpers */
@@ -344,7 +382,6 @@ function btnHover(e, enter) {
 }
 
 onMounted(() => {
-  // entrance animation (no sidebar)
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
@@ -358,10 +395,13 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   revoke(lastObjectUrl);
+  if (toastTimer) clearTimeout(toastTimer);
 });
 </script>
 
 <style scoped>
+
+ 
 /* =========================
    TECH THEME (DARK BLUE)
    ========================= */
@@ -535,6 +575,9 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+.row.single {
+  grid-template-columns: 1fr;
 }
 .label > span {
   display: block;
@@ -741,6 +784,36 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.7);
   font-size: 34px;
 }
+
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 11000;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(7, 14, 35, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55);
+  font-weight: 950;
+  animation: toastIn 0.24s ease-out;
+}
+@keyframes toastIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast.success { border-color: rgba(34, 197, 94, 0.22); }
+.toast.success i { color: rgba(34, 197, 94, 0.95); }
+.toast.error { border-color: rgba(239, 68, 68, 0.25); }
+.toast.error i { color: rgba(239, 68, 68, 0.95); }
+.toast.info { border-color: rgba(56, 189, 248, 0.22); }
+.toast.info i { color: rgba(56, 189, 248, 0.95); }
+.toastText { color: rgba(255, 255, 255, 0.9); font-size: 13px; }
+
 
 .statusPill {
   display: inline-flex;

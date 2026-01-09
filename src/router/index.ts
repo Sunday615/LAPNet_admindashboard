@@ -16,6 +16,8 @@ import membersedit from '../view/display/member/MembersEdit.vue.vue'
 import newsedit from '../view/display/news/newsedit.vue'
 import announcementedit from '../view/announcement/announcementedit.vue'
 import jobedit from '../view/display/job/jobedit.vue'
+import Board_directorview from '../view/board_director/board_directorview.vue'
+import Board_directoredit from '../view/board_director/board_directoredit.vue'
 const routes = [
   {
     path: '/',
@@ -92,6 +94,16 @@ const routes = [
     path: '/board_director',
     name: 'board_director',
     component: Board_director,
+  },
+   {
+    path: '/board_directorview',
+    name: 'board_directorview',
+    component: Board_directorview,
+  },
+   {
+    path: '/boarddirectoredit',
+    name: 'board_directoredit',
+    component: Board_directoredit,
   },
    {
     path: '/lapnet_employee',

@@ -613,6 +613,33 @@ const memberFlags = computed(() => ({
   membercrossborder: (form.Crossborder?.items?.length || 0) > 0 ? 1 : 0,
 }));
 
+/* ✅ NEW: mapping flags to your new DB columns */
+const productFlags = computed(() => {
+  const atm = Array.isArray(form.CardATM?.items) ? form.CardATM.items : [];
+  const mobile = Array.isArray(form.Mbbanking?.items) ? form.Mbbanking.items : [];
+  const cross = Array.isArray(form.Crossborder?.items) ? form.Crossborder.items : [];
+
+  const atminquery = atm.includes(productOptionsATM[0]) ? 1 : 0;
+  const atmcashwithdraw = atm.includes(productOptionsATM[1]) ? 1 : 0;
+  const atmtransfer = atm.includes(productOptionsATM[2]) ? 1 : 0;
+
+  const mobiletransfer =
+    mobile.includes(productOptionsMBbaking[0]) || mobile.includes(productOptionsMBbaking[1]) ? 1 : 0;
+
+  const qrpayment = mobile.includes(productOptionsMBbaking[2]) ? 1 : 0;
+
+  const crossborderproduct = (cross.length || 0) > 0 ? 1 : 0;
+
+  return {
+    atminquery,
+    atmcashwithdraw,
+    atmtransfer,
+    mobiletransfer,
+    qrpayment,
+    crossborderproduct,
+  };
+});
+
 /** ✅ select all helpers */
 function getSectionArray(section) {
   if (section === "atm") return form.CardATM.items;
@@ -809,6 +836,14 @@ async function onSubmit() {
     fd.append("membermobile", String(memberFlags.value.membermobile));
     fd.append("membercrossborder", String(memberFlags.value.membercrossborder));
 
+    /* ✅ NEW: send your new tinyint flags */
+    fd.append("atminquery", String(productFlags.value.atminquery));
+    fd.append("atmcashwithdraw", String(productFlags.value.atmcashwithdraw));
+    fd.append("atmtransfer", String(productFlags.value.atmtransfer));
+    fd.append("mobiletransfer", String(productFlags.value.mobiletransfer));
+    fd.append("qrpayment", String(productFlags.value.qrpayment));
+    fd.append("crossborderproduct", String(productFlags.value.crossborderproduct));
+
     if (form.image) fd.append("image", form.image);
 
     const { data } = await api.post("/api/members", fd, {
@@ -816,7 +851,8 @@ async function onSubmit() {
     });
 
     console.log("INSERT OK:", data);
-    console.log("SENT FLAGS:", memberFlags.value);
+    console.log("SENT FLAGS (memberFlags):", memberFlags.value);
+    console.log("SENT FLAGS (productFlags):", productFlags.value);
 
     gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
 
@@ -952,7 +988,7 @@ onBeforeUnmount(() => {
    LAYOUT (no sidebar)
    ========================= */
 .layout {
-    display: grid;
+  display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
   align-items: start;
@@ -1387,7 +1423,7 @@ onBeforeUnmount(() => {
 .fileHidden {
   position: absolute;
   width: 1px;
-  height: 1px;
+  height: 0;
   opacity: 0;
   pointer-events: none;
 }

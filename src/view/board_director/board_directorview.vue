@@ -15,7 +15,7 @@
         <!-- Search this page -->
         <div class="searchWrap">
           <span class="searchIcon"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input v-model="q" class="search" placeholder="Search members..." />
+          <input v-model="q" class="search" placeholder="Search board directors..." />
         </div>
 
         <div class="topActions">
@@ -24,7 +24,7 @@
             type="button"
             aria-label="Refresh"
             title="Refresh"
-            @click="fetchMembers"
+            @click="fetchDirectors"
             @mouseenter="iconHover($event, true)"
             @mouseleave="iconHover($event, false)"
           >
@@ -42,12 +42,12 @@
       </header>
 
       <section class="mainBody">
-        <!-- ===== Members Content ===== -->
+        <!-- ===== Board Director Content ===== -->
         <div class="membersPage">
           <!-- Header -->
           <div class="pageTop js-reveal">
             <div class="titleBlock">
-              <div class="pageTitle">Comercials Banks</div>
+              <div class="pageTitle">Board Director</div>
             </div>
 
             <div class="actions">
@@ -68,9 +68,9 @@
           <div class="metaRow js-reveal">
             <div class="metaPill">
               <i class="fa-solid fa-database"></i>
-              <span>ທະນາຄານສະມາຊິກທັງໝົດ:</span>
-              <b>{{ members.length }}</b>
-              <span>ທະນາຄານ</span>
+              <span>Total:</span>
+              <b>{{ directors.length }}</b>
+              <span>records</span>
             </div>
 
             <div class="metaPill" v-if="loading">
@@ -85,15 +85,16 @@
 
             <div class="metaPill" v-else>
               <i class="fa-solid fa-list"></i>
-              <span>ຄົ້ນຫາພົບ :</span>
+              <span>Found:</span>
               <b>{{ rows.length }}</b>
-              <span>ທະນາຄານ</span>
+              <span>records</span>
             </div>
 
-            <router-link to="/memberinsert">
+            <!-- ✅ ไปหน้า insert -->
+            <router-link to="/board_director">
               <div class="metaPill" id="add_member">
                 <i class="fa-solid fa-plus"></i>
-                <span>ເພີ່ມທະນາຄານສະມາຊິກ</span>
+                <span>Add Board Director</span>
                 <b></b>
               </div>
             </router-link>
@@ -128,45 +129,53 @@
                 <tr
                   v-for="(m, localIdx) in pageRows"
                   :key="rowKey(m, localIdx)"
+                  :data-rowid="String(rowKey(m, localIdx))"
                   class="tr"
                   @click="openOverlay(m)"
                   @mouseenter="rowHover($event, true)"
                   @mouseleave="rowHover($event, false)"
                 >
-                  <td
-                    v-for="col in tableCols"
-                    :key="col"
-                    class="td"
-                    :class="{ fullText: isFullTextCol(col) }"
-                  >
-                    <!-- ✅ idmember = running number across ALL filtered rows -->
-                    <template v-if="isIdMemberCol(col)">
+                  <td v-for="col in tableCols" :key="col" class="td" :class="{ fullText: isFullTextCol(col) }">
+                    <!-- ✅ No + banklogo mini -->
+                    <template v-if="isNoCol(col)">
                       <div class="idCell">
                         <div>{{ pageStart + localIdx + 1 }}</div>
-                        <img v-if="logoUrlOf(m)" class="logoMini" :src="logoUrlOf(m)" alt="Logo" />
+                        <img v-if="bankLogoUrlOf(m)" class="logoMini" :src="bankLogoUrlOf(m)" alt="Bank logo" />
                       </div>
                     </template>
 
-                    <!-- ✅ LinkFB / LinkWeb => button with icon -->
-                    <template v-else-if="isLinkField(col)">
-                      <template v-if="safeUrl(m?.[col])">
-                        <a
-                          class="linkBtn"
-                          :class="isFacebookKey(col) ? 'fb' : 'web'"
-                          :href="safeUrl(m?.[col])"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          @click.stop
-                          :title="isFacebookKey(col) ? 'Open Facebook' : 'Open Website'"
+                    <!-- ✅ Committee: box + icon เหมือนหน้า insert -->
+                    <template v-else-if="isCommitteeCol(col)">
+                      <div class="chips" @click.stop>
+                        <span
+                          v-for="(c, i) in committeeItems(m?.committee)"
+                          :key="`c-${i}`"
+                          class="chip"
+                          :class="`chip-${c.key}`"
+                          :title="c.label"
                         >
-                          <i v-if="isFacebookKey(col)" class="fa-brands fa-facebook-f"></i>
-                          <i v-else class="fa-solid fa-globe"></i>
-                          <span class="btnText">{{ isFacebookKey(col) ? "Facebook" : "Website" }}</span>
-                        </a>
-                      </template>
-                      <template v-else>-</template>
+                          <span class="chipLeft">
+                            <span class="chipIconWrap">
+                              <i class="chipIcon" :class="c.icon"></i>
+                            </span>
+                            <span class="chipText">{{ c.label }}</span>
+                          </span>
+                          <span class="chipDot"></span>
+                        </span>
+
+                        <span v-if="committeeItems(m?.committee).length === 0" class="chip chipEmpty">
+                          <span class="chipLeft">
+                            <span class="chipIconWrap">
+                              <i class="chipIcon fa-solid fa-tag"></i>
+                            </span>
+                            <span class="chipText">-</span>
+                          </span>
+                          <span class="chipDot"></span>
+                        </span>
+                      </div>
                     </template>
 
+                    <!-- ✅ Default -->
                     <template v-else>
                       {{ formatCell(m?.[col], col) }}
                     </template>
@@ -238,13 +247,7 @@
 
               <template v-for="p in pageList" :key="`p-${p}`">
                 <span v-if="p === '...'" class="pagerEllipsis">…</span>
-                <button
-                  v-else
-                  class="pagerBtn num"
-                  type="button"
-                  :class="{ on: p === currentPage }"
-                  @click="goPage(p)"
-                >
+                <button v-else class="pagerBtn num" type="button" :class="{ on: p === currentPage }" @click="goPage(p)">
                   {{ p }}
                 </button>
               </template>
@@ -260,7 +263,7 @@
               <div ref="modalEl" class="modal">
                 <div class="modalTop">
                   <div class="modalTitle">
-                    <i class="fa-solid fa-building-columns"></i>
+                    <i class="fa-solid fa-people-group"></i>
                     {{ titleOf(selected) }}
                   </div>
 
@@ -277,82 +280,31 @@
                 </div>
 
                 <div class="modalBody">
+                  <!-- ✅ Images -->
+                  <div class="imageRow">
+                    <div class="imgCard">
+                      <div class="imgLabel">Bank Logo</div>
+                      <img v-if="bankLogoUrlOf(selected)" class="bigImg" :src="bankLogoUrlOf(selected)" alt="Bank logo" />
+                      <div v-else class="imgEmpty">-</div>
+                    </div>
+
+                    <div class="imgCard">
+                      <div class="imgLabel">Profile</div>
+                      <img v-if="profileUrlOf(selected)" class="bigImg" :src="profileUrlOf(selected)" alt="Profile" />
+                      <div v-else class="imgEmpty">-</div>
+                    </div>
+                  </div>
+
+                  <!-- ✅ KV -->
                   <div class="kvGrid">
+                    <div class="kv">
+                      <div class="k">No</div>
+                      <div class="v">{{ selectedRowNo }}</div>
+                    </div>
+
                     <div v-for="item in flatEntries" :key="item.k" class="kv">
                       <div class="k">{{ item.k }}</div>
-
-                      <!-- ✅ Special list -->
-                      <div v-if="item.type === 'list'" class="v">
-                        <div class="listBox" :class="{ cross: item.kind === 'crossborder' }">
-                          <div v-for="(it, i) in item.items" :key="`${item.k}-${i}`" class="neoItem">
-                            <span class="neoDot"></span>
-
-                            <span class="neoText">
-                              {{ item.kind === "crossborder" ? (it?.text ?? "-") : it }}
-                            </span>
-
-                            <span v-if="item.kind === 'crossborder' && it?.flags" class="flagPair">
-                              <img class="flag" :src="flagUrl(it.flags[0])" :alt="it.flags[0]" />
-                              <i class="fa-solid fa-arrow-right-long"></i>
-                              <img class="flag" :src="flagUrl(it.flags[1])" :alt="it.flags[1]" />
-                            </span>
-                          </div>
-
-                          <div v-if="!item.items.length" class="neoEmpty">-</div>
-                        </div>
-                      </div>
-
-                      <!-- ✅ Color.primary / Color.secondary => swatch -->
-                      <div v-else-if="isColorField(item.k)" class="v">
-                        <div class="colorValue">
-                          <span
-                            class="swatch"
-                            :class="{ invalid: !normalizeHex(item.v) }"
-                            :style="normalizeHex(item.v) ? { background: normalizeHex(item.v) } : undefined"
-                            :title="normalizeHex(item.v) ? normalizeHex(item.v) : 'Invalid HEX'"
-                          />
-                          <span class="hexPill">{{ normalizeHex(item.v) || item.v || "-" }}</span>
-                        </div>
-                      </div>
-
-                      <!-- ✅ LinkFB / LinkWeb => button with icon (overlay) -->
-                      <div v-else-if="isLinkField(item.k)" class="v">
-                        <template v-if="safeUrl(item.v)">
-                          <a
-                            class="linkBtn"
-                            :class="isFacebookKey(item.k) ? 'fb' : 'web'"
-                            :href="safeUrl(item.v)"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            @click.stop
-                          >
-                            <i v-if="isFacebookKey(item.k)" class="fa-brands fa-facebook-f"></i>
-                            <i v-else class="fa-solid fa-globe"></i>
-                            <span class="btnText">{{ isFacebookKey(item.k) ? "Facebook" : "Website" }}</span>
-                          </a>
-                          <div class="linkRaw">{{ item.v }}</div>
-                        </template>
-                        <template v-else>
-                          <div>-</div>
-                        </template>
-
-                        <!-- ✅ Logo under idmember -->
-                        <div v-if="isIdMemberCol(item.k) && selectedLogoUrl" class="logoUnderId">
-                          <div class="logoLabel">Logo</div>
-                          <img class="logoImg" :src="selectedLogoUrl" alt="Logo" />
-                        </div>
-                      </div>
-
-                      <!-- ✅ Default -->
-                      <div v-else class="v">
-                        <div>{{ item.v }}</div>
-
-                        <!-- ✅ Logo under idmember -->
-                        <div v-if="isIdMemberCol(item.k) && selectedLogoUrl" class="logoUnderId">
-                          <div class="logoLabel">Logo</div>
-                          <img class="logoImg" :src="selectedLogoUrl" alt="Logo" />
-                        </div>
-                      </div>
+                      <div class="v">{{ item.v }}</div>
                     </div>
                   </div>
                 </div>
@@ -385,7 +337,7 @@
                 </div>
 
                 <div class="confirmTitle">
-                  {{ confirmAction === "delete" ? "Delete Member?" : "Edit Member?" }}
+                  {{ confirmAction === "delete" ? "Delete Board Director?" : "Edit Board Director?" }}
                 </div>
 
                 <div class="confirmText">
@@ -396,7 +348,7 @@
                     {{
                       confirmAction === "delete"
                         ? "This action cannot be undone."
-                        : "You will be redirected to /membersedit."
+                        : "You will be redirected to /boarddirectoredit."
                     }}
                   </div>
                 </div>
@@ -445,10 +397,11 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
 const router = useRouter();
+const route = useRoute();
 
 const rootEl = ref(null);
 const topbarEl = ref(null);
@@ -458,7 +411,7 @@ const userName = "Arkhan";
 /* =========================
    DATA
    ========================= */
-const members = ref([]);
+const directors = ref([]);
 const loading = ref(false);
 const error = ref("");
 
@@ -476,7 +429,7 @@ const modalEl = ref(null);
 let abortCtrl = null;
 
 /* =========================
-   ✅ Busy state per row
+   Busy state per row
    ========================= */
 const busyById = ref({});
 function setBusy(id, v) {
@@ -488,7 +441,7 @@ function isBusy(m) {
 }
 
 /* =========================
-   ✅ Shared Confirm state (Edit/Delete)
+   Confirm state (Edit/Delete)
    ========================= */
 const confirmOpen = ref(false);
 const confirmLoading = ref(false);
@@ -499,20 +452,132 @@ const confirmEl = ref(null);
 const confirmName = computed(() => titleOf(confirmTarget.value));
 
 /* =========================
-   ✅ Toast
+   Toast
    ========================= */
 const toast = ref({ open: false, type: "success", text: "" });
 const toastEl = ref(null);
 let toastTimer = null;
 
 /* =========================
-   ✅ GSAP modern helpers
+   Committee (box + icon)  ✅ FIX: key เป็น slug ให้ตรงกับ CSS
+   ========================= */
+function isCommitteeCol(col) {
+  return String(col || "").toLowerCase() === "committee";
+}
+
+// ใส่ key เป็น slug (ใช้กับ class chip-xxx) + label เป็นภาษาที่จะแสดง
+// aliases รองรับหลายรูปแบบจาก backend
+const COMMITTEES = [
+  {
+    key: "president",
+    label: "ປະທານສະພາບໍລິຫານ",
+    icon: "fa-solid fa-crown",
+    aliases: ["ປະທານສະພາບໍລິຫານ", "president", "chairman", "chair"],
+  },
+  {
+    key: "vice_president",
+    label: "ຮອງປະທານສະພາບໍລິຫານ",
+    icon: "fa-solid fa-chess-king",
+    aliases: ["ຮອງປະທານສະພາບໍລິຫານ", "vice president", "vice_president", "vice-chair", "vice chair"],
+  },
+  {
+    key: "audit",
+    label: "ຄະນະກຳມະການກວດກາ",
+    icon: "fa-solid fa-clipboard-check",
+    aliases: ["ຄະນະກຳມະການກວດກາ", "audit", "audit committee"],
+  },
+  {
+    key: "nomination",
+    label: "ຄະນະກຳມະການຄົ້ນຄວ້ານະໂຍບາຍ",
+    icon: "fa-solid fa-shield-virus",
+    aliases: ["ຄະນະກຳມະການຄົ້ນຄວ້ານະໂຍບາຍ", "nomination", "policy", "research"],
+  },
+  {
+    key: "risk",
+    label: "ຄະນະກຳມະການຄຸ້ມຄອງຄວາມສ່ຽງ",
+    icon: "fa-solid fa-user-group",
+    aliases: ["ຄະນະກຳມະການຄຸ້ມຄອງຄວາມສ່ຽງ", "risk", "risk committee"],
+  },
+  {
+    key: "it",
+    label: "ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ",
+    icon: "fa-solid fa-award",
+    aliases: ["ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ", "it", "technology", "system"],
+  },
+];
+
+function parseCommitteeRaw(val) {
+  if (val === null || val === undefined) return [];
+
+  if (Array.isArray(val)) {
+    return val.map((x) => String(x ?? "").trim()).filter(Boolean);
+  }
+
+  const s = String(val).trim();
+  if (!s || s === "-") return [];
+
+  if (s.startsWith("[") && s.endsWith("]")) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) return arr.map((x) => String(x ?? "").trim()).filter(Boolean);
+    } catch {}
+  }
+
+  return s
+    .split(/[\n,;|/]+/g)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeCommittee(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+
+  const lower = s.toLowerCase();
+
+  // match by aliases (case-insensitive)
+  for (const c of COMMITTEES) {
+    const aliases = (c.aliases || []).map((a) => String(a).toLowerCase());
+    if (aliases.includes(lower)) return { key: c.key, label: c.label, icon: c.icon };
+  }
+
+  // heuristic fallback
+  if (lower.includes("audit")) return COMMITTEES.find((x) => x.key === "audit");
+  if (lower.includes("risk")) return COMMITTEES.find((x) => x.key === "risk");
+  if (lower.includes("nomination") || lower.includes("policy") || lower.includes("research"))
+    return COMMITTEES.find((x) => x.key === "nomination");
+  if (lower === "it" || lower.includes("technology") || lower.includes("system")) return COMMITTEES.find((x) => x.key === "it");
+  if (lower.includes("president") && !lower.includes("vice")) return COMMITTEES.find((x) => x.key === "president");
+  if (lower.includes("vice")) return COMMITTEES.find((x) => x.key === "vice_president");
+
+  // fallback: โชว์ข้อความเดิม + icon tag
+  return { key: "custom", label: s, icon: "fa-solid fa-tag" };
+}
+
+function uniqBy(list, keyFn) {
+  const seen = new Set();
+  const out = [];
+  for (const x of list) {
+    const k = keyFn(x);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(x);
+  }
+  return out;
+}
+
+function committeeItems(val) {
+  const raw = parseCommitteeRaw(val);
+  const items = raw.map(normalizeCommittee).filter(Boolean);
+  return uniqBy(items, (x) => `${x.key}|${x.label}`);
+}
+
+/* =========================
+   GSAP helpers
    ========================= */
 let gsapCtx = null;
 const reducedMotion =
-  typeof window !== "undefined" && window.matchMedia
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    : false;
+  typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false;
 
 const DUR = {
   fast: reducedMotion ? 0 : 0.18,
@@ -520,7 +585,7 @@ const DUR = {
   slow: reducedMotion ? 0 : 0.6,
 };
 
-const hoverQ = new WeakMap(); // WeakMap<Element, {x,y,scale}>
+const hoverQ = new WeakMap();
 function ensureHoverQuick(el) {
   if (!el) return null;
   if (hoverQ.has(el)) return hoverQ.get(el);
@@ -537,24 +602,8 @@ function popIn(el, vars = {}) {
   if (!el) return;
   gsap.fromTo(
     el,
-    {
-      autoAlpha: 0,
-      y: 14,
-      scale: 0.985,
-      transformPerspective: 900,
-      rotateX: 8,
-      filter: "blur(6px)",
-    },
-    {
-      autoAlpha: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      filter: "blur(0px)",
-      duration: DUR.slow,
-      ease: "expo.out",
-      ...vars,
-    }
+    { autoAlpha: 0, y: 14, scale: 0.985, transformPerspective: 900, rotateX: 8, filter: "blur(6px)" },
+    { autoAlpha: 1, y: 0, scale: 1, rotateX: 0, filter: "blur(0px)", duration: DUR.slow, ease: "expo.out", ...vars }
   );
 }
 
@@ -569,15 +618,7 @@ function animateRows() {
   gsap.fromTo(
     trs,
     { autoAlpha: 0, y: 10, filter: "blur(4px)" },
-    {
-      autoAlpha: 1,
-      y: 0,
-      filter: "blur(0px)",
-      duration: DUR.base,
-      stagger: 0.035,
-      ease: "power3.out",
-      overwrite: true,
-    }
+    { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.035, ease: "power3.out", overwrite: true }
   );
 }
 
@@ -621,9 +662,7 @@ function showToast(type, text) {
   if (toastTimer) clearTimeout(toastTimer);
 
   nextTick(() => {
-    if (toastEl.value) {
-      popIn(toastEl.value, { y: 10, rotateX: 0, duration: reducedMotion ? 0 : 0.45 });
-    }
+    if (toastEl.value) popIn(toastEl.value, { y: 10, rotateX: 0, duration: reducedMotion ? 0 : 0.45 });
   });
 
   toastTimer = setTimeout(() => {
@@ -642,118 +681,55 @@ function showToast(type, text) {
 }
 
 /* =========================
-   ✅ Remove Image Columns
+   API
    ========================= */
-function isImageKey(k) {
-  const s = String(k || "").toLowerCase();
-  return (
-    s === "image" ||
-    s === "img" ||
-    s.includes("image") ||
-    s.includes("img") ||
-    s.includes("logo") ||
-    s.includes("avatar") ||
-    s.includes("photo") ||
-    s.includes("picture") ||
-    s.includes("icon")
-  );
+const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "http://localhost:3000";
+const DIRECTORS_API = `${API_BASE}/api/boarddirector`;
+
+function resolveMediaUrl(src) {
+  if (!src) return "";
+  const s = String(src).trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
+  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  return `${API_BASE}/${s}`;
+}
+
+function bankLogoUrlOf(m) {
+  return resolveMediaUrl(m?.banklogo);
+}
+function profileUrlOf(m) {
+  return resolveMediaUrl(m?.profile);
 }
 
 /* =========================
-   ✅ Hide backend id columns in table/filter
+   Helpers
    ========================= */
-const BACKEND_ID_KEYS = new Set(["id", "_id", "uuid", "member_id", "memberid"]);
-function isBackendIdKey(k) {
-  return BACKEND_ID_KEYS.has(String(k || "").toLowerCase());
+const NO_COL = "__no__";
+function isNoCol(k) {
+  return String(k) === NO_COL;
 }
 
-/* =========================
-   ✅ "idmember" display column
-   ========================= */
-const ID_MEMBER_COL = "idmember";
-function isIdMemberCol(k) {
-  return String(k || "").toLowerCase() === ID_MEMBER_COL;
+function rowKey(m, i) {
+  return m?.idboarddirector ?? `${i}`;
 }
+
+function titleOf(m) {
+  return m?.name || m?.bankname || `Board Director #${m?.idboarddirector ?? "-"}`;
+}
+
 function colLabel(col) {
-  return isIdMemberCol(col) ? "No" : col;
+  if (isNoCol(col)) return "No";
+  const k = String(col || "").toLowerCase();
+  if (k === "idboarddirector") return "ID";
+  if (k === "bankname") return "Bank Name";
+  if (k === "committee") return "Committee";
+  if (k === "createat") return "Created";
+  return col;
 }
 
-/* =========================
-   ✅ Link helpers (LinkFB / LinkWeb)
-   ========================= */
-const LINK_KEYS = new Set(["linkfb", "linkweb"]);
-function lastSegmentKey(k) {
-  const s = String(k || "");
-  const parts = s.split(".");
-  return (parts[parts.length - 1] || "").trim();
-}
-function isLinkField(k) {
-  return LINK_KEYS.has(lastSegmentKey(k).toLowerCase());
-}
-function isFacebookKey(k) {
-  return lastSegmentKey(k).toLowerCase() === "linkfb";
-}
-function safeUrl(input) {
-  const raw = String(input ?? "").trim();
-  if (!raw || raw === "-") return null;
-
-  if (/^(javascript:|data:|vbscript:)/i.test(raw)) return null;
-
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("//")) return `https:${raw}`;
-
-  return `https://${raw.replace(/^\/+/, "")}`;
-}
-
-/* =========================
-   ✅ FULL TEXT columns (BanknameLa)
-   ========================= */
-const FULL_TEXT_COL_KEYS = new Set([
-  "banknamela",
-  "bankname_la",
-  "bank_name_la",
-  "banknamel",
-  "bank_name_lao",
-  "banknamelaos",
-]);
-function isFullTextCol(col) {
-  return FULL_TEXT_COL_KEYS.has(String(col || "").toLowerCase());
-}
-
-/* =========================
-   ✅ HIDE these fields everywhere (table + overlay + filter)
-   ✅ (including crossborderproduct)
-   ========================= */
-const HIDE_UI_KEYS = new Set(
-  [
-    "memberatm",
-    "membermobile",
-    "membercrossborder",
-    "atminquery",
-    "atmcashwithdraw",
-    "atmtransfer",
-    "mobiletransfer",
-    "qrpayment",
-    "crossborderproduct",     // ✅ NEW: hide this column
-    "crossborder_product",    // ✅ optional variant
-  ].map((x) => x.toLowerCase())
-);
-
-function isHiddenUiKey(k) {
-  return HIDE_UI_KEYS.has(lastSegmentKey(k).toLowerCase());
-}
-function isHiddenUiPath(path) {
-  const p = String(path || "").trim();
-  if (!p) return false;
-  const seg0 = (p.split(".")[0] || "").toLowerCase();
-  return HIDE_UI_KEYS.has(seg0);
-}
-
-/* =========================
-   ✅ TIME helpers
-   ========================= */
-function isTimeKey(k) {
-  return lastSegmentKey(k).toLowerCase() === "time";
+function isFullTextCol(_col) {
+  return false;
 }
 
 function formatDDMMYY(input) {
@@ -780,397 +756,22 @@ function formatDDMMYY(input) {
   return s;
 }
 
-/* =========================
-   ✅ Logo from backend
-   ========================= */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MEMBERS_API = `${API_BASE}/api/members`;
-
-function resolveMediaUrl(src) {
-  if (!src) return "";
-  const s = String(src).trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s}`;
-}
-
-function logoUrlOf(m) {
-  const raw =
-    m?.logo ??
-    m?.bank_logo ??
-    m?.bankLogo ??
-    m?.logo_url ??
-    m?.logoUrl ??
-    m?.image ??
-    m?.img ??
-    m?.avatar ??
-    m?.photo ??
-    m?.picture ??
-    m?.icon;
-
-  return resolveMediaUrl(raw);
-}
-
-const selectedLogoUrl = computed(() => logoUrlOf(selected.value));
-
-/* =========================
-   ✅ Overlay hide ids
-   ========================= */
-function isHiddenOverlayIdKey(k) {
-  const s = String(k || "").toLowerCase();
-  return BACKEND_ID_KEYS.has(s);
-}
-
-/* =========================
-   ✅ Sort members oldest -> newest
-   ========================= */
-function getDateMsFromRow(m) {
-  const candidates = [m?.createdAt, m?.created_at, m?.date_time, m?.timestamp, m?.updatedAt, m?.updated_at];
-  for (const c of candidates) {
-    if (!c) continue;
-    const ms = Date.parse(String(c));
-    if (!Number.isNaN(ms)) return ms;
-  }
-  return null;
-}
-
-function getNumericIdFromRow(m) {
-  const id = m?.idmember ?? m?.member_id ?? m?.memberId ?? m?.id ?? m?._id ?? m?.uuid ?? null;
-  if (id === null || id === undefined) return null;
-  const n = Number(id);
-  return Number.isNaN(n) ? null : n;
-}
-
-function sortMembersOldestFirst(list) {
-  const hasDate = list.some((m) => getDateMsFromRow(m) !== null);
-
-  const decorated = list.map((item, idx) => {
-    const key = hasDate
-      ? getDateMsFromRow(item) ?? Number.MAX_SAFE_INTEGER
-      : getNumericIdFromRow(item) ?? Number.MAX_SAFE_INTEGER;
-    return { item, idx, key };
-  });
-
-  decorated.sort((a, b) => {
-    if (a.key !== b.key) return a.key - b.key;
-    return a.idx - b.idx;
-  });
-
-  return decorated.map((x) => x.item);
-}
-
-/* =========================
-   ✅ Color helpers
-   ========================= */
-function isColorField(k) {
-  const kk = String(k || "");
-  return /(^|\.)(color)\.(primary|secondary)$/i.test(kk);
-}
-function normalizeHex(input) {
-  const s = String(input || "").trim();
-  if (!s) return null;
-  const raw = s.startsWith("#") ? s.slice(1) : s;
-
-  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
-    const r = raw[0],
-      g = raw[1],
-      b = raw[2];
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw}`.toLowerCase();
-  return null;
-}
-
-/* =========================
-   ✅ Flags for Crossborder.items
-   ========================= */
-function flagUrl(code) {
-  const STYLE = "flat";
-  const SIZE = 32;
-  return `https://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
-}
-
-const COUNTRY = [
-  { code: "LA", keys: ["ລາວ", "laos", "lao"] },
-  { code: "TH", keys: ["ໄທ", "ไทย", "thailand", "thai"] },
-  { code: "KH", keys: ["ກຳປູເຈຍ", "กัมพูชา", "cambodia"] },
-  { code: "VN", keys: ["ຫວຽດນາມ", "เวียดนาม", "vietnam"] },
-  { code: "CN", keys: ["ຈີນ", "จีน", "china"] },
-];
-
-function detectCode(text) {
-  const s = String(text || "").toLowerCase();
-  for (const c of COUNTRY) {
-    if (c.keys.some((k) => s.includes(String(k).toLowerCase()))) return c.code;
-  }
-  return null;
-}
-
-function extractPairFromText(text) {
-  const raw = String(text || "");
-  const s = raw.toLowerCase();
-
-  const seps = ["ສະແກນ", "scan", "→", "->", "➡"];
-  let left = raw,
-    right = "";
-
-  for (const sep of seps) {
-    const idx = s.indexOf(sep);
-    if (idx >= 0) {
-      left = raw.slice(0, idx);
-      right = raw.slice(idx + sep.length);
-      break;
-    }
-  }
-
-  const from = detectCode(left);
-  const to = detectCode(right);
-  if (from && to) return [from, to];
-
-  const found = [];
-  for (const c of COUNTRY) {
-    if (c.keys.some((k) => s.includes(String(k).toLowerCase()))) found.push(c.code);
-  }
-  if (found.length >= 2) return [found[0], found[1]];
-
-  return null;
-}
-
-/* =========================
-   ✅ Special list detection
-   ========================= */
-function normPath(path) {
-  return String(path || "")
-    .toLowerCase()
-    .replace(/\s+/g, "");
-}
-function isSpecialItemsPath(path) {
-  const p = normPath(path);
-  return (
-    p.endsWith("cardatm.items") ||
-    p.endsWith("card_atm.items") ||
-    p.endsWith("atm.items") ||
-    p.endsWith("mbbankking.items") ||
-    p.endsWith("mbbanking.items") ||
-    p.endsWith("mbbaking.items") ||
-    p.endsWith("crossborder.items")
-  );
-}
-function isCrossborderItemsPath(path) {
-  const p = normPath(path);
-  return p.endsWith("crossborder.items");
-}
-
-/* =========================
-   Helpers
-   ========================= */
-function rowKey(m, i) {
-  return m?.idmember ?? m?.member_id ?? m?.memberId ?? m?.id ?? m?._id ?? m?.uuid ?? `${i}`;
-}
-
-function titleOf(m) {
-  return (
-    m?.bank_name ??
-    m?.bankName ??
-    m?.BanknameLa ??
-    m?.banknameLa ??
-    m?.bank_name_la ??
-    m?.bankname_la ??
-    m?.name ??
-    m?.title ??
-    m?.company ??
-    m?.organization ??
-    m?.idmember ??
-    m?.id ??
-    m?._id ??
-    "Member"
-  );
-}
-
 function formatCell(v, col = "") {
   if (v === null || v === undefined) return "-";
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number") return String(v);
 
-  if (typeof v === "string") {
-    if (isFullTextCol(col)) return v; // ✅ no truncate
-    return v.length > 40 ? v.slice(0, 40) + "…" : v;
-  }
+  const key = String(col || "").toLowerCase();
+  if (key === "createat") return formatDDMMYY(v);
 
-  if (Array.isArray(v)) return v.length ? `(${v.length}) items` : "-";
-  if (typeof v === "object") return "Object";
+  if (typeof v === "string") return v.length > 40 ? v.slice(0, 40) + "…" : v;
+
   return String(v);
 }
 
-/* ✅ Flatten */
-function toText(v) {
-  if (v === null || v === undefined) return "-";
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "number") return String(v);
-  if (typeof v === "string") return v;
-
-  if (Array.isArray(v)) {
-    if (!v.length) return "-";
-    const allPrimitive = v.every(
-      (x) => x === null || x === undefined || ["string", "number", "boolean"].includes(typeof x)
-    );
-    if (allPrimitive) return v.map((x) => (x == null ? "-" : String(x))).join(", ");
-    return `(${v.length}) items`;
-  }
-
-  const keys = Object.keys(v);
-  if (!keys.length) return "-";
-  return `Object (${keys.length} keys)`;
-}
-
-function flattenAny(val, path, out) {
-  // ✅ hides memberatm/mobile/etc + crossborderproduct at any level
-  if (path && isHiddenUiPath(path)) return;
-
-  if (val === null || val === undefined) {
-    out.push({ k: path || "value", v: "-" });
-    return;
-  }
-
-  const t = typeof val;
-
-  if (t === "string" || t === "number" || t === "boolean") {
-    const key = lastSegmentKey(path || "");
-    const vText = String(val);
-
-    if (key && isTimeKey(key)) {
-      out.push({ k: path || "time", v: formatDDMMYY(vText) });
-      return;
-    }
-
-    out.push({ k: path || "value", v: vText });
-    return;
-  }
-
-  if (Array.isArray(val)) {
-    if (path && /^time\./i.test(path)) return;
-    if (path && isHiddenUiPath(path)) return;
-
-    if (isSpecialItemsPath(path)) {
-      if (isCrossborderItemsPath(path)) {
-        const items = val
-          .map((x) => {
-            if (x && typeof x === "object" && !Array.isArray(x)) {
-              const from = x.from || x.src || x.origin || x.country_from || null;
-              const to = x.to || x.dst || x.dest || x.country_to || null;
-              const text =
-                x.text ||
-                x.label ||
-                x.name ||
-                (() => {
-                  try {
-                    return JSON.stringify(x);
-                  } catch {
-                    return "Object";
-                  }
-                })();
-
-              const flags =
-                from && to ? [String(from).toUpperCase(), String(to).toUpperCase()] : extractPairFromText(text);
-              return { text, flags };
-            }
-
-            const text =
-              x === null || x === undefined
-                ? "-"
-                : typeof x === "string" || typeof x === "number" || typeof x === "boolean"
-                ? String(x)
-                : (() => {
-                    try {
-                      return JSON.stringify(x);
-                    } catch {
-                      return "Object";
-                    }
-                  })();
-
-            return { text, flags: extractPairFromText(text) };
-          })
-          .filter((it) => String(it?.text ?? "").trim() !== "");
-
-        out.push({ k: path || "items", type: "list", kind: "crossborder", items });
-        return;
-      }
-
-      const items = val
-        .map((x) => {
-          if (x === null || x === undefined) return "-";
-          if (typeof x === "string" || typeof x === "number" || typeof x === "boolean") return String(x);
-          try {
-            return JSON.stringify(x);
-          } catch {
-            return "Object";
-          }
-        })
-        .filter((x) => String(x).trim() !== "");
-
-      out.push({ k: path || "items", type: "list", kind: "plain", items });
-      return;
-    }
-
-    if (!val.length) {
-      out.push({ k: path || "value", v: "-" });
-      return;
-    }
-    const allPrimitive = val.every(
-      (x) => x === null || x === undefined || ["string", "number", "boolean"].includes(typeof x)
-    );
-    if (allPrimitive) {
-      out.push({ k: path || "value", v: val.map((x) => (x == null ? "-" : String(x))).join(", ") });
-      return;
-    }
-    val.forEach((item, idx) => {
-      const p = path ? `${path}.${idx}` : String(idx);
-      flattenAny(item, p, out);
-    });
-    return;
-  }
-
-  if (t === "object") {
-    if (path && /^time\./i.test(path)) return;
-    if (path && isHiddenUiPath(path)) return;
-
-    const entries = Object.entries(val);
-    if (!entries.length) {
-      out.push({ k: path || "value", v: "-" });
-      return;
-    }
-
-    for (const [k, v] of entries) {
-      if (k === "password" || k === "pwd") continue;
-      if (isImageKey(k)) continue;
-
-      if (isHiddenUiKey(k)) continue; // ✅ includes crossborderproduct
-      if (isHiddenOverlayIdKey(k)) continue;
-      if (String(k).toLowerCase() === ID_MEMBER_COL) continue;
-
-      const p = path ? `${path}.${k}` : k;
-
-      if (isTimeKey(k)) {
-        out.push({ k: p, v: formatDDMMYY(v) });
-        continue;
-      }
-
-      if (Array.isArray(v)) {
-        flattenAny(v, p, out);
-        continue;
-      }
-
-      if (v && typeof v === "object") flattenAny(v, p, out);
-      else out.push({ k: p, v: toText(v) });
-    }
-    return;
-  }
-
-  out.push({ k: path || "value", v: String(val) });
-}
-
-/* ✅ rows (filtered + sorted) */
+/* =========================
+   rows (filtered + sorted)
+   ========================= */
 function normalize(v) {
   if (v === null || v === undefined) return "";
   return String(v).toLowerCase();
@@ -1191,7 +792,7 @@ function compare(a, b) {
 }
 
 const rows = computed(() => {
-  let arr = members.value;
+  let arr = directors.value;
 
   const s = q.value.trim().toLowerCase();
   if (s) arr = arr.filter((m) => JSON.stringify(m).toLowerCase().includes(s));
@@ -1200,7 +801,7 @@ const rows = computed(() => {
   const fv = filterValue.value.trim().toLowerCase();
   if (fk && fv) arr = arr.filter((m) => normalize(m?.[fk]).includes(fv));
 
-  if (sortKey.value) {
+  if (sortKey.value && !isNoCol(sortKey.value)) {
     const key = sortKey.value;
     arr = [...arr].sort((x, y) => compare(x?.[key], y?.[key]));
     if (sortDir.value === "desc") arr.reverse();
@@ -1210,7 +811,7 @@ const rows = computed(() => {
 });
 
 /* =========================
-   ✅ Pagination (7 per page)
+   Pagination (7 per page)
    ========================= */
 const pageSize = 7;
 const currentPage = ref(1);
@@ -1284,109 +885,14 @@ watch(
   }
 );
 
-/* ✅ Selected row No (1..n) based on current filtered rows */
-const selectedRowNo = computed(() => {
-  if (!selected.value) return "-";
-  const sid = String(rowKey(selected.value, ""));
-  const idx = rows.value.findIndex((r) => String(rowKey(r, "")) === sid);
-  return idx >= 0 ? String(idx + 1) : "-";
-});
-
-const flatEntries = computed(() => {
-  if (!selected.value) return [];
-  const out = [{ k: ID_MEMBER_COL, v: selectedRowNo.value }];
-  flattenAny(selected.value, "", out);
-  return out;
-});
-
 /* =========================
    Columns + Filters
    ========================= */
-const tableCols = computed(() => {
-  if (!members.value.length) return [ID_MEMBER_COL, "name", "bank_name"];
-
-  const keysSet = new Set();
-  members.value.slice(0, 25).forEach((m) => Object.keys(m || {}).forEach((k) => keysSet.add(k)));
-
-  const keys = Array.from(keysSet).filter(
-    (k) =>
-      !isImageKey(k) &&
-      !isBackendIdKey(k) &&
-      !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // ✅ hides crossborderproduct too
-      String(k).toLowerCase() !== ID_MEMBER_COL
-  );
-
-  const preferred = [
-    "bank_name",
-    "bankName",
-    "BanknameLa",
-    "banknameLa",
-    "bank_name_la",
-    "bankname_la",
-    "name",
-    "code",
-    "phone",
-    "tel",
-    "email",
-    "address",
-    "province",
-    "district",
-    "Linkfb",
-    "linkfb",
-    "Linkweb",
-    "linkweb",
-    "createdAt",
-    "updatedAt",
-  ].filter(
-    (k) =>
-      !isImageKey(k) &&
-      !isBackendIdKey(k) &&
-      !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // ✅ hides crossborderproduct too
-      String(k).toLowerCase() !== ID_MEMBER_COL
-  );
-
-  const picked = [];
-  for (const k of preferred) if (keys.includes(k) && !picked.includes(k)) picked.push(k);
-
-  const sample = members.value[0] || {};
-  for (const k of keys) {
-    if (picked.length >= 6) break;
-    if (k === "password" || k === "pwd") continue;
-    const v = sample[k];
-    if (typeof v === "object" && v !== null) continue;
-    if (!picked.includes(k)) picked.push(k);
-  }
-
-  return [ID_MEMBER_COL, ...picked.slice(0, 6)];
-});
-
-const filterKeys = computed(() => {
-  if (!members.value.length) return [];
-  const set = new Set();
-
-  members.value.slice(0, 40).forEach((m) => {
-    Object.entries(m || {}).forEach(([k, v]) => {
-      if (k === "password" || k === "pwd") return;
-      if (isImageKey(k)) return;
-      if (isBackendIdKey(k)) return;
-      if (isTimeKey(k)) return;
-      if (isHiddenUiKey(k)) return; // ✅ hides crossborderproduct too
-      if (String(k).toLowerCase() === ID_MEMBER_COL) return;
-      if (typeof v === "object" && v !== null) return;
-      set.add(k);
-    });
-  });
-
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
-});
+const tableCols = computed(() => [NO_COL, "committee", "bankname", "name", "role", "createat"]);
+const filterKeys = computed(() => ["committee", "bankname", "name", "role", "createat"]);
 
 function toggleSort(col) {
-  if (isIdMemberCol(col)) return;
-  if (isTimeKey(col)) return;
-  if (isHiddenUiKey(col)) return; // ✅ includes crossborderproduct
-
+  if (isNoCol(col)) return;
   if (sortKey.value !== col) {
     sortKey.value = col;
     sortDir.value = "asc";
@@ -1404,7 +910,7 @@ function clearFilters() {
 }
 
 /* =========================
-   ✅ Actions (Edit/Delete via Confirm)
+   Actions (Edit/Delete via Confirm)
    ========================= */
 function askEdit(m) {
   openConfirm("edit", m);
@@ -1427,7 +933,7 @@ async function confirmProceed() {
     closeConfirm();
     showToast("info", "Opening editor…");
 
-    router.push({ path: "/membersedit", query: { id: String(id ?? "") } });
+    router.push({ path: "/boarddirectoredit", query: { id: String(id ?? "") } });
 
     setBusy(String(id), false);
     confirmLoading.value = false;
@@ -1436,15 +942,15 @@ async function confirmProceed() {
 
   if (!id) return;
 
-  const before = [...members.value];
-  members.value = members.value.filter((x) => String(rowKey(x, "")) !== String(id));
+  const before = [...directors.value];
+  directors.value = directors.value.filter((x) => String(rowKey(x, "")) !== String(id));
 
   try {
     confirmLoading.value = true;
     setBusy(String(id), true);
     error.value = "";
 
-    const res = await fetch(`${MEMBERS_API}/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+    const res = await fetch(`${DIRECTORS_API}/${encodeURIComponent(String(id))}`, { method: "DELETE" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     if (selected.value && String(rowKey(selected.value, "")) === String(id)) selected.value = null;
@@ -1453,9 +959,9 @@ async function confirmProceed() {
     showToast("success", `Deleted: ${name}`);
   } catch (e) {
     console.error(e);
-    members.value = before;
+    directors.value = before;
     closeConfirm();
-    showToast("error", "Delete failed (backend must have DELETE /api/members/:id)");
+    showToast("error", "Delete failed (backend must have DELETE /api/boarddirector/:id)");
   } finally {
     confirmLoading.value = false;
     setBusy(String(id), false);
@@ -1463,9 +969,27 @@ async function confirmProceed() {
 }
 
 /* =========================
-   Overlay (modern GSAP)
+   Overlay
    ========================= */
 let overlayTL = null;
+
+const selectedRowNo = computed(() => {
+  if (!selected.value) return "-";
+  const sid = String(rowKey(selected.value, ""));
+  const idx = rows.value.findIndex((r) => String(rowKey(r, "")) === sid);
+  return idx >= 0 ? String(idx + 1) : "-";
+});
+
+const flatEntries = computed(() => {
+  if (!selected.value) return [];
+  const keys = ["idboarddirector", "committee", "bankname", "name", "role", "createat"];
+  return keys
+    .filter((k) => k in (selected.value || {}))
+    .map((k) => ({
+      k: colLabel(k),
+      v: k === "createat" ? formatDDMMYY(selected.value?.[k]) : formatCell(selected.value?.[k], k),
+    }));
+});
 
 async function openOverlay(m) {
   selected.value = m;
@@ -1524,9 +1048,111 @@ function closeOverlay() {
 }
 
 /* =========================
+   Route highlight (optional) ✅ ทำงานได้จริง: ใช้ data-rowid + useRoute
+   ========================= */
+const pendingHighlightId = ref("");
+
+function getRouteHighlight() {
+  const h = route.query?.highlight;
+  return Array.isArray(h) ? (h[0] ? String(h[0]) : "") : h ? String(h) : "";
+}
+
+function clearRouteHighlight() {
+  const q = { ...route.query };
+  delete q.highlight;
+  router.replace({ path: route.path, query: q });
+}
+
+async function highlightRowById(idStr) {
+  if (!idStr || !rootEl.value) return;
+
+  // หา index ใน rows (หลัง filter/sort)
+  let idx = rows.value.findIndex((r) => String(rowKey(r, "")) === String(idStr));
+
+  // ถ้าหาไม่เจอ (โดน filter) ให้เคลียร์ filter/search เพื่อให้เห็น
+  if (idx < 0) {
+    q.value = "";
+    filterKey.value = "";
+    filterValue.value = "";
+    await nextTick();
+    idx = rows.value.findIndex((r) => String(rowKey(r, "")) === String(idStr));
+  }
+  if (idx < 0) return;
+
+  // ไปหน้าที่มีแถวนั้น (pagination)
+  const targetPage = Math.floor(idx / pageSize) + 1;
+  if (currentPage.value !== targetPage) currentPage.value = targetPage;
+
+  await nextTick();
+  await nextTick();
+
+  const rowEl = rootEl.value.querySelector(`tr[data-rowid="${String(idStr)}"]`);
+  if (!rowEl) return;
+
+  try {
+    rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch {}
+
+  rowEl.classList.add("rowHL");
+
+  const dur = reducedMotion ? 0 : 5;
+  gsap.fromTo(
+    rowEl,
+    {
+      "--hlBg": "rgba(34,197,94,0.22)",
+      "--hlShadow": "inset 0 0 0 1px rgba(34,197,94,0.28), inset 0 0 46px rgba(34,197,94,0.16)",
+    },
+    {
+      "--hlBg": "rgba(34,197,94,0)",
+      "--hlShadow": "inset 0 0 0 1px rgba(34,197,94,0), inset 0 0 46px rgba(34,197,94,0)",
+      duration: dur || 0.2,
+      ease: "power2.out",
+      overwrite: "auto",
+      onComplete: () => rowEl.classList.remove("rowHL"),
+    }
+  );
+
+  clearRouteHighlight();
+}
+
+async function applyRouteHighlightIfAny() {
+  const id = pendingHighlightId.value || getRouteHighlight();
+  if (!id) return;
+  pendingHighlightId.value = "";
+
+  const delay = reducedMotion ? 0 : DUR.base + 0.1;
+  gsap.delayedCall(delay, () => highlightRowById(id));
+}
+
+watch(
+  () => route.query.highlight,
+  (v) => {
+    const id = Array.isArray(v) ? (v[0] ? String(v[0]) : "") : v ? String(v) : "";
+    pendingHighlightId.value = id;
+    if (id) applyRouteHighlightIfAny();
+  }
+);
+
+/* =========================
    Fetch
    ========================= */
-async function fetchMembers() {
+function unwrapApiList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  return [];
+}
+
+function sortByCreateAtDesc(list) {
+  const decorated = list.map((item, idx) => {
+    const ms = Date.parse(String(item?.createat ?? ""));
+    return { item, idx, ms: Number.isNaN(ms) ? -Infinity : ms };
+  });
+  decorated.sort((a, b) => b.ms - a.ms || a.idx - b.idx);
+  return decorated.map((x) => x.item);
+}
+
+async function fetchDirectors() {
   try {
     error.value = "";
     loading.value = true;
@@ -1534,36 +1160,33 @@ async function fetchMembers() {
     if (abortCtrl) abortCtrl.abort();
     abortCtrl = new AbortController();
 
-    const res = await fetch(MEMBERS_API, {
+    const res = await fetch(DIRECTORS_API, {
       signal: abortCtrl.signal,
       headers: { "Content-Type": "application/json" },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
-    const list = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.members)
-      ? data.members
-      : Array.isArray(data?.data)
-      ? data.data
-      : [];
+    const list = unwrapApiList(data);
 
-    members.value = sortMembersOldestFirst(list);
+    directors.value = sortByCreateAtDesc(list);
 
     await nextTick();
     animateRows();
+
+    await nextTick();
+    applyRouteHighlightIfAny();
   } catch (err) {
     if (err?.name === "AbortError") return;
     console.error(err);
-    error.value = "Failed to load members";
+    error.value = "Failed to load board directors";
   } finally {
     loading.value = false;
   }
 }
 
 /* =========================
-   Modern hover micro-interactions (quickTo)
+   Hover
    ========================= */
 function iconHover(e, enter) {
   const el = e.currentTarget;
@@ -1614,14 +1237,10 @@ onMounted(async () => {
       { autoAlpha: 0, y: -14, filter: "blur(10px)" },
       { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.slow },
       0
-    ).to(
-      others,
-      { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.06, ease: "power3.out" },
-      0.08
-    );
+    ).to(others, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.06, ease: "power3.out" }, 0.08);
   }, rootEl.value);
 
-  await fetchMembers();
+  await fetchDirectors();
 });
 
 onBeforeUnmount(() => {
@@ -1633,7 +1252,6 @@ onBeforeUnmount(() => {
 });
 </script>
 
-
 <style scoped>
 /* =========================
    DARK BLUE TECH THEME
@@ -1641,12 +1259,15 @@ onBeforeUnmount(() => {
 :root {
   color-scheme: dark;
 }
+
 * {
   box-sizing: border-box;
 }
+
 #add_member {
   background-color: #28a475;
 }
+
 #add_member:hover {
   background-color: #1e6f56;
   transition: background-color 0.3s ease;
@@ -1666,7 +1287,7 @@ onBeforeUnmount(() => {
   --muted: rgba(255, 255, 255, 0.55);
 
   min-height: 100vh;
-  display: block; /* ✅ no sidebar grid anymore */
+  display: block;
   background: radial-gradient(1100px 620px at 18% 14%, rgba(56, 189, 248, 0.16), transparent 58%),
     radial-gradient(900px 520px at 82% 18%, rgba(99, 102, 241, 0.14), transparent 60%),
     radial-gradient(800px 520px at 70% 90%, rgba(14, 165, 233, 0.1), transparent 62%),
@@ -1677,7 +1298,6 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* subtle grid overlay */
 .app.tech::before {
   content: "";
   position: fixed;
@@ -1690,6 +1310,138 @@ onBeforeUnmount(() => {
   mask-image: radial-gradient(circle at 35% 18%, black 0%, transparent 60%);
 }
 
+/* =========================
+   ✅ Committee chips (BOX + ICON)
+   ========================= */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
+  --chip: rgba(56, 189, 248, 0.95);
+  --chipBorder: rgba(56, 189, 248, 0.18);
+  --chipGlow: rgba(56, 189, 248, 0.12);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--chipBorder);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+.chipLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chipIconWrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.chipIcon {
+  font-size: 13px;
+  color: var(--chip);
+}
+
+.chipText {
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--chip);
+  box-shadow: 0 0 0 6px var(--chipGlow);
+  flex: 0 0 auto;
+}
+
+.chip:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chipEmpty {
+  opacity: 0.7;
+  --chip: rgba(255, 255, 255, 0.55);
+  --chipBorder: rgba(255, 255, 255, 0.12);
+  --chipGlow: rgba(255, 255, 255, 0.08);
+}
+
+/* optional: สีแยกตามประเภท */
+.chip-president {
+  --chip: rgba(250, 204, 21, 0.95);
+  --chipBorder: rgba(250, 204, 21, 0.22);
+  --chipGlow: rgba(250, 204, 21, 0.12);
+}
+.chip-vice_president {
+  --chip: rgba(99, 102, 241, 0.95);
+  --chipBorder: rgba(99, 102, 241, 0.22);
+  --chipGlow: rgba(99, 102, 241, 0.12);
+}
+.chip-audit {
+  --chip: rgba(56, 189, 248, 0.95);
+  --chipBorder: rgba(56, 189, 248, 0.22);
+  --chipGlow: rgba(56, 189, 248, 0.12);
+}
+.chip-risk {
+  --chip: rgba(34, 197, 94, 0.95);
+  --chipBorder: rgba(34, 197, 94, 0.22);
+  --chipGlow: rgba(34, 197, 94, 0.12);
+}
+.chip-remuneration {
+  --chip: rgba(251, 113, 133, 0.95);
+  --chipBorder: rgba(251, 113, 133, 0.22);
+  --chipGlow: rgba(251, 113, 133, 0.12);
+}
+.chip-nomination {
+  --chip: rgba(167, 139, 250, 0.95);
+  --chipBorder: rgba(167, 139, 250, 0.22);
+  --chipGlow: rgba(167, 139, 250, 0.12);
+}
+.chip-credit {
+  --chip: rgba(244, 114, 182, 0.95);
+  --chipBorder: rgba(244, 114, 182, 0.22);
+  --chipGlow: rgba(244, 114, 182, 0.12);
+}
+.chip-it {
+  --chip: rgba(14, 165, 233, 0.95);
+  --chipBorder: rgba(14, 165, 233, 0.22);
+  --chipGlow: rgba(14, 165, 233, 0.12);
+}
+.chip-hr {
+  --chip: rgba(245, 158, 11, 0.95);
+  --chipBorder: rgba(245, 158, 11, 0.22);
+  --chipGlow: rgba(245, 158, 11, 0.12);
+}
+
+/* ✅ Row highlight support */
+.tr.rowHL td {
+  background: var(--hlBg, rgba(34, 197, 94, 0.16));
+  box-shadow: var(--hlShadow, none);
+}
+
 /* Ambient glows */
 .glow {
   position: fixed;
@@ -1697,6 +1449,7 @@ onBeforeUnmount(() => {
   filter: blur(52px);
   opacity: 0.75;
 }
+
 .glow-a {
   width: 560px;
   height: 560px;
@@ -1704,6 +1457,7 @@ onBeforeUnmount(() => {
   top: 120px;
   background: radial-gradient(circle at 30% 30%, rgba(56, 189, 248, 0.4), transparent 62%);
 }
+
 .glow-b {
   width: 560px;
   height: 560px;
@@ -1736,6 +1490,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: var(--muted);
 }
+
 .name {
   font-size: 22px;
   font-weight: 950;
@@ -1751,13 +1506,16 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   padding: 10px 12px;
 }
+
 .searchWrap:focus-within {
   border-color: rgba(56, 189, 248, 0.25);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
+
 .searchIcon {
   color: rgba(255, 255, 255, 0.58);
 }
+
 .search {
   width: 100%;
   border: 0;
@@ -1773,6 +1531,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
 }
+
 .iconBtn {
   position: relative;
   width: 40px;
@@ -1786,12 +1545,14 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.86);
   will-change: transform;
 }
+
 .profile {
   display: flex;
   align-items: center;
   gap: 10px;
   padding-left: 6px;
 }
+
 .avatar {
   width: 40px;
   height: 40px;
@@ -1802,10 +1563,12 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(56, 189, 248, 0.14));
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
 .profileName {
   font-weight: 850;
   font-size: 13px;
 }
+
 .profileRole {
   font-size: 12px;
   color: var(--muted);
@@ -1817,16 +1580,18 @@ onBeforeUnmount(() => {
   overflow: auto;
   padding-right: 6px;
 }
+
 .mainBody::-webkit-scrollbar {
   width: 10px;
 }
+
 .mainBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
 }
 
 /* =========================
-   Members Page styles
+   Page styles
    ========================= */
 .membersPage {
   padding: 6px 6px 18px;
@@ -1840,17 +1605,20 @@ onBeforeUnmount(() => {
   gap: 14px;
   margin-bottom: 12px;
 }
+
 .pageTitle {
   font-size: 20px;
   font-weight: 950;
   letter-spacing: 0.2px;
 }
+
 .actions {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 520px;
 }
+
 .filterWrap {
   width: 360px;
   display: flex;
@@ -1861,13 +1629,16 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   padding: 10px 12px;
 }
+
 .filterWrap:focus-within {
   border-color: rgba(56, 189, 248, 0.22);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.07);
 }
+
 .filterIcon {
   color: rgba(255, 255, 255, 0.55);
 }
+
 .filterSelect {
   width: 160px;
   border: 0;
@@ -1876,6 +1647,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.84);
   font-weight: 850;
 }
+
 .filterInput {
   flex: 1;
   border: 0;
@@ -1896,6 +1668,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   will-change: transform;
 }
+
 .ghostBtn:hover {
   border-color: rgba(56, 189, 248, 0.16);
   color: rgba(255, 255, 255, 0.92);
@@ -1907,6 +1680,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 12px;
 }
+
 .metaPill {
   display: inline-flex;
   align-items: center;
@@ -1918,10 +1692,12 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
   font-weight: 850;
 }
+
 .errorPill {
   border-color: rgba(239, 68, 68, 0.25);
   color: rgba(239, 68, 68, 0.95);
 }
+
 .spinner {
   width: 14px;
   height: 14px;
@@ -1930,6 +1706,7 @@ onBeforeUnmount(() => {
   border-top-color: rgba(56, 189, 248, 0.7);
   animation: spin 0.85s linear infinite;
 }
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1944,10 +1721,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(12px);
 }
+
 .table {
   width: 100%;
   border-collapse: collapse;
 }
+
 .th,
 .td {
   padding: 12px 12px;
@@ -1955,6 +1734,7 @@ onBeforeUnmount(() => {
   text-align: left;
   font-size: 13px;
 }
+
 .th {
   color: rgba(255, 255, 255, 0.8);
   font-weight: 950;
@@ -1962,69 +1742,33 @@ onBeforeUnmount(() => {
   user-select: none;
   cursor: pointer;
 }
+
 .thLast {
   cursor: default;
 }
+
 .tr {
   cursor: pointer;
   transition: background 160ms ease;
   will-change: transform;
 }
+
 .tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
+
 .td {
   color: rgba(255, 255, 255, 0.86);
   font-weight: 800;
 }
+
 .td.fullText {
   white-space: normal;
   word-break: break-word;
 }
+
 .tdLast {
   width: 320px;
-}
-
-/* ✅ Link button (Linkfb/Linkweb) */
-.linkBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.86);
-  font-weight: 950;
-  text-decoration: none;
-  line-height: 1;
-  max-width: 100%;
-}
-.linkBtn:hover {
-  border-color: rgba(56, 189, 248, 0.22);
-  color: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.08);
-}
-.linkBtn.fb {
-  border-color: rgba(24, 119, 242, 0.26);
-}
-.linkBtn.fb:hover {
-  border-color: rgba(24, 119, 242, 0.55);
-  box-shadow: 0 12px 30px rgba(24, 119, 242, 0.12);
-}
-.linkBtn.web {
-  border-color: rgba(56, 189, 248, 0.22);
-}
-.btnText {
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.2px;
-}
-.linkRaw {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-  word-break: break-all;
 }
 
 /* Actions */
@@ -2034,6 +1778,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   justify-content: flex-start;
 }
+
 .pillBtn {
   display: inline-flex;
   align-items: center;
@@ -2048,17 +1793,21 @@ onBeforeUnmount(() => {
   line-height: 1;
   will-change: transform;
 }
+
 .pillBtn:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .pillBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .pillBtn.danger {
   border-color: rgba(239, 68, 68, 0.26);
 }
+
 .pillBtn.danger:hover {
   border-color: rgba(239, 68, 68, 0.45);
 }
@@ -2082,6 +1831,7 @@ onBeforeUnmount(() => {
   background: var(--panel2);
   border: 1px solid var(--stroke);
 }
+
 .pagerLeft {
   color: rgba(255, 255, 255, 0.72);
   font-weight: 850;
@@ -2090,6 +1840,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
 }
+
 .pagerDot {
   width: 6px;
   height: 6px;
@@ -2097,6 +1848,7 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.75);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
 }
+
 .pagerRight {
   display: flex;
   gap: 8px;
@@ -2104,6 +1856,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
 .pagerBtn {
   height: 36px;
   padding: 0 12px;
@@ -2115,24 +1868,29 @@ onBeforeUnmount(() => {
   cursor: pointer;
   will-change: transform;
 }
+
 .pagerBtn:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .pagerBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .pagerBtn.num {
   min-width: 38px;
   padding: 0 10px;
 }
+
 .pagerBtn.num.on {
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
   border-color: rgba(56, 189, 248, 0.24);
   color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 12px 30px rgba(56, 189, 248, 0.08);
 }
+
 .pagerEllipsis {
   color: rgba(255, 255, 255, 0.55);
   font-weight: 950;
@@ -2151,6 +1909,7 @@ onBeforeUnmount(() => {
   padding: 20px;
   z-index: 9999;
 }
+
 .modal {
   width: min(980px, 96vw);
   max-height: 88vh;
@@ -2162,6 +1921,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.55);
   will-change: transform, opacity;
 }
+
 .modalGlow {
   position: absolute;
   inset: -2px;
@@ -2171,6 +1931,7 @@ onBeforeUnmount(() => {
   opacity: 0.9;
   filter: blur(16px);
 }
+
 .modalTop {
   display: flex;
   align-items: center;
@@ -2181,6 +1942,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .modalTitle {
   display: flex;
   align-items: center;
@@ -2189,6 +1951,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.92);
   font-size: 22px;
 }
+
 .modalBody {
   padding: 16px;
   overflow: auto;
@@ -2196,11 +1959,53 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
+.imageRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.imgCard {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px;
+}
+
+.imgLabel {
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.bigImg {
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.imgEmpty {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 900;
+}
+
 .kvGrid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
 }
+
 .kv {
   display: grid;
   grid-template-columns: 1.2fr 2fr;
@@ -2210,6 +2015,7 @@ onBeforeUnmount(() => {
   background: var(--panel2);
   border: 1px solid var(--stroke);
 }
+
 .k {
   color: rgba(255, 255, 255, 0.62);
   font-weight: 950;
@@ -2218,6 +2024,7 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .v {
   color: rgba(255, 255, 255, 0.88);
   font-weight: 850;
@@ -2226,129 +2033,13 @@ onBeforeUnmount(() => {
   line-height: 1.65;
 }
 
-.listBox {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
-}
-.listBox.cross {
-  border-color: rgba(99, 102, 241, 0.18);
-  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.06);
-}
-
-.neoItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  position: relative;
-  overflow: hidden;
-}
-.neoItem::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.12), rgba(56, 189, 248, 0.22));
-  opacity: 0.16;
-  filter: blur(14px);
-  pointer-events: none;
-}
-.neoDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  margin-top: 7px;
-  flex: 0 0 auto;
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
-}
-.neoText {
-  position: relative;
-  z-index: 1;
-  font-size: 14px;
-  font-weight: 850;
-  color: rgba(255, 255, 255, 0.9);
-}
-.neoEmpty {
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 900;
-  font-size: 14px;
-}
-
-.flagPair {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  background: rgba(0, 0, 0, 0.18);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
-  flex: 0 0 auto;
-}
-.flag {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
-}
-
-.colorValue {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-.swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
-}
-.swatch.invalid {
-  background: rgba(255, 255, 255, 0.06);
-  position: relative;
-}
-.swatch.invalid::after {
-  content: "!";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-weight: 950;
-  font-size: 14px;
-  color: rgba(239, 68, 68, 0.95);
-}
-.hexPill {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.22);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-weight: 950;
-  letter-spacing: 0.3px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-}
-
-/* Logo under idmember */
+/* No cell + mini logo */
 .idCell {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .logoMini {
   width: 44px;
   height: 44px;
@@ -2356,25 +2047,6 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.18);
-}
-.logoUnderId {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-.logoLabel {
-  font-weight: 900;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.62);
-}
-.logoImg {
-  width: 140px;
-  height: 140px;
-  object-fit: contain;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.18);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
 }
 
 /* Confirm Modal + Toast */
@@ -2388,6 +2060,7 @@ onBeforeUnmount(() => {
   place-items: center;
   padding: 20px;
 }
+
 .confirmCard {
   width: min(520px, 95vw);
   border-radius: 22px;
@@ -2399,6 +2072,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   will-change: transform, opacity;
 }
+
 .confirmCard::before {
   content: "";
   position: absolute;
@@ -2414,6 +2088,7 @@ onBeforeUnmount(() => {
     rgba(56, 189, 248, 0.35)
   );
 }
+
 .confirmCard.danger::before {
   background: linear-gradient(
     90deg,
@@ -2423,6 +2098,7 @@ onBeforeUnmount(() => {
     rgba(239, 68, 68, 0.35)
   );
 }
+
 .confirmIcon {
   width: 92px;
   height: 92px;
@@ -2432,6 +2108,7 @@ onBeforeUnmount(() => {
   place-items: center;
   position: relative;
 }
+
 .skull {
   width: 62px;
   height: 62px;
@@ -2444,18 +2121,22 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(56, 189, 248, 0.22);
   box-shadow: 0 18px 44px rgba(56, 189, 248, 0.14);
 }
+
 .confirmCard.danger .skull {
   background: rgba(239, 68, 68, 0.16);
   border: 1px solid rgba(239, 68, 68, 0.22);
   box-shadow: 0 18px 44px rgba(239, 68, 68, 0.14);
 }
+
 .skull i {
   font-size: 22px;
   color: rgba(56, 189, 248, 0.95);
 }
+
 .confirmCard.danger .skull i {
   color: rgba(239, 68, 68, 0.95);
 }
+
 .ring {
   position: absolute;
   border-radius: 999px;
@@ -2464,14 +2145,17 @@ onBeforeUnmount(() => {
   z-index: 1;
   animation: pulse 1.9s ease-in-out infinite;
 }
+
 .confirmCard.danger .ring {
   border-color: rgba(239, 68, 68, 0.2);
 }
+
 .ringB {
   inset: -10px;
   opacity: 0.55;
   animation-delay: 0.35s;
 }
+
 @keyframes pulse {
   0% {
     transform: scale(0.96);
@@ -2486,6 +2170,7 @@ onBeforeUnmount(() => {
     opacity: 0.55;
   }
 }
+
 .confirmTitle {
   text-align: center;
   font-weight: 950;
@@ -2494,6 +2179,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 2;
 }
+
 .confirmText {
   margin-top: 8px;
   text-align: center;
@@ -2503,16 +2189,19 @@ onBeforeUnmount(() => {
   z-index: 2;
   line-height: 1.5;
 }
+
 .confirmName {
   display: inline-block;
   margin-left: 6px;
   color: rgba(255, 255, 255, 0.92);
 }
+
 .confirmHint {
   margin-top: 8px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.58);
 }
+
 .confirmActions {
   margin-top: 14px;
   display: flex;
@@ -2521,6 +2210,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 2;
 }
+
 .cBtn {
   height: 42px;
   padding: 0 14px;
@@ -2535,27 +2225,34 @@ onBeforeUnmount(() => {
   gap: 10px;
   will-change: transform;
 }
+
 .cBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
 .cBtn.ghost:hover {
   border-color: rgba(56, 189, 248, 0.18);
 }
+
 .cBtn.info {
   border-color: rgba(56, 189, 248, 0.22);
   background: rgba(56, 189, 248, 0.12);
 }
+
 .cBtn.info:hover {
   border-color: rgba(56, 189, 248, 0.45);
 }
+
 .cBtn.danger {
   border-color: rgba(239, 68, 68, 0.28);
   background: rgba(239, 68, 68, 0.12);
 }
+
 .cBtn.danger:hover {
   border-color: rgba(239, 68, 68, 0.5);
 }
+
 .miniSpin {
   width: 14px;
   height: 14px;
@@ -2564,6 +2261,7 @@ onBeforeUnmount(() => {
   border-top-color: rgba(56, 189, 248, 0.95);
   animation: spin 0.75s linear infinite;
 }
+
 .confirmCard.danger .miniSpin {
   border-top-color: rgba(239, 68, 68, 0.95);
 }
@@ -2586,6 +2284,7 @@ onBeforeUnmount(() => {
   animation: toastIn 0.24s ease-out;
   will-change: transform, opacity;
 }
+
 @keyframes toastIn {
   from {
     transform: translateY(8px);
@@ -2596,24 +2295,31 @@ onBeforeUnmount(() => {
     opacity: 1;
   }
 }
+
 .toast.success {
   border-color: rgba(34, 197, 94, 0.22);
 }
+
 .toast.success i {
   color: rgba(34, 197, 94, 0.95);
 }
+
 .toast.error {
   border-color: rgba(239, 68, 68, 0.25);
 }
+
 .toast.error i {
   color: rgba(239, 68, 68, 0.95);
 }
+
 .toast.info {
   border-color: rgba(56, 189, 248, 0.22);
 }
+
 .toast.info i {
   color: rgba(56, 189, 248, 0.95);
 }
+
 .toastText {
   color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
@@ -2625,34 +2331,46 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr 1fr 160px;
   }
 }
+
 @media (max-width: 920px) {
   .topbar {
     grid-template-columns: 1fr 1fr;
   }
+
   .topActions {
     justify-content: flex-start;
   }
+
   .actions {
     min-width: 0;
     width: 100%;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
+
   .filterWrap {
     width: 100%;
   }
+
   .kv {
     grid-template-columns: 1fr;
   }
+
   .tdLast {
     width: 100%;
   }
+
   .pager {
     flex-direction: column;
     align-items: stretch;
   }
+
   .pagerRight {
     justify-content: center;
+  }
+
+  .imageRow {
+    grid-template-columns: 1fr;
   }
 }
 </style>
