@@ -19,7 +19,7 @@
       </router-link>
 
       <nav class="nav js-reveal">
-        <!-- ✅ KEEP INDEX 0 AS NORMAL -->
+        <!-- ✅ MAIN (item 1) -->
         <RouterLink
           :to="mainNavItem.to"
           class="navItem"
@@ -32,24 +32,24 @@
           <span class="navPill" />
         </RouterLink>
 
-        <!-- ✅ NEW: Visitor under dashboard -->
-        <div v-if="dashboardItems.length" class="dashSubNav js-reveal">
-          <RouterLink
-            v-for="item in dashboardItems"
-            :key="item.key"
-            :to="item.to"
-            class="subNavItem dashSubItem"
-            active-class="active"
-            @mouseenter="subHover($event, true)"
-            @mouseleave="subHover($event, false)"
-          >
-            <span class="subIcon"><i :class="item.fa"></i></span>
-            <span class="subLabel">{{ item.label }}</span>
-            <span class="subPill" />
-          </RouterLink>
-        </div>
+        <!-- ✅ DASHBOARD CHILDREN (item 2) — make same size as main items -->
+        <RouterLink
+          v-for="item in dashboardItems"
+          :key="item.key"
+          :to="item.to"
+          class="navItem navItem--sub"
+          active-class="active"
+          @mouseenter="subHover($event, true)"
+          @mouseleave="subHover($event, false)"
+        >
+          <span class="navIcon"><i :class="item.fa"></i></span>
+          <span class="navLabel">{{ item.label }}</span>
+          <span class="navPill" />
+        </RouterLink>
 
-        <!-- ✅ DROPDOWN GROUP: navItems[1..6] -->
+        <div class="navDivider" />
+
+        <!-- ✅ DROPDOWN GROUP (item 3) -->
         <div class="navGroup">
           <button
             type="button"
@@ -107,7 +107,6 @@
 
     <!-- ✅ GLOBAL MAIN -->
     <main class="main">
-      <!-- ✅ ROUTE PAGES -->
       <section class="mainBody">
         <RouterView />
       </section>
@@ -133,8 +132,7 @@ const navItems = [
     label: "ພາບລວມ",
     to: "/dashboard",
     fa: "fa-solid fa-chart-line",
-    // ✅ NEW: visitor under dashboard (eye icon)
-    children: [{ key: "visitor", label: "Visitor", to: "/visitor", fa: "fa-solid fa-eye" }],
+    children: [{ key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" }],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
   { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
@@ -183,10 +181,8 @@ function openInsertMenu(immediate = false) {
   gsap.killTweensOf(menu);
   gsap.killTweensOf(chev);
 
-  // prepare
   gsap.set(menu, { display: "block" });
 
-  // measure
   const h = menu.scrollHeight;
 
   if (immediate) {
@@ -234,8 +230,6 @@ function closeInsertMenu() {
 
 async function toggleInsert() {
   isInsertOpen.value = !isInsertOpen.value;
-
-  // wait DOM just in case
   await nextTick();
 
   if (isInsertOpen.value) openInsertMenu(false);
@@ -243,7 +237,6 @@ async function toggleInsert() {
 }
 
 function ensureOpenAfterNavigate() {
-  // keep menu open after clicking a child link (nice UX)
   if (!isInsertOpen.value) {
     isInsertOpen.value = true;
     openInsertMenu(true);
@@ -268,20 +261,17 @@ onMounted(async () => {
 
   tl.from(sidebarEl.value, { x: -24, opacity: 0, duration: 0.55 }, 0);
 
-  // topbar is currently not in template; guard to avoid errors
   if (topbarEl.value) {
     tl.from(topbarEl.value, { y: -12, opacity: 0, duration: 0.45 }, 0.08);
   }
 
   tl.to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.14);
 
-  // dropdown initial state
   await nextTick();
   if (isInsertActive.value) {
     isInsertOpen.value = true;
     openInsertMenu(true);
   } else {
-    // ensure closed visuals
     const menu = insertMenuEl.value;
     const chev = insertChevronEl.value;
     if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
@@ -314,6 +304,12 @@ onMounted(async () => {
 
   --glass: rgba(255, 255, 255, 0.035);
   --glass2: rgba(255, 255, 255, 0.02);
+
+  /* ✅ unified sizing */
+  --navH: 46px;
+  --navPadY: 12px;
+  --navPadX: 12px;
+  --navRadius: 14px;
 
   min-height: 100vh;
   display: grid;
@@ -415,7 +411,7 @@ onMounted(async () => {
   font-weight: 900;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.65), rgba(99, 102, 241, 0.45));
   box-shadow: 0 18px 42px rgba(56, 189, 248, 0.12);
-  border: 1px solid rgb(255, 255, 255);
+  border: 1px solid rgba(255, 255, 255, 0.22);
 }
 .brandName {
   font-weight: 900;
@@ -435,14 +431,15 @@ onMounted(async () => {
   margin-top: 6px;
 }
 
-/* main nav item style */
+/* ✅ unified main row style (items 1/2/3) */
 .navItem,
 .navGroupBtn {
   text-decoration: none;
   position: relative;
   width: 100%;
-  border-radius: 14px;
-  padding: 12px 12px;
+  border-radius: var(--navRadius);
+  min-height: var(--navH);
+  padding: var(--navPadY) var(--navPadX);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.78);
@@ -452,6 +449,29 @@ onMounted(async () => {
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease,
     transform 180ms ease;
   cursor: pointer;
+}
+
+/* ✅ dashboard child — same height/size, just a subtle “nested” look */
+.navItem--sub {
+  background: rgba(255, 255, 255, 0.022);
+  border-color: rgba(255, 255, 255, 0.055);
+  padding-left: calc(var(--navPadX) + 6px);
+}
+.navItem--sub::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.35);
+  opacity: 0.9;
+}
+.navItem--sub.active::before {
+  background: rgba(56, 189, 248, 0.95);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
 }
 
 .navItem:hover,
@@ -499,19 +519,19 @@ onMounted(async () => {
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
 }
 
-/* ✅ NEW: dashboard sub items container */
-.dashSubNav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-left: 14px;
-  margin-top: -2px; /* snug under dashboard */
-}
-
-/* re-use subNavItem but tweak for dashboard children */
-.dashSubItem {
-  margin-bottom: 0;
-  padding: 10px 10px 10px 12px;
+/* ✅ tidy divider */
+.navDivider {
+  height: 1px;
+  margin: 6px 6px 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.10),
+    rgba(56, 189, 248, 0.12),
+    rgba(255, 255, 255, 0.10),
+    rgba(255, 255, 255, 0)
+  );
+  opacity: 0.65;
 }
 
 /* ✅ Dropdown group */
@@ -679,8 +699,8 @@ onMounted(async () => {
   .subLabel {
     display: none;
   }
-  .dashSubNav {
-    padding-left: 0;
+  .navDivider {
+    margin: 6px 2px 2px;
   }
 }
 

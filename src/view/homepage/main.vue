@@ -2,17 +2,9 @@
   <div ref="dashEl">
     <div class="statGrid">
       <!-- Member -->
-      <div
-        ref="statCardEl"
-        class="statCard js-reveal clickable"
-        role="button"
-        tabindex="0"
-        @click="goMembers"
-        @keydown.enter.prevent="goMembers"
-        @keydown.space.prevent="goMembers"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <div ref="statCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goMembers"
+        @keydown.enter.prevent="goMembers" @keydown.space.prevent="goMembers" @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-building-columns"></i>
@@ -41,17 +33,9 @@
       </div>
 
       <!-- Announcement -->
-      <div
-        ref="announcementCardEl"
-        class="statCard js-reveal clickable"
-        role="button"
-        tabindex="0"
-        @click="goAnnouncement"
-        @keydown.enter.prevent="goAnnouncement"
-        @keydown.space.prevent="goAnnouncement"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <div ref="announcementCardEl" class="statCard js-reveal clickable" role="button" tabindex="0"
+        @click="goAnnouncement" @keydown.enter.prevent="goAnnouncement" @keydown.space.prevent="goAnnouncement"
+        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-bullhorn"></i>
@@ -80,17 +64,9 @@
       </div>
 
       <!-- News -->
-      <div
-        ref="newsCardEl"
-        class="statCard js-reveal clickable"
-        role="button"
-        tabindex="0"
-        @click="goNews"
-        @keydown.enter.prevent="goNews"
-        @keydown.space.prevent="goNews"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <div ref="newsCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goNews"
+        @keydown.enter.prevent="goNews" @keydown.space.prevent="goNews" @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-newspaper"></i>
@@ -119,17 +95,9 @@
       </div>
 
       <!-- Jobs -->
-      <div
-        ref="jobsCardEl"
-        class="statCard js-reveal clickable"
-        role="button"
-        tabindex="0"
-        @click="goJobs"
-        @keydown.enter.prevent="goJobs"
-        @keydown.space.prevent="goJobs"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <div ref="jobsCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goJobs"
+        @keydown.enter.prevent="goJobs" @keydown.space.prevent="goJobs" @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-user-plus"></i>
@@ -157,18 +125,10 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Board Director (stat) ✅ full area -->
-      <div
-        ref="boardCardEl"
-        class="statCard js-reveal clickable wide"
-        role="button"
-        tabindex="0"
-        @click="goBoardDirector"
-        @keydown.enter.prevent="goBoardDirector"
-        @keydown.space.prevent="goBoardDirector"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <!-- Board Director (stat) -->
+      <div ref="boardCardEl" class="statCard js-reveal clickable wide" role="button" tabindex="0"
+        @click="goBoardDirector" @keydown.enter.prevent="goBoardDirector" @keydown.space.prevent="goBoardDirector"
+        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-user-tie"></i>
@@ -196,18 +156,10 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- ✅ Lapnet Employee (NEW stat) ✅ full area -->
-      <div
-        ref="lapnetStatCardEl"
-        class="statCard js-reveal clickable wide"
-        role="button"
-        tabindex="0"
-        @click="goLapnetEmp"
-        @keydown.enter.prevent="goLapnetEmp"
-        @keydown.space.prevent="goLapnetEmp"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
+      <!-- Lapnet Employee (stat) -->
+      <div ref="lapnetStatCardEl" class="statCard js-reveal clickable wide" role="button" tabindex="0"
+        @click="goLapnetEmp" @keydown.enter.prevent="goLapnetEmp" @keydown.space.prevent="goLapnetEmp"
+        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-users"></i>
@@ -235,307 +187,196 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Graph Card (make it left) -->
-      <div ref="chartCardEl" class="chartCard js-reveal">
-        <div class="chartTop">
-          <div class="chartTitle">
-            <span class="chartBadge"><i class="fa-solid fa-chart-area"></i></span>
-            <div class="chartTitleText">
-              <div class="chartH">Posting Activity</div>
-              <div class="chartSub">Overview + filter by category (7 days / 30 days / 3 months)</div>
+      <!-- LEFT COLUMN -->
+      <div class="leftCol">
+        <!-- ✅ Graph Card (Chart.js) -->
+        <div ref="chartCardEl" class="chartCard js-reveal">
+          <div class="chartTop">
+            <div class="chartTitle">
+              <span class="chartBadge"><i class="fa-solid fa-chart-area"></i></span>
+              <div class="chartTitleText">
+                <div class="chartH">Posting Activity</div>
+                <div class="chartSub">Overview + filter by category (7 days / 30 days / 3 months)</div>
+              </div>
+            </div>
+
+            <div class="chartActions">
+              <div class="segmented">
+                <button v-for="r in ranges" :key="r.key" class="segBtn" type="button"
+                  :class="{ active: rangeKey === r.key }" @click="setRange(r.key)">
+                  {{ r.label }}
+                </button>
+              </div>
+
+              <button class="chartRefreshBtn" type="button" @click="refreshAll" title="Refresh all data">
+                <i class="fa-solid fa-rotate-right"></i>
+              </button>
             </div>
           </div>
 
-          <div class="chartActions">
-            <div class="segmented">
-              <button
-                v-for="r in ranges"
-                :key="r.key"
-                class="segBtn"
-                type="button"
-                :class="{ active: rangeKey === r.key }"
-                @click="setRange(r.key)"
-              >
-                {{ r.label }}
-              </button>
+          <div class="chipRow">
+            <button v-for="c in categories" :key="c.key" class="chip" type="button"
+              :class="[c.key, { active: categoryKey === c.key }]" @click="setCategory(c.key)">
+              <span class="chipDot"></span>
+              <span class="chipText">{{ c.label }}</span>
+            </button>
+          </div>
+
+          <div class="chartMeta">
+            <div class="metaPill">
+              <i class="fa-solid fa-calendar-days"></i>
+              <span>Range:</span>
+              <b>{{ rangeLabel }}</b>
             </div>
 
-            <button class="chartRefreshBtn" type="button" @click="refreshAll" title="Refresh all data">
+            <div class="metaPill">
+              <i class="fa-solid fa-layer-group"></i>
+              <span>View:</span>
+              <b>{{ categoryLabel }}</b>
+            </div>
+
+            <div class="metaPill" v-if="anyLoading">
+              <span class="spinner"></span>
+              Loading data...
+            </div>
+
+            <div class="metaPill errorPill" v-else-if="anyError">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              {{ anyError }}
+            </div>
+
+            <div class="metaPill" v-else>
+              <i class="fa-solid fa-signal"></i>
+              <span>Total in range:</span>
+              <b>{{ rangeTotal }}</b>
+            </div>
+
+            <div class="metaPill" v-if="!anyLoading && !anyError">
+              <i class="fa-solid fa-chart-line"></i>
+              <span>Avg / day:</span>
+              <b>{{ avgPerDay }}</b>
+            </div>
+
+            <div class="metaPill subtle" v-if="!anyLoading && !anyError && unknownDateCount">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>Items w/o date:</span>
+              <b>{{ unknownDateCount }}</b>
+            </div>
+          </div>
+
+          <!-- ✅ Chart.js canvas -->
+          <div class="chartCanvasWrap">
+            <canvas ref="chartCanvasEl" class="chartCanvas"></canvas>
+
+            <div v-if="anyLoading" class="chartOverlay">
+              <span class="spinner"></span> Loading...
+            </div>
+            <div v-else-if="anyError" class="chartOverlay error">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              {{ anyError }}
+            </div>
+          </div>
+
+          <div class="legend">
+            <div class="legItem"><span class="legDot total"></span> Total</div>
+            <div class="legItem"><span class="legDot bank"></span> Bank</div>
+            <div class="legItem"><span class="legDot news"></span> News</div>
+            <div class="legItem"><span class="legDot jobs"></span> Jobs</div>
+            <div class="legItem"><span class="legDot announcement"></span> Announcement</div>
+
+            <div class="legHint">
+              <i class="fa-solid fa-circle-info"></i>
+              Hover / touch to see detail
+            </div>
+          </div>
+
+          <span class="chartGlow" />
+          <span class="cardSheen" />
+        </div>
+
+        <!-- ✅ News Preview (max-height matches Lapnet Employees block) -->
+        <div ref="newsPreviewEl" class="sideCard newsPreviewCard js-reveal">
+          <div class="sideTop">
+            <div class="sideTitle">
+              <span class="sideBadge"><i class="fa-solid fa-newspaper"></i></span>
+              <div>
+                <div class="sideH">News Preview</div>
+                <div class="sideSub">Latest posts</div>
+              </div>
+            </div>
+
+            <button class="sideRefresh" type="button" @click.stop="fetchNewsTotal" title="Refresh">
               <i class="fa-solid fa-rotate-right"></i>
             </button>
           </div>
-        </div>
 
-        <div class="chipRow">
-          <button
-            v-for="c in categories"
-            :key="c.key"
-            class="chip"
-            type="button"
-            :class="[c.key, { active: categoryKey === c.key }]"
-            @click="setCategory(c.key)"
-          >
-            <span class="chipDot"></span>
-            <span class="chipText">{{ c.label }}</span>
-          </button>
-        </div>
+          <div class="sideMeta">
+            <span class="metaMini">
+              <i class="fa-solid fa-database"></i>
+              <b>{{ newsTotal }}</b>
+              <span>Total</span>
+            </span>
 
-        <div class="chartMeta">
-          <div class="metaPill">
-            <i class="fa-solid fa-calendar-days"></i>
-            <span>Range:</span>
-            <b>{{ rangeLabel }}</b>
+            <button class="sideLink" type="button" @click="goNews">
+              View all <i class="fa-solid fa-arrow-right"></i>
+            </button>
           </div>
 
-          <div class="metaPill">
-            <i class="fa-solid fa-layer-group"></i>
-            <span>View:</span>
-            <b>{{ categoryLabel }}</b>
-          </div>
-
-          <div class="metaPill" v-if="anyLoading">
-            <span class="spinner"></span>
-            Loading data...
-          </div>
-
-          <div class="metaPill errorPill" v-else-if="anyError">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ anyError }}
-          </div>
-
-          <div class="metaPill" v-else>
-            <i class="fa-solid fa-signal"></i>
-            <span>Total in range:</span>
-            <b>{{ rangeTotal }}</b>
-          </div>
-
-          <div class="metaPill" v-if="!anyLoading && !anyError">
-            <i class="fa-solid fa-chart-line"></i>
-            <span>Avg / day:</span>
-            <b>{{ avgPerDay }}</b>
-          </div>
-
-          <div class="metaPill subtle" v-if="!anyLoading && !anyError && unknownDateCount">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>Items w/o date:</span>
-            <b>{{ unknownDateCount }}</b>
-          </div>
-        </div>
-
-        <div ref="chartWrapEl" class="chartWrap" @mouseleave="clearHover">
-          <div class="chartBgNoise"></div>
-
-          <svg
-            class="chartSvg"
-            viewBox="0 0 900 280"
-            preserveAspectRatio="none"
-            @mousemove="onChartMove"
-            @touchmove.prevent="onChartMove"
-          >
-            <defs>
-              <linearGradient id="glowSweep" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(56,189,248,0)" />
-                <stop offset="50%" stop-color="rgba(56,189,248,0.22)" />
-                <stop offset="100%" stop-color="rgba(56,189,248,0)" />
-              </linearGradient>
-
-              <linearGradient id="gradTotal" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(255,255,255,0.55)" />
-                <stop offset="50%" stop-color="rgba(255,255,255,0.92)" />
-                <stop offset="100%" stop-color="rgba(255,255,255,0.55)" />
-              </linearGradient>
-
-              <linearGradient id="gradBank" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(242,255,0,0.9)" />
-                <stop offset="50%" stop-color="rgba(242,255,0,0.9)" />
-                <stop offset="100%" stop-color="rgba(242,255,0,0.9)" />
-              </linearGradient>
-
-              <linearGradient id="gradNews" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(99,102,241,0.55)" />
-                <stop offset="50%" stop-color="rgba(99,102,241,0.98)" />
-                <stop offset="100%" stop-color="rgba(99,102,241,0.55)" />
-              </linearGradient>
-              <linearGradient id="gradJobs" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(14,165,233,0.55)" />
-                <stop offset="50%" stop-color="rgba(14,165,233,0.98)" />
-                <stop offset="100%" stop-color="rgba(14,165,233,0.55)" />
-              </linearGradient>
-              <linearGradient id="gradAnn" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(34,197,94,0.55)" />
-                <stop offset="50%" stop-color="rgba(34,197,94,0.98)" />
-                <stop offset="100%" stop-color="rgba(34,197,94,0.55)" />
-              </linearGradient>
-
-              <linearGradient id="areaGradActive" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" :stop-color="activeAreaTop" />
-                <stop offset="100%" stop-color="rgba(56,189,248,0)" />
-              </linearGradient>
-
-              <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3.4" result="b" />
-                <feColorMatrix
-                  in="b"
-                  type="matrix"
-                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.55 0"
-                  result="c"
-                />
-                <feMerge>
-                  <feMergeNode in="c" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            <rect class="sweepGlow" x="0" y="0" width="900" height="280" />
-
-            <g class="grid">
-              <line v-for="y in 4" :key="'gy' + y" :x1="pad" :x2="900 - pad" :y1="gridY(y)" :y2="gridY(y)" />
-              <line v-for="x in 6" :key="'gx' + x" :y1="pad" :y2="280 - pad" :x1="gridX(x)" :x2="gridX(x)" />
-            </g>
-
-            <g class="axisLabels">
-              <text :x="pad" :y="pad + 6">{{ maxY }}</text>
-              <text :x="pad" :y="gridY(2) + 6">{{ Math.round(maxY / 2) }}</text>
-              <text :x="pad" :y="280 - pad + 10">0</text>
-            </g>
-
-            <g v-if="categoryKey === 'all' && !anyLoading && !anyError">
-              <g class="bars">
-                <g v-for="(d, i) in days" :key="'bar' + d.key">
-                  <rect
-                    v-for="seg in stackedRects(i)"
-                    :key="seg.k"
-                    class="barSeg"
-                    :class="seg.k"
-                    :x="seg.x"
-                    :y="seg.y"
-                    :width="seg.w"
-                    :height="seg.h"
-                    rx="10"
-                    ry="10"
-                  />
-                  <rect
-                    v-for="seg in stackedCaps(i)"
-                    :key="seg.k + 'cap'"
-                    class="barCap"
-                    :class="seg.k"
-                    :x="seg.x"
-                    :y="seg.y"
-                    :width="seg.w"
-                    :height="seg.h"
-                    rx="10"
-                    ry="10"
-                  />
-                </g>
-              </g>
-
-              <path
-                ref="totalLineEl"
-                class="line total"
-                :style="{ stroke: lineStrokeUrl }"
-                filter="url(#softGlow)"
-                :d="smoothLinePath(totalSeries)"
-              />
-              <circle
-                v-if="hoverIdx !== null"
-                class="dotHover total"
-                :cx="dotX(hoverIdx)"
-                :cy="dotY(totalSeries[hoverIdx]?.count ?? 0, maxY)"
-                r="7"
-              />
-            </g>
-
-            <g v-else-if="categoryKey !== 'all' && !anyLoading && !anyError">
-              <path ref="areaEl" class="area" :d="smoothAreaPath(activeSeries)" />
-              <path
-                ref="lineEl"
-                class="line active"
-                :style="{ stroke: lineStrokeUrl }"
-                filter="url(#softGlow)"
-                :d="smoothLinePath(activeSeries)"
-              />
-
-              <circle
-                v-if="hoverIdx !== null"
-                :class="['dotHover', 'active', categoryKey]"
-                :cx="dotX(hoverIdx)"
-                :cy="dotY(activeSeries[hoverIdx]?.count ?? 0, maxY)"
-                r="7"
-              />
-            </g>
-
-            <g v-if="hoverIdx !== null && !anyLoading && !anyError" class="hoverLine">
-              <line :x1="dotX(hoverIdx)" :x2="dotX(hoverIdx)" :y1="pad" :y2="280 - pad" />
-            </g>
-
-            <g class="xLabels" v-if="!anyLoading && !anyError">
-              <text :x="pad" :y="280 - 6">{{ days[0]?.label }}</text>
-              <text :x="900 - pad" :y="280 - 6" text-anchor="end">{{ days[days.length - 1]?.label }}</text>
-            </g>
-          </svg>
-
-          <div v-if="hoverIdx !== null && !anyLoading && !anyError" class="tooltip" :style="tooltipStyle">
-            <div class="tipDate">{{ days[hoverIdx]?.label }}</div>
-
-            <div v-if="categoryKey === 'all'" class="tipRows">
-              <div class="tipRow">
-                <span class="tDot total"></span>
-                <span class="tLabel">Total</span>
-                <b class="tVal">{{ totalSeries[hoverIdx]?.count ?? 0 }}</b>
-              </div>
-              <div class="tipRow">
-                <span class="tDot bank"></span>
-                <span class="tLabel">Bank</span>
-                <b class="tVal">{{ memberSeries[hoverIdx]?.count ?? 0 }}</b>
-              </div>
-              <div class="tipRow">
-                <span class="tDot news"></span>
-                <span class="tLabel">News</span>
-                <b class="tVal">{{ newsSeries[hoverIdx]?.count ?? 0 }}</b>
-              </div>
-              <div class="tipRow">
-                <span class="tDot jobs"></span>
-                <span class="tLabel">Jobs</span>
-                <b class="tVal">{{ jobSeries[hoverIdx]?.count ?? 0 }}</b>
-              </div>
-              <div class="tipRow">
-                <span class="tDot announcement"></span>
-                <span class="tLabel">Announcement</span>
-                <b class="tVal">{{ announcementSeries[hoverIdx]?.count ?? 0 }}</b>
-              </div>
+          <div class="newsPreviewBody">
+            <div v-if="newsLoading" class="sideState">
+              <span class="spinner"></span> Loading...
             </div>
 
-            <div v-else class="tipRows">
-              <div class="tipRow">
-                <span :class="['tDot', categoryKey]"></span>
-                <span class="tLabel">{{ categoryLabel }}</span>
-                <b class="tVal">{{ activeSeries[hoverIdx]?.count ?? 0 }}</b>
+            <div v-else-if="newsError" class="sideState errState">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              {{ newsError }}
+            </div>
+
+            <div v-else-if="!newsLatest.length" class="sideState">No data</div>
+
+            <div v-else class="newsList">
+              <div v-for="(n, idx) in newsPreview" :key="String(pick(n, 'id', 'news_id', 'slug') || idx)"
+                class="newsItem" role="button" tabindex="0" @click="goNews" @keydown.enter.prevent="goNews"
+                @keydown.space.prevent="goNews">
+                <div class="newsThumb">
+                  <img v-if="newsThumbSrc(n)" :src="newsThumbSrc(n)"
+                    :alt="pick(n, 'header_news', 'headerNews', 'news_title', 'title') || 'news'" />
+
+                  <div v-else class="newsThumbEmpty"><i class="fa-regular fa-image"></i></div>
+                </div>
+
+                <div class="newsInfo">
+                  <div class="newsTitle">
+                    {{ pick(n, "header_news", "headerNews", "news_title", "title", "name", "headline") || "Untitled" }}
+                  </div>
+
+                  <div class="newsMeta">
+                    <span class="miniChip subtle" v-if="parseAnyDate(n)">
+                      <i class="fa-regular fa-clock"></i>
+                      {{ fmtDateTime(parseAnyDate(n)) }}
+                    </span>
+
+                    <span class="miniChip" v-if="pick(n, 'category', 'news_category', 'type', 'tag')">
+                      <i class="fa-solid fa-tag"></i>
+                      {{ pick(n, "category", "news_category", "type", "tag") }}
+                    </span>
+
+                  </div>
+                </div>
+
+                <i class="fa-solid fa-chevron-right boardChevron"></i>
               </div>
             </div>
           </div>
+
+          <span class="sideGlow" />
+          <span class="cardSheen" />
         </div>
-
-        <div class="legend">
-          <div class="legItem"><span class="legDot total"></span> Total</div>
-          <div class="legItem"><span class="legDot bank"></span> Bank</div>
-          <div class="legItem"><span class="legDot news"></span> News</div>
-          <div class="legItem"><span class="legDot jobs"></span> Jobs</div>
-          <div class="legItem"><span class="legDot announcement"></span> Announcement</div>
-
-          <div class="legHint">
-            <i class="fa-solid fa-circle-info"></i>
-            Hover / touch to see daily detail
-          </div>
-        </div>
-
-        <span class="chartGlow" />
-        <span class="cardSheen" />
       </div>
 
-      <!-- ✅ Right Side Column: Board directors + Lapnet employees -->
+      <!-- RIGHT COLUMN -->
       <div class="sideCol js-reveal">
-        <!-- ✅ Board Director CardView (NEW DESIGN) -->
+        <!-- Board Director card -->
         <div ref="boardSideEl" class="sideCard boardCard">
           <div class="boardHero" />
 
@@ -578,23 +419,19 @@
             <div v-else-if="!boardLatest.length" class="sideState">No data</div>
 
             <div v-else class="boardList">
-              <div
-                v-for="(b, idx) in boardPaged"
-                :key="String(b?.id ?? b?.director_id ?? b?.board_id ?? b?.name ?? idx)"
-                class="boardItem"
-                @click="goBoardDirector"
-                @keydown.enter.prevent="goBoardDirector"
-                @keydown.space.prevent="goBoardDirector"
-                role="button"
-                tabindex="0"
-              >
+              <div v-for="(b, idx) in boardPaged"
+                :key="String(b?.id ?? b?.director_id ?? b?.board_id ?? b?.name ?? idx)" class="boardItem"
+                @click="goBoardDirector" @keydown.enter.prevent="goBoardDirector"
+                @keydown.space.prevent="goBoardDirector" role="button" tabindex="0">
                 <div class="boardLogo">
                   <img :src="boardLogoSrc(b)" alt="logobank" />
                 </div>
 
                 <div class="boardInfo">
                   <div class="boardCommittee">
-                    {{ pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee" }}
+                    {{
+                      pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee"
+                    }}
                   </div>
 
                   <div class="boardNameRow">
@@ -624,21 +461,17 @@
                 <i class="fa-solid fa-chevron-right boardChevron"></i>
               </div>
 
-              <!-- ✅ Pagination (Board Director CardView) -->
+              <!-- Pagination (Board) -->
               <div class="boardPager" v-if="boardPageCount > 1">
-                <button class="pagerBtn" type="button" @click.stop="boardPrev" :disabled="boardPage <= 1" title="Previous">
+                <button class="pagerBtn" type="button" @click.stop="boardPrev" :disabled="boardPage <= 1"
+                  title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
 
                 <div class="pagerInfo">Page {{ boardPage }} / {{ boardPageCount }}</div>
 
-                <button
-                  class="pagerBtn"
-                  type="button"
-                  @click.stop="boardNext"
-                  :disabled="boardPage >= boardPageCount"
-                  title="Next"
-                >
+                <button class="pagerBtn" type="button" @click.stop="boardNext" :disabled="boardPage >= boardPageCount"
+                  title="Next">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -649,14 +482,14 @@
           <span class="cardSheen" />
         </div>
 
-        <!-- ✅ Lapnet Employee CardView (UPDATED: sort by emp_id + pagination 3/page) -->
-        <div ref="lapnetSideEl" class="sideCard">
+        <!-- ✅ Lapnet Employee Card (max-height matched with News Preview) -->
+        <div ref="lapnetSideEl" class="sideCard lapnetCard">
           <div class="sideTop">
             <div class="sideTitle">
               <span class="sideBadge"><i class="fa-solid fa-users"></i></span>
               <div>
                 <div class="sideH">Lapnet Employees</div>
-                <div class="sideSub">Sorted by emp_id • 3 per page</div>
+                <div class="sideSub">3 per page</div>
               </div>
             </div>
 
@@ -690,31 +523,23 @@
             <div v-else-if="!lapnetSorted.length" class="sideState">No data</div>
 
             <div v-else class="sideList">
-              <div
-                v-for="(emp, idx) in lapnetPaged"
-                :key="String(emp?.emp_id ?? emp?.id ?? emp?.name ?? idx)"
-                class="sideItem"
-                @click="goLapnetEmp"
-                @keydown.enter.prevent="goLapnetEmp"
-                @keydown.space.prevent="goLapnetEmp"
-                role="button"
-                tabindex="0"
-              >
+              <div v-for="(emp, idx) in lapnetPaged" :key="String(emp?.emp_id ?? emp?.id ?? emp?.name ?? idx)"
+                class="sideItem" @click="goLapnetEmp" @keydown.enter.prevent="goLapnetEmp"
+                @keydown.space.prevent="goLapnetEmp" role="button" tabindex="0">
                 <div class="sideAvatar">
-                  <img
-                    v-if="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
+                  <img v-if="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
                     :src="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
-                    alt="emp"
-                  />
+                    alt="emp" />
                   <div v-else class="sideAvatarEmpty"><i class="fa-solid fa-user"></i></div>
                 </div>
 
                 <div class="sideInfo">
                   <div class="sideName">
-                    {{ pick(emp, "name", "empName", "emp_name") || "-" }}
-                    <span class="miniChip subtle empIdChip" v-if="pick(emp, 'emp_id', 'empId', 'id')">
-                      #{{ pick(emp, "emp_id", "empId", "id") }}
+                    <span class="miniChip subtle empNoChip">
+                      No. {{ lapnetStartIndex + idx + 1 }}
                     </span>
+
+                    {{ pick(emp, "name", "empName", "emp_name") || "-" }}
                   </div>
 
                   <div class="sideRole">
@@ -735,21 +560,17 @@
                 </div>
               </div>
 
-              <!-- ✅ Pagination (Lapnet Employee) -->
+              <!-- Pagination (Lapnet) -->
               <div class="boardPager" v-if="lapnetPageCount > 1">
-                <button class="pagerBtn" type="button" @click.stop="lapnetPrev" :disabled="lapnetPage <= 1" title="Previous">
+                <button class="pagerBtn" type="button" @click.stop="lapnetPrev" :disabled="lapnetPage <= 1"
+                  title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
 
                 <div class="pagerInfo">Page {{ lapnetPage }} / {{ lapnetPageCount }}</div>
 
-                <button
-                  class="pagerBtn"
-                  type="button"
-                  @click.stop="lapnetNext"
-                  :disabled="lapnetPage >= lapnetPageCount"
-                  title="Next"
-                >
+                <button class="pagerBtn" type="button" @click.stop="lapnetNext"
+                  :disabled="lapnetPage >= lapnetPageCount" title="Next">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -761,7 +582,7 @@
         </div>
       </div>
 
-      <!-- (Calendar card template ของคุณเดิมอยู่ด้านล่างได้เหมือนเดิม) -->
+      <!-- Calendar card template ของคุณเดิมสามารถอยู่ด้านล่างได้ -->
     </div>
   </div>
 </template>
@@ -770,6 +591,32 @@
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Tooltip,
+  Legend,
+  Filler,
+  BarController,
+  BarElement,
+} from "chart.js";
+
+Chart.register(
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Tooltip,
+  Legend,
+  Filler,
+  BarController,
+  BarElement
+);
 
 const router = useRouter();
 const dashEl = ref(null);
@@ -789,34 +636,38 @@ function goJobs() {
 function goAnnouncement() {
   router.push("/announcementviewer");
 }
-/* ✅ Lapnet employee list page (ปรับ path ได้) */
 function goLapnetEmp() {
   router.push("/lapnetview");
 }
 
+/* refs */
 const statCardEl = ref(null);
 const boardCardEl = ref(null);
 const newsCardEl = ref(null);
 const jobsCardEl = ref(null);
 const announcementCardEl = ref(null);
 const chartCardEl = ref(null);
-const chartWrapEl = ref(null);
-const calendarCardEl = ref(null);
+const newsPreviewEl = ref(null);
 
-/* ✅ NEW refs */
 const lapnetStatCardEl = ref(null);
 const lapnetSideEl = ref(null);
 const boardSideEl = ref(null);
+
+/* Chart.js */
+const chartCanvasEl = ref(null);
+let chartInst = null;
 
 /* API base */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const MEMBERS_API = `${API_BASE}/api/members`;
 const BOARD_API = `${API_BASE}/api/boarddirector`;
-const NEWS_API = `${API_BASE}/api/news`;
+
+// ✅ ONLY CHANGE: force News Preview (and News total) to fetch from the exact URL you gave
+const NEWS_API = `http://localhost:3000/api/news`;
+const NEWS_BASE = `http://localhost:3000`; // used for news image resolving (if API returns relative image paths)
+
 const JOBS_API = `${API_BASE}/api/jobs`;
 const ANNOUNCE_API = `${API_BASE}/api/announcement`;
-
-/* ✅ NEW API */
 const EMP_LAPNET_API = `${API_BASE}/api/emp_lapnet`;
 
 /* Raw items */
@@ -825,16 +676,12 @@ const boardItems = ref([]);
 const newsItems = ref([]);
 const jobItems = ref([]);
 const announcementItems = ref([]);
-
-/* ✅ NEW items */
 const lapnetEmpItems = ref([]);
 
-// fallback logo (only used when API has no logo)
+/* fallback logo */
 const BOARD_LOGO_FALLBACK = "/logobank.png";
 
-// Get bank logo from boarddirector record (API: /api/boarddirector)
 function boardLogoSrc(b) {
-  // try nested fields too (if your API returns something like b.bank.logo)
   const nested =
     b?.bank?.logo ||
     b?.bank?.banklogo ||
@@ -846,7 +693,6 @@ function boardLogoSrc(b) {
     nested ||
     pick(
       b,
-      // common keys
       "banklogo",
       "bank_logo",
       "logo",
@@ -886,28 +732,28 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
     const list = Array.isArray(data)
       ? data
       : Array.isArray(data?.data)
-      ? data.data
-      : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data?.members)
-      ? data.members
-      : Array.isArray(data?.news)
-      ? data.news
-      : Array.isArray(data?.jobs)
-      ? data.jobs
-      : Array.isArray(data?.announcement)
-      ? data.announcement
-      : Array.isArray(data?.boarddirectors)
-      ? data.boarddirectors
-      : Array.isArray(data?.boarddirector)
-      ? data.boarddirector
-      : Array.isArray(data?.directors)
-      ? data.directors
-      : Array.isArray(data?.emp_lapnet)
-      ? data.emp_lapnet
-      : Array.isArray(data?.employees)
-      ? data.employees
-      : [];
+        ? data.data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.members)
+            ? data.members
+            : Array.isArray(data?.news)
+              ? data.news
+              : Array.isArray(data?.jobs)
+                ? data.jobs
+                : Array.isArray(data?.announcement)
+                  ? data.announcement
+                  : Array.isArray(data?.boarddirectors)
+                    ? data.boarddirectors
+                    : Array.isArray(data?.boarddirector)
+                      ? data.boarddirector
+                      : Array.isArray(data?.directors)
+                        ? data.directors
+                        : Array.isArray(data?.emp_lapnet)
+                          ? data.emp_lapnet
+                          : Array.isArray(data?.employees)
+                            ? data.employees
+                            : [];
 
     itemsRef.value = list;
     return list;
@@ -922,12 +768,38 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
   }
 }
 
-/* Members total */
+/* totals state */
 const memberTotal = ref(0);
 const memberLoading = ref(false);
 const memberError = ref("");
 const memberAbortCtrl = ref(null);
 
+const boardTotal = ref(0);
+const boardLoading = ref(false);
+const boardError = ref("");
+const boardAbortCtrl = ref(null);
+
+const lapnetEmpTotal = ref(0);
+const lapnetEmpLoading = ref(false);
+const lapnetEmpError = ref("");
+const lapnetEmpAbortCtrl = ref(null);
+
+const newsTotal = ref(0);
+const newsLoading = ref(false);
+const newsError = ref("");
+const newsAbortCtrl = ref(null);
+
+const jobTotal = ref(0);
+const jobLoading = ref(false);
+const jobError = ref("");
+const jobAbortCtrl = ref(null);
+
+const announcementTotal = ref(0);
+const announcementLoading = ref(false);
+const announcementError = ref("");
+const announcementAbortCtrl = ref(null);
+
+/* fetch totals */
 async function fetchMemberTotal() {
   const list = await fetchList(MEMBERS_API, memberAbortCtrl, memberLoading, memberError, memberItems);
   if (!list) return;
@@ -935,61 +807,36 @@ async function fetchMemberTotal() {
   if (statCardEl.value) gsap.fromTo(statCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
 
-/* Board Director total */
-const boardTotal = ref(0);
-const boardLoading = ref(false);
-const boardError = ref("");
-const boardAbortCtrl = ref(null);
-
 async function fetchBoardTotal() {
   const list = await fetchList(BOARD_API, boardAbortCtrl, boardLoading, boardError, boardItems);
   if (!list) return;
   boardTotal.value = list.length;
-
-  // ✅ Pagination reset (Board Director CardView)
   boardPage.value = 1;
 
   if (boardCardEl.value) gsap.fromTo(boardCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
   if (boardSideEl.value) gsap.fromTo(boardSideEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
 
-/* ✅ Lapnet Employee total + items (NEW) */
-const lapnetEmpTotal = ref(0);
-const lapnetEmpLoading = ref(false);
-const lapnetEmpError = ref("");
-const lapnetEmpAbortCtrl = ref(null);
-
 async function fetchLapnetEmpTotal() {
   const list = await fetchList(EMP_LAPNET_API, lapnetEmpAbortCtrl, lapnetEmpLoading, lapnetEmpError, lapnetEmpItems);
   if (!list) return;
 
   lapnetEmpTotal.value = list.length;
-
-  // ✅ reset pagination to page 1 every refresh
   lapnetPage.value = 1;
 
-  if (lapnetStatCardEl.value) gsap.fromTo(lapnetStatCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  if (lapnetStatCardEl.value)
+    gsap.fromTo(lapnetStatCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
   if (lapnetSideEl.value) gsap.fromTo(lapnetSideEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
-
-/* News total */
-const newsTotal = ref(0);
-const newsLoading = ref(false);
-const newsError = ref("");
-const newsAbortCtrl = ref(null);
 
 async function fetchNewsTotal() {
   const list = await fetchList(NEWS_API, newsAbortCtrl, newsLoading, newsError, newsItems);
   if (!list) return;
   newsTotal.value = list.length;
   if (newsCardEl.value) gsap.fromTo(newsCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  if (newsPreviewEl.value)
+    gsap.fromTo(newsPreviewEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
-
-/* Jobs total */
-const jobTotal = ref(0);
-const jobLoading = ref(false);
-const jobError = ref("");
-const jobAbortCtrl = ref(null);
 
 async function fetchJobTotal() {
   const list = await fetchList(JOBS_API, jobAbortCtrl, jobLoading, jobError, jobItems);
@@ -998,31 +845,18 @@ async function fetchJobTotal() {
   if (jobsCardEl.value) gsap.fromTo(jobsCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
 }
 
-/* Announcement total */
-const announcementTotal = ref(0);
-const announcementLoading = ref(false);
-const announcementError = ref("");
-const announcementAbortCtrl = ref(null);
-
 async function fetchAnnouncementTotal() {
-  const list = await fetchList(
-    ANNOUNCE_API,
-    announcementAbortCtrl,
-    announcementLoading,
-    announcementError,
-    announcementItems
-  );
+  const list = await fetchList(ANNOUNCE_API, announcementAbortCtrl, announcementLoading, announcementError, announcementItems);
   if (!list) return;
   announcementTotal.value = list.length;
-  if (announcementCardEl.value) {
+  if (announcementCardEl.value)
     gsap.fromTo(announcementCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
-  }
 }
 
 function refreshAll() {
   fetchMemberTotal();
   fetchBoardTotal();
-  fetchLapnetEmpTotal(); // ✅ NEW
+  fetchLapnetEmpTotal();
   fetchNewsTotal();
   fetchJobTotal();
   fetchAnnouncementTotal();
@@ -1036,13 +870,16 @@ function pick(obj, ...keys) {
   }
   return "";
 }
-function resolveImageUrl(v) {
+
+// ✅ small enhancement: allow optional base override (so News images use localhost base if API returns relative paths)
+function resolveImageUrl(v, baseOverride) {
   if (!v) return "";
   let s = String(v).trim();
   if (!s) return "";
   if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
 
-  const base = String(API_BASE || "").replace(/\/$/, "");
+  const baseRaw = baseOverride || API_BASE;
+  const base = String(baseRaw || "").replace(/\/$/, "");
   if (!base) return s;
 
   if (s.startsWith("/")) return base + s;
@@ -1075,6 +912,7 @@ function setCategory(k) {
   categoryKey.value = k;
 }
 
+/* date parsing */
 const dateCache = new WeakMap();
 function parseAnyDate(obj) {
   if (!obj) return null;
@@ -1117,7 +955,7 @@ function parseAnyDate(obj) {
   const fields = [
     "createdAt",
     "created_at",
-    "create_at", // ✅ NEW (your emp_lapnet uses create_at)
+    "create_at",
     "created",
     "date_time",
     "dateTime",
@@ -1152,109 +990,18 @@ function sortByDateDesc(list) {
   return arr;
 }
 
-/* ✅ NEW: sort Lapnet employees by emp_id (DESC by default) */
-function empIdNum(emp) {
-  const raw = pick(emp, "emp_id", "empId", "empID", "id");
-  if (raw === "" || raw === null || raw === undefined) return -1;
-  const cleaned = String(raw).trim().replace(/[^\d.-]/g, "");
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : -1;
-}
-function sortByEmpIdDesc(list) {
-  const arr = Array.isArray(list) ? list.slice() : [];
-  arr.sort((a, b) => {
-    const ai = empIdNum(a);
-    const bi = empIdNum(b);
-    if (bi !== ai) return bi - ai; // DESC: highest emp_id first
-    // tie-breaker: newest date first
-    const ta = parseAnyDate(a)?.getTime() ?? -1;
-    const tb = parseAnyDate(b)?.getTime() ?? -1;
-    return tb - ta;
-  });
-  return arr;
-}
-
-/* ✅ Right-side lists */
-const lapnetSorted = computed(() => sortByEmpIdDesc(lapnetEmpItems.value));
-
-/* ✅ Lapnet pagination: page 1 show 3 */
-const lapnetPage = ref(1);
-const lapnetPageSize = 3;
-
-const lapnetPageCount = computed(() => {
-  const n = lapnetSorted.value?.length || 0;
-  return Math.max(1, Math.ceil(n / lapnetPageSize));
-});
-
-const lapnetPaged = computed(() => {
-  const list = lapnetSorted.value || [];
-  const start = (lapnetPage.value - 1) * lapnetPageSize;
-  return list.slice(start, start + lapnetPageSize);
-});
-
-function lapnetPrev() {
-  lapnetPage.value = Math.max(1, lapnetPage.value - 1);
-}
-function lapnetNext() {
-  lapnetPage.value = Math.min(lapnetPageCount.value, lapnetPage.value + 1);
-}
-
-watch(
-  () => lapnetSorted.value.length,
-  () => {
-    const max = lapnetPageCount.value;
-    if (lapnetPage.value > max) lapnetPage.value = max || 1;
-    if (lapnetPage.value < 1) lapnetPage.value = 1;
-  }
-);
-
-/* ✅ Board (Pagination base list) */
-const boardLatest = computed(() => sortByDateDesc(boardItems.value)); // (full list)
-
-/* ✅ Board pagination (page 1 show 4) */
-const boardPage = ref(1);
-const boardPageSize = 4;
-
-const boardPageCount = computed(() => {
-  const n = boardLatest.value?.length || 0;
-  return Math.max(1, Math.ceil(n / boardPageSize));
-});
-
-const boardPaged = computed(() => {
-  const list = boardLatest.value || [];
-  const start = (boardPage.value - 1) * boardPageSize;
-  return list.slice(start, start + boardPageSize);
-});
-
-function boardPrev() {
-  boardPage.value = Math.max(1, boardPage.value - 1);
-}
-function boardNext() {
-  boardPage.value = Math.min(boardPageCount.value, boardPage.value + 1);
-}
-
-watch(
-  () => boardLatest.value.length,
-  () => {
-    const max = boardPageCount.value;
-    if (boardPage.value > max) boardPage.value = max || 1;
-    if (boardPage.value < 1) boardPage.value = 1;
-  }
-);
-
+/* days + series */
 function toKey(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const da = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${da}`;
 }
-
 const MONTH_FMT = new Intl.DateTimeFormat("en-US", { month: "short" });
 function fmtLabel(d) {
   const mm = MONTH_FMT.format(d);
   return `${mm} ${d.getDate()}`;
 }
-
 function buildDays(nDays) {
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1266,7 +1013,6 @@ function buildDays(nDays) {
   }
   return out;
 }
-
 function buildSeriesAgg(list, daysArr) {
   const map = new Map(daysArr.map((d) => [d.key, 0]));
   let unknown = 0;
@@ -1329,9 +1075,9 @@ const activeSeries = computed(() => {
   }
 });
 
-// NOTE: chart loading/error ไม่รวม boarddirector & lapnet
+/* loading/error for chart */
 const anyLoading = computed(() => memberLoading.value || newsLoading.value || jobLoading.value || announcementLoading.value);
-const anyError = computed(() => (memberError.value || newsError.value || jobError.value || announcementError.value || ""));
+const anyError = computed(() => memberError.value || newsError.value || jobError.value || announcementError.value || "");
 
 const unknownDateCount = computed(() => {
   if (anyLoading.value || anyError.value) return 0;
@@ -1353,249 +1099,335 @@ const avgPerDay = computed(() => {
   return v.toFixed(1);
 });
 
-/* SVG */
-const pad = 26;
-const W = 900;
-const H = 280;
-
-const maxY = computed(() => {
-  const s = categoryKey.value === "all" ? totalSeries.value : activeSeries.value;
-  const m = Math.max(1, ...s.map((x) => x.count || 0));
-  if (m <= 5) return 5;
-  if (m <= 10) return 10;
-  if (m <= 20) return 20;
-  return Math.ceil(m / 10) * 10;
-});
-
-function xFor(i, n) {
-  if (n <= 1) return pad;
-  const usable = W - pad * 2;
-  return pad + (usable * i) / (n - 1);
+/* ✅ Chart.js rendering */
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
 }
-function yFor(v, max) {
-  const usable = H - pad * 2;
-  const t = max ? v / max : 0;
-  return H - pad - usable * t;
-}
-function dotX(i) {
-  return xFor(i, days.value.length);
-}
-function dotY(v, max) {
-  return yFor(v, max);
-}
-function gridY(step) {
-  const usable = H - pad * 2;
-  return pad + (usable * step) / 4;
-}
-function gridX(step) {
-  const usable = W - pad * 2;
-  return pad + (usable * step) / 6;
+function rgba(hex, a = 1) {
+  // accepts "#rrggbb"
+  const h = String(hex || "").replace("#", "");
+  if (h.length !== 6) return `rgba(255,255,255,${a})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
 }
 
-function smoothPathFromPoints(points, tension = 0.38) {
-  if (points.length < 2) return "";
-  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+function palette() {
+  // you can map these to your theme vars later
+  return {
+    txt: cssVar("--txt", "rgba(255,255,255,0.92)"),
+    muted: cssVar("--muted", "rgba(255,255,255,0.58)"),
+    stroke: cssVar("--stroke", "rgba(255,255,255,0.08)"),
+    bank: "#F2FF00",
+    news: "#6366F1",
+    jobs: "#0EA5E9",
+    announcement: "#22C55E",
+    total: "#FFFFFF",
+  };
+}
 
-  let d = `M ${points[0].x} ${points[0].y}`;
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-
-    const cp1x = p1.x + ((p2.x - p0.x) * tension) / 6;
-    const cp1y = p1.y + ((p2.y - p0.y) * tension) / 6;
-    const cp2x = p2.x - ((p3.x - p1.x) * tension) / 6;
-    const cp2y = p2.y - ((p3.y - p1.y) * tension) / 6;
-
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+function destroyChart() {
+  if (chartInst) {
+    chartInst.destroy();
+    chartInst = null;
   }
-  return d;
 }
 
-function pointsFromSeries(series) {
-  const s = series || [];
-  const n = s.length;
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    pts.push({ x: xFor(i, n), y: yFor(s[i].count || 0, maxY.value) });
+function buildDatasets(ctx) {
+  const p = palette();
+
+  const labels = days.value.map((d) => d.label);
+  const bank = memberSeries.value.map((x) => x.count || 0);
+  const news = newsSeries.value.map((x) => x.count || 0);
+  const jobs = jobSeries.value.map((x) => x.count || 0);
+  const ann = announcementSeries.value.map((x) => x.count || 0);
+  const total = totalSeries.value.map((x) => x.count || 0);
+
+  const makeFill = (colorHex) => {
+    const g = ctx.createLinearGradient(0, 0, 0, 260);
+    g.addColorStop(0, rgba(colorHex, 0.26));
+    g.addColorStop(1, rgba(colorHex, 0.02));
+    return g;
+  };
+
+  // Overview: stacked bars + total line
+  if (categoryKey.value === "all") {
+    return {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Bank",
+            data: bank,
+            backgroundColor: rgba(p.bank, 0.18),
+            borderColor: rgba(p.bank, 0.28),
+            borderWidth: 1,
+            borderRadius: 12,
+            borderSkipped: false,
+            stack: "s",
+          },
+          {
+            label: "News",
+            data: news,
+            backgroundColor: rgba(p.news, 0.18),
+            borderColor: rgba(p.news, 0.28),
+            borderWidth: 1,
+            borderRadius: 12,
+            borderSkipped: false,
+            stack: "s",
+          },
+          {
+            label: "Jobs",
+            data: jobs,
+            backgroundColor: rgba(p.jobs, 0.16),
+            borderColor: rgba(p.jobs, 0.26),
+            borderWidth: 1,
+            borderRadius: 12,
+            borderSkipped: false,
+            stack: "s",
+          },
+          {
+            label: "Announcement",
+            data: ann,
+            backgroundColor: rgba(p.announcement, 0.16),
+            borderColor: rgba(p.announcement, 0.26),
+            borderWidth: 1,
+            borderRadius: 12,
+            borderSkipped: false,
+            stack: "s",
+          },
+          {
+            type: "line",
+            label: "Total",
+            data: total,
+            borderColor: rgba(p.total, 0.85),
+            backgroundColor: makeFill(p.total),
+            fill: true,
+            tension: 0.35,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            borderWidth: 2,
+            order: 0,
+          },
+        ],
+      },
+    };
   }
-  return pts;
+
+  // Single category: smooth line + soft fill
+  const active = activeSeries.value.map((x) => x.count || 0);
+  const colorHex =
+    categoryKey.value === "bank"
+      ? p.bank
+      : categoryKey.value === "news"
+        ? p.news
+        : categoryKey.value === "jobs"
+          ? p.jobs
+          : p.announcement;
+
+  return {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: categoryLabel.value,
+          data: active,
+          borderColor: rgba(colorHex, 0.9),
+          backgroundColor: makeFill(colorHex),
+          fill: true,
+          tension: 0.38,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          borderWidth: 2.5,
+        },
+      ],
+    },
+  };
 }
 
-function smoothLinePath(series) {
-  const pts = pointsFromSeries(series);
-  return smoothPathFromPoints(pts, 0.9);
-}
-
-function smoothAreaPath(series) {
-  const pts = pointsFromSeries(series);
-  if (!pts.length) return "";
-  const baseY = H - pad;
-  const top = smoothPathFromPoints(pts, 0.9);
-  const last = pts[pts.length - 1];
-  const first = pts[0];
-  return `${top} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
-}
-
-/* stacked bars */
-function stackedRects(i) {
-  const n = days.value.length;
-  const cx = xFor(i, n);
-
-  const usable = W - pad * 2;
-  const gap = n <= 10 ? 18 : n <= 30 ? 10 : 7;
-  const bw = Math.max(12, usable / n - gap);
-  const x = cx - bw / 2;
-
-  const bank = memberSeries.value[i]?.count ?? 0;
-  const news = newsSeries.value[i]?.count ?? 0;
-  const jobs = jobSeries.value[i]?.count ?? 0;
-  const ann = announcementSeries.value[i]?.count ?? 0;
-
-  const segs = [
-    { k: "bank", v: bank },
-    { k: "news", v: news },
-    { k: "jobs", v: jobs },
-    { k: "announcement", v: ann },
-  ];
-
-  let curY = H - pad;
-  const out = [];
-
-  for (const seg of segs) {
-    if (!seg.v) continue;
-    const h = (H - pad * 2) * (seg.v / maxY.value);
-    curY -= h;
-    out.push({ k: seg.k, x, y: curY, w: bw, h });
-  }
-
-  if (!out.length) out.push({ k: "ghost", x, y: H - pad - 2, w: bw, h: 2 });
-  return out;
-}
-
-function stackedCaps(i) {
-  const rects = stackedRects(i).filter((r) => r.k !== "ghost");
-  if (!rects.length) return [];
-  const top = rects[0];
-  return [{ ...top, h: Math.min(4, top.h), y: top.y }];
-}
-
-/* tooltip hover */
-const hoverIdx = ref(null);
-const hoverPX = ref(0);
-const hoverPY = ref(0);
-
-function clearHover() {
-  hoverIdx.value = null;
-}
-
-function onChartMove(e) {
+function renderOrUpdateChart() {
+  if (!chartCanvasEl.value) return;
   if (anyLoading.value || anyError.value) return;
-  if (!chartWrapEl.value) return;
 
-  const rect = chartWrapEl.value.getBoundingClientRect();
-  const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-  const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+  const ctx = chartCanvasEl.value.getContext("2d");
+  if (!ctx) return;
 
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
+  const p = palette();
+  const cfg = buildDatasets(ctx);
 
-  const vx = (x / rect.width) * W;
-  const n = days.value.length;
-  const usable = W - pad * 2;
-  const t = Math.min(1, Math.max(0, (vx - pad) / usable));
-  const idx = Math.round(t * (n - 1));
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: {
+        display: false, // we keep your custom legend under the chart
+      },
+      tooltip: {
+        backgroundColor: "rgba(7, 14, 35, 0.92)",
+        borderColor: p.stroke,
+        borderWidth: 1,
+        titleColor: p.txt,
+        bodyColor: p.txt,
+        padding: 10,
+        displayColors: true,
+      },
+    },
+    scales: {
+      x: {
+        stacked: categoryKey.value === "all",
+        grid: { color: "rgba(255,255,255,0.05)" },
+        ticks: { color: p.muted, maxRotation: 0, autoSkip: true },
+      },
+      y: {
+        stacked: categoryKey.value === "all",
+        grid: { color: "rgba(255,255,255,0.05)" },
+        ticks: { color: p.muted, precision: 0 },
+        beginAtZero: true,
+      },
+    },
+    elements: {
+      line: { capBezierPoints: true },
+    },
+  };
 
-  hoverIdx.value = idx;
-  hoverPX.value = x;
-  hoverPY.value = y;
+  if (!chartInst) {
+    chartInst = new Chart(ctx, {
+      type: cfg.type,
+      data: cfg.data,
+      options,
+    });
+  } else {
+    chartInst.config.type = cfg.type;
+    chartInst.data.labels = cfg.data.labels;
+    chartInst.data.datasets = cfg.data.datasets;
+    chartInst.options = options;
+    chartInst.update();
+  }
+
+  if (chartCardEl.value) gsap.fromTo(chartCardEl.value, { y: 8 }, { y: 0, duration: 0.22, ease: "power2.out" });
 }
 
-const tooltipStyle = computed(() => {
-  if (hoverIdx.value === null || !chartWrapEl.value) return {};
-  const rect = chartWrapEl.value.getBoundingClientRect();
-  const left = Math.min(rect.width - 230, Math.max(12, hoverPX.value + 14));
-  const top = Math.min(rect.height - 130, Math.max(12, hoverPY.value - 18));
-  return { left: `${left}px`, top: `${top}px` };
-});
-
-const lineStrokeUrl = computed(() => {
-  if (categoryKey.value === "bank") return "url(#gradBank)";
-  if (categoryKey.value === "news") return "url(#gradNews)";
-  if (categoryKey.value === "jobs") return "url(#gradJobs)";
-  if (categoryKey.value === "announcement") return "url(#gradAnn)";
-  return "url(#gradTotal)";
-});
-
-const activeAreaTop = computed(() => {
-  if (categoryKey.value === "bank") return "rgba(242,255,0,0.22)";
-  if (categoryKey.value === "news") return "rgba(99,102,241,0.20)";
-  if (categoryKey.value === "jobs") return "rgba(14,165,233,0.20)";
-  if (categoryKey.value === "announcement") return "rgba(34,197,94,0.18)";
-  return "rgba(255,255,255,0.12)";
-});
-
-const totalLineEl = ref(null);
-const lineEl = ref(null);
-const areaEl = ref(null);
-
-function animatePath(el) {
-  if (!el?.getTotalLength) return;
-  const len = el.getTotalLength();
-  if (!len) return;
-  gsap.set(el, { strokeDasharray: len, strokeDashoffset: len, opacity: 0.95 });
-  gsap.to(el, { strokeDashoffset: 0, duration: 0.85, ease: "power2.out" });
-}
-
-function animateBars() {
-  gsap.killTweensOf(".barSeg");
-  gsap.set(".barSeg", { transformOrigin: "50% 100%" });
-  gsap.fromTo(
-    ".barSeg",
-    { scaleY: 0.2, opacity: 0.55 },
-    { scaleY: 1, opacity: 0.95, duration: 0.7, stagger: 0.01, ease: "power2.out" }
-  );
-  gsap.fromTo(".barCap", { opacity: 0 }, { opacity: 0.95, duration: 0.4, ease: "power2.out", delay: 0.15 });
-}
-
+/* watch to update chart */
 watch([rangeKey, categoryKey, anyLoading, anyError], async () => {
   if (anyLoading.value || anyError.value) return;
-
   await nextTick();
-
-  if (chartCardEl.value) {
-    gsap.fromTo(chartCardEl.value, { y: 10 }, { y: 0, duration: 0.28, ease: "power2.out" });
-  }
-
-  if (categoryKey.value === "all") {
-    animateBars();
-    if (totalLineEl.value) animatePath(totalLineEl.value);
-  } else {
-    if (areaEl.value) {
-      gsap.fromTo(areaEl.value, { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power2.out" });
-    }
-    if (lineEl.value) animatePath(lineEl.value);
-  }
+  renderOrUpdateChart();
 });
 
-/* Calendar (เดิม) */
-const CAL_STORAGE_KEY = "lapnet_admin_calendar_events_v1";
+/* Lapnet pagination */
+const lapnetSorted = computed(() => (Array.isArray(lapnetEmpItems.value) ? lapnetEmpItems.value.slice() : []));
+const lapnetPage = ref(1);
+const lapnetPageSize = 3;
+const lapnetStartIndex = computed(() => (lapnetPage.value - 1) * lapnetPageSize);
 
-const eventTypes = [
-  { key: "general", label: "General" },
-  { key: "bank", label: "Bank" },
-  { key: "news", label: "News" },
-  { key: "jobs", label: "Jobs" },
-  { key: "announcement", label: "Announcement" },
-];
+const lapnetPageCount = computed(() => {
+  const n = lapnetSorted.value?.length || 0;
+  return Math.max(1, Math.ceil(n / lapnetPageSize));
+});
 
-function eventTypeLabel(k) {
-  return eventTypes.find((x) => x.key === (k || "general"))?.label ?? "General";
+const lapnetPaged = computed(() => {
+  const list = lapnetSorted.value || [];
+  const start = (lapnetPage.value - 1) * lapnetPageSize;
+  return list.slice(start, start + lapnetPageSize);
+});
+
+function lapnetPrev() {
+  lapnetPage.value = Math.max(1, lapnetPage.value - 1);
+}
+function lapnetNext() {
+  lapnetPage.value = Math.min(lapnetPageCount.value, lapnetPage.value + 1);
 }
 
-const weekLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+watch(
+  () => lapnetSorted.value.length,
+  () => {
+    const max = lapnetPageCount.value;
+    if (lapnetPage.value > max) lapnetPage.value = max || 1;
+    if (lapnetPage.value < 1) lapnetPage.value = 1;
+  }
+);
+
+/* Board pagination */
+const boardLatest = computed(() => sortByDateDesc(boardItems.value));
+const boardPage = ref(1);
+const boardPageSize = 4;
+
+const boardPageCount = computed(() => {
+  const n = boardLatest.value?.length || 0;
+  return Math.max(1, Math.ceil(n / boardPageSize));
+});
+
+const boardPaged = computed(() => {
+  const list = boardLatest.value || [];
+  const start = (boardPage.value - 1) * boardPageSize;
+  return list.slice(start, start + boardPageSize);
+});
+
+function boardPrev() {
+  boardPage.value = Math.max(1, boardPage.value - 1);
+}
+function boardNext() {
+  boardPage.value = Math.min(boardPageCount.value, boardPage.value + 1);
+}
+
+watch(
+  () => boardLatest.value.length,
+  () => {
+    const max = boardPageCount.value;
+    if (boardPage.value > max) boardPage.value = max || 1;
+    if (boardPage.value < 1) boardPage.value = 1;
+  }
+);
+
+/* News preview */
+const newsLatest = computed(() => sortByDateDesc(newsItems.value));
+const newsPreview = computed(() => (newsLatest.value || []).slice(0, 6));
+
+function newsThumbSrc(n) {
+  const raw =
+    pick(
+      n,
+      "hero_img",
+      "heroImg",
+      "hero_image",
+      "heroImage",
+      "cover",
+      "cover_image",
+      "coverImage",
+      "thumbnail",
+      "thumb",
+      "image",
+      "image_url",
+      "imageUrl"
+    ) || "";
+
+  // ✅ if raw is relative -> force localhost base
+  return resolveImageUrl(raw, NEWS_BASE);
+}
+
+function fmtDateTime(d) {
+  if (!d) return "";
+  try {
+    const f = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return f.format(d);
+  } catch {
+    return String(d);
+  }
+}
+
+/* Calendar (kept) */
+const CAL_STORAGE_KEY = "lapnet_admin_calendar_events_v1";
 
 const nowCal = new Date();
 const calMonth = ref(nowCal.getMonth());
@@ -1629,161 +1461,20 @@ function persistCalendar() {
   if (!calLoaded.value) return;
   try {
     localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(calEvents.value));
-  } catch {
-    // ignore
-  }
+  } catch { }
 }
 watch(calEvents, persistCalendar, { deep: true });
 
-const eventsByDay = computed(() => {
-  const m = new Map();
-  for (const ev of calEvents.value || []) {
-    const dk = ev?.dateKey;
-    if (!dk) continue;
-    if (!m.has(dk)) m.set(dk, []);
-    m.get(dk).push(ev);
-  }
-  return m;
-});
-
-const monthTitleFmt = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
-const monthTitle = computed(() => monthTitleFmt.format(new Date(calYear.value, calMonth.value, 1)));
-
-function prevMonth() {
-  const d = new Date(calYear.value, calMonth.value - 1, 1);
-  calYear.value = d.getFullYear();
-  calMonth.value = d.getMonth();
-  if (calendarCardEl.value) gsap.fromTo(calendarCardEl.value, { y: 8 }, { y: 0, duration: 0.22, ease: "power2.out" });
-}
-function nextMonth() {
-  const d = new Date(calYear.value, calMonth.value + 1, 1);
-  calYear.value = d.getFullYear();
-  calMonth.value = d.getMonth();
-  if (calendarCardEl.value) gsap.fromTo(calendarCardEl.value, { y: 8 }, { y: 0, duration: 0.22, ease: "power2.out" });
-}
-function goTodayCal() {
-  const d = new Date();
-  calYear.value = d.getFullYear();
-  calMonth.value = d.getMonth();
-  selectedDateKey.value = toKey(d);
-}
 function selectDay(key) {
-  selectedDateKey.value & (selectedDateKey.value = key);
+  selectedDateKey.value = key;
 }
 
-const selectedDateLabelFmt = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
-
-const selectedDateLabel = computed(() => {
-  const k = selectedDateKey.value;
-  if (!k || !/^\d{4}-\d{2}-\d{2}$/.test(k)) return "";
-  const [y, m, d] = k.split("-").map((x) => Number(x));
-  return selectedDateLabelFmt.format(new Date(y, m - 1, d));
-});
-
-const monthCells = computed(() => {
-  const first = new Date(calYear.value, calMonth.value, 1);
-  const daysInMonth = new Date(calYear.value, calMonth.value + 1, 0).getDate();
-  const start = (first.getDay() + 6) % 7; // Monday start
-  const todayKey = toKey(new Date());
-
-  const cells = [];
-  for (let i = 0; i < 42; i++) {
-    const dayNum = i - start + 1;
-    if (dayNum < 1 || dayNum > daysInMonth) {
-      cells.push({ key: "", day: null, isToday: false, eventCount: 0, dots: [] });
-      continue;
-    }
-    const key = toKey(new Date(calYear.value, calMonth.value, dayNum));
-    const evs = eventsByDay.value.get(key) || [];
-    const types = [...new Set(evs.map((e) => e?.type || "general"))].slice(0, 3);
-
-    cells.push({
-      key,
-      day: dayNum,
-      isToday: key === todayKey,
-      eventCount: evs.length,
-      dots: types,
-    });
-  }
-  return cells;
-});
-
-const dayEvents = computed(() => {
-  const list = (eventsByDay.value.get(selectedDateKey.value) || []).slice();
-  return list.sort(
-    (a, b) => (a.time || "99:99").localeCompare(b.time || "99:99") || (b.createdAt || 0) - (a.createdAt || 0)
-  );
-});
-
-const showEventModal = ref(false);
-const eventDraft = ref({ title: "", dateKey: selectedDateKey.value, time: "", type: "general" });
-const eventError = ref("");
-
-function openCreateEvent(dateKey = selectedDateKey.value) {
-  eventError.value = "";
-  eventDraft.value = {
-    title: "",
-    dateKey: dateKey || toKey(new Date()),
-    time: "",
-    type: "general",
-  };
-  showEventModal.value = true;
-
-  nextTick(() => {
-    gsap.fromTo(".calModal", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: "power2.out" });
-  });
-}
-
-function closeEventModal() {
-  showEventModal.value = false;
-}
-
-function createEvent() {
-  const title = (eventDraft.value.title || "").trim();
-  if (!title) {
-    eventError.value = "Please enter a title.";
-    return;
-  }
-
-  const dk = eventDraft.value.dateKey;
-  if (!dk || !/^\d{4}-\d{2}-\d{2}$/.test(dk)) {
-    eventError.value = "Invalid date.";
-    return;
-  }
-
-  const ev = {
-    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    title,
-    dateKey: dk,
-    time: eventDraft.value.time || "",
-    type: eventDraft.value.type || "general",
-    createdAt: Date.now(),
-  };
-
-  calEvents.value = [ev, ...calEvents.value];
-  selectedDateKey.value = dk;
-  showEventModal.value = false;
-
-  nextTick(() => {
-    gsap.fromTo(".calEvent", { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out", stagger: 0.02 });
-  });
-}
-
-function removeEvent(id) {
-  calEvents.value = calEvents.value.filter((x) => x.id !== id);
-}
-
-/* hovers */
+/* hover */
 function cardHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -3 : 0, duration: 0.22, ease: "power2.out" });
 }
 
-onMounted(() => {
+onMounted(async () => {
   const els = dashEl.value?.querySelectorAll?.(".js-reveal") || [];
   gsap.set(els, { opacity: 0, y: 12 });
   gsap.to(els, { opacity: 1, y: 0, stagger: 0.06, duration: 0.42, ease: "power3.out" });
@@ -1792,7 +1483,9 @@ onMounted(() => {
   calLoaded.value = true;
 
   refreshAll();
-  gsap.set(".tooltip", { transformOrigin: "0% 0%" });
+
+  await nextTick();
+  renderOrUpdateChart();
 });
 
 onBeforeUnmount(() => {
@@ -1802,14 +1495,18 @@ onBeforeUnmount(() => {
   newsAbortCtrl.value?.abort?.();
   jobAbortCtrl.value?.abort?.();
   announcementAbortCtrl.value?.abort?.();
+
+  destroyChart();
 });
 </script>
 
 <style scoped>
+/* (ทั้งหมดเหมือนเดิม) */
 /* Clickable focus */
 .statCard.clickable {
   cursor: pointer;
 }
+
 .statCard.clickable:focus-visible {
   outline: none;
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1), 0 18px 44px rgba(0, 0, 0, 0.28);
@@ -1818,11 +1515,14 @@ onBeforeUnmount(() => {
 
 /* Stats Grid + Cards */
 .statGrid {
+  --sideBlockMaxH: 430px;
+  /* ✅ shared max height (Lapnet card + News Preview) */
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 12px;
   padding: 6px 0 14px;
 }
+
 .statCard,
 .chartCard,
 .calendarCard,
@@ -1842,7 +1542,7 @@ onBeforeUnmount(() => {
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
-/* ✅ NEW: Board + Lapnet Total ให้เต็มพื้นที่ (span 6) */
+/* wide */
 .statCard.wide {
   grid-column: span 6;
 }
@@ -1853,6 +1553,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 22px 56px rgba(56, 189, 248, 0.08);
   transform: translateY(-1px);
 }
+
 .statGlow {
   position: absolute;
   inset: -2px;
@@ -1862,24 +1563,32 @@ onBeforeUnmount(() => {
   opacity: 0.85;
   filter: blur(14px);
 }
+
 .cardSheen {
   position: absolute;
   inset: -2px;
   pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0) 25%,
-    rgba(255, 255, 255, 0.08) 45%,
-    rgba(255, 255, 255, 0) 70%
-  );
+  background: linear-gradient(115deg,
+      rgba(255, 255, 255, 0) 25%,
+      rgba(255, 255, 255, 0.08) 45%,
+      rgba(255, 255, 255, 0) 70%);
   transform: translateX(-40%);
   opacity: 0.12;
   animation: sheen 5.5s ease-in-out infinite;
 }
+
 @keyframes sheen {
-  0% { transform: translateX(-60%); }
-  55% { transform: translateX(60%); }
-  100% { transform: translateX(60%); }
+  0% {
+    transform: translateX(-60%);
+  }
+
+  55% {
+    transform: translateX(60%);
+  }
+
+  100% {
+    transform: translateX(60%);
+  }
 }
 
 .statTop {
@@ -1890,6 +1599,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .statIcon {
   width: 38px;
   height: 38px;
@@ -1900,6 +1610,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .statRefresh {
   width: 36px;
   height: 36px;
@@ -1909,10 +1620,12 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
 }
+
 .statRefresh:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .statLabel {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.62);
@@ -1921,6 +1634,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .statValue {
   margin-top: 6px;
   font-size: 30px;
@@ -1929,6 +1643,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .statHint {
   margin-top: 6px;
   font-size: 12px;
@@ -1937,6 +1652,7 @@ onBeforeUnmount(() => {
   z-index: 1;
   font-weight: 850;
 }
+
 .statError {
   font-size: 14px;
   font-weight: 850;
@@ -1951,6 +1667,7 @@ onBeforeUnmount(() => {
   font-weight: 850;
   color: rgba(255, 255, 255, 0.7);
 }
+
 .spinner {
   width: 14px;
   height: 14px;
@@ -1959,16 +1676,29 @@ onBeforeUnmount(() => {
   border-top-color: rgba(56, 189, 248, 0.7);
   animation: spin 0.85s linear infinite;
 }
+
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Chart Card (left) */
-.chartCard {
+/* Left column wrapper */
+.leftCol {
   grid-column: span 8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Chart Card */
+.chartCard {
+  width: 100%;
+  --chartH: 270px;
   background: rgba(255, 255, 255, 0.028);
   border-color: rgba(255, 255, 255, 0.08);
 }
+
 .chartGlow {
   position: absolute;
   inset: -2px;
@@ -1979,26 +1709,325 @@ onBeforeUnmount(() => {
   filter: blur(14px);
 }
 
-/* ✅ Right column */
+.chartTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.chartTitle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.chartBadge {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.chartH {
+  font-weight: 950;
+  letter-spacing: 0.2px;
+}
+
+.chartSub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 850;
+}
+
+.chartActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.segBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.segBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.segBtn.active {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
+  border-color: rgba(56, 189, 248, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.chartRefreshBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  transition: transform 140ms ease;
+}
+
+.chartRefreshBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.chipRow {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 950;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chip.active {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.chipDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
+  flex: 0 0 auto;
+}
+
+.chipText {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.chip.bank .chipDot {
+  background: rgba(242, 255, 0, 0.9);
+  box-shadow: 0 0 0 6px rgba(242, 255, 0, 0.12);
+}
+
+.chip.news .chipDot {
+  background: rgba(99, 102, 241, 0.9);
+  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.12);
+}
+
+.chip.jobs .chipDot {
+  background: rgba(14, 165, 233, 0.9);
+  box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.12);
+}
+
+.chip.announcement .chipDot {
+  background: rgba(34, 197, 94, 0.9);
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12);
+}
+
+.chip.all .chipDot {
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
+}
+
+.chartMeta {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--panel2);
+  border: 1px solid var(--stroke);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 850;
+}
+
+.metaPill.subtle {
+  opacity: 0.85;
+}
+
+.errorPill {
+  border-color: rgba(239, 68, 68, 0.25);
+  color: rgba(239, 68, 68, 0.95);
+}
+
+/* ✅ Chart.js wrapper */
+.chartCanvasWrap {
+  margin-top: 12px;
+  position: relative;
+  z-index: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle at 25% 20%, rgba(56, 189, 248, 0.08), transparent 55%),
+    radial-gradient(circle at 80% 25%, rgba(99, 102, 241, 0.06), transparent 58%),
+    rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+  height: var(--chartH);
+}
+
+.chartCanvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.chartOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+  background: rgba(7, 14, 35, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.chartOverlay.error {
+  color: rgba(239, 68, 68, 0.95);
+  background: rgba(7, 14, 35, 0.65);
+}
+
+.legend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.legItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.legDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.legDot.total {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.legDot.bank {
+  background: rgba(242, 255, 0, 0.9);
+}
+
+.legDot.news {
+  background: rgba(99, 102, 241, 0.9);
+}
+
+.legDot.jobs {
+  background: rgba(14, 165, 233, 0.9);
+}
+
+.legDot.announcement {
+  background: rgba(34, 197, 94, 0.9);
+}
+
+.legHint {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 850;
+  font-size: 12px;
+}
+
+/* Right column */
 .sideCol {
   grid-column: span 4;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+
 .sideCard {
   background: rgba(255, 255, 255, 0.024);
   border-color: rgba(255, 255, 255, 0.08);
 }
+
 .sideGlow {
   position: absolute;
   inset: -2px;
   pointer-events: none;
   background: radial-gradient(circle at 22% 18%, rgba(56, 189, 248, 0.12), transparent 58%),
-    radial-gradient(circle at 82% 28%, rgba(99, 102, 241, 0.10), transparent 62%);
+    radial-gradient(circle at 82% 28%, rgba(99, 102, 241, 0.1), transparent 62%);
   opacity: 0.85;
   filter: blur(14px);
 }
+
 .sideTop {
   display: flex;
   align-items: flex-start;
@@ -2007,11 +2036,13 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .sideTitle {
   display: flex;
   gap: 10px;
   align-items: flex-start;
 }
+
 .sideBadge {
   width: 38px;
   height: 38px;
@@ -2022,16 +2053,19 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .sideH {
   font-weight: 950;
   letter-spacing: 0.2px;
 }
+
 .sideSub {
   margin-top: 2px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.6);
   font-weight: 850;
 }
+
 .sideRefresh {
   width: 38px;
   height: 38px;
@@ -2041,6 +2075,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
 }
+
 .sideRefresh:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
@@ -2056,6 +2091,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .metaMini {
   display: inline-flex;
   align-items: center;
@@ -2068,6 +2104,7 @@ onBeforeUnmount(() => {
   font-weight: 900;
   font-size: 12px;
 }
+
 .sideLink {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
@@ -2078,6 +2115,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   cursor: pointer;
 }
+
 .sideLink:hover {
   border-color: rgba(56, 189, 248, 0.18);
   transform: translateY(-1px);
@@ -2088,6 +2126,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
 }
+
 .sideState {
   padding: 12px;
   border-radius: 14px;
@@ -2098,6 +2137,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
+
 .sideState.errState {
   border-color: rgba(239, 68, 68, 0.25);
   color: rgba(239, 68, 68, 0.95);
@@ -2107,6 +2147,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 10px;
 }
+
 .sideItem {
   display: grid;
   grid-template-columns: 44px 1fr;
@@ -2119,11 +2160,13 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
+
 .sideItem:hover {
   transform: translateY(-1px);
   border-color: rgba(56, 189, 248, 0.18);
   background: rgba(255, 255, 255, 0.03);
 }
+
 .sideAvatar {
   width: 44px;
   height: 44px;
@@ -2134,20 +2177,24 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
 }
+
 .sideAvatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
 .sideAvatarEmpty {
   color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
 }
+
 .sideInfo {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+
 .sideName {
   font-weight: 950;
   color: rgba(255, 255, 255, 0.92);
@@ -2156,21 +2203,19 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
 }
-.empIdChip {
-  padding: 4px 8px;
-  font-size: 10px;
-  font-weight: 950;
-}
+
 .sideRole {
   font-weight: 850;
   color: rgba(255, 255, 255, 0.68);
   font-size: 12px;
 }
+
 .sideChips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
+
 .miniChip {
   display: inline-flex;
   align-items: center;
@@ -2183,98 +2228,14 @@ onBeforeUnmount(() => {
   font-weight: 900;
   font-size: 11px;
 }
+
 .miniChip.subtle {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* Chart top styles (เดิมของคุณ) */
-.chartTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  position: relative;
-  z-index: 1;
-}
-.chartTitle {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-.chartBadge {
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.92);
-}
-.chartH {
-  font-weight: 950;
-  letter-spacing: 0.2px;
-}
-.chartSub {
-  margin-top: 2px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 850;
-}
-
-.chartActions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.segmented {
-  display: inline-flex;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-}
-.segBtn {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.78);
-  font-weight: 950;
-  cursor: pointer;
-  transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
-}
-.segBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  color: rgba(255, 255, 255, 0.92);
-  transform: translateY(-1px);
-}
-.segBtn.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
-  border-color: rgba(56, 189, 248, 0.22);
-  color: rgba(255, 255, 255, 0.95);
-}
-.chartRefreshBtn {
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.78);
-  cursor: pointer;
-  transition: transform 140ms ease;
-}
-.chartRefreshBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  color: rgba(255, 255, 255, 0.92);
-  transform: translateY(-1px);
-}
-
-/* ✅ Board Card (NEW DESIGN) */
+/* Board card design */
 .sideCard.boardCard {
   background: rgba(255, 255, 255, 0.026);
   border-color: rgba(255, 255, 255, 0.09);
@@ -2285,12 +2246,10 @@ onBeforeUnmount(() => {
   inset: -2px -2px auto -2px;
   height: 86px;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(99,102,241,0.18), transparent 58%),
-    radial-gradient(circle at 75% 20%, rgba(56,189,248,0.14), transparent 62%),
-    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  background: radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.18), transparent 58%),
+    radial-gradient(circle at 75% 20%, rgba(56, 189, 248, 0.14), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
   opacity: 0.9;
-  filter: blur(0px);
 }
 
 .boardList {
@@ -2309,7 +2268,6 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-  position: relative;
 }
 
 .boardItem:hover {
@@ -2406,7 +2364,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
 }
 
-/* ✅ Pagination (reused for board + lapnet) */
+/* Pagination */
 .boardPager {
   margin-top: 10px;
   display: flex;
@@ -2418,6 +2376,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
 }
+
 .pagerBtn {
   width: 36px;
   height: 36px;
@@ -2428,110 +2387,149 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
 }
+
 .pagerBtn:hover:enabled {
   border-color: rgba(99, 102, 241, 0.22);
   transform: translateY(-1px);
 }
+
 .pagerBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
 .pagerInfo {
   font-weight: 950;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.78);
 }
-.chipRow { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
-.chip { display: inline-flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.02); color: rgba(255, 255, 255, 0.86); font-weight: 950; cursor: pointer; position: relative; overflow: hidden; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
-.chip:hover { transform: translateY(-1px); border-color: rgba(56, 189, 248, 0.22); background: rgba(255, 255, 255, 0.03); }
-.chip.active { border-color: rgba(56, 189, 248, 0.28); background: rgba(56, 189, 248, 0.06); }
-.chipDot { width: 10px; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12); flex: 0 0 auto; }
-.chipText { font-size: 12px; font-weight: 950; }
-.chip.bank .chipDot { background: rgba(242, 255, 0, 0.9); box-shadow: 0 0 0 6px rgba(242, 255, 0, 0.12); }
-.chip.news .chipDot { background: rgba(99, 102, 241, 0.9); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.12); }
-.chip.jobs .chipDot { background: rgba(14, 165, 233, 0.9); box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.12); }
-.chip.announcement .chipDot { background: rgba(34, 197, 94, 0.9); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12); }
-.chip.all .chipDot { background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08); }
 
-.chartMeta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1; }
-.metaPill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--stroke); color: rgba(255, 255, 255, 0.78); font-weight: 850; }
-.metaPill.subtle { opacity: 0.85; }
-.errorPill { border-color: rgba(239, 68, 68, 0.25); color: rgba(239, 68, 68, 0.95); }
-
-.chartWrap { margin-top: 12px; position: relative; z-index: 1; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.016); overflow: hidden; }
-.chartBgNoise { position: absolute; inset: 0; pointer-events: none; opacity: 0.18; background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px); background-size: 18px 18px; mask-image: radial-gradient(circle at 30% 20%, black 0%, transparent 72%); }
-.chartSvg { width: 100%; height: 300px; display: block; }
-
-.sweepGlow { fill: url(#glowSweep); opacity: 0.14; transform: translateX(-35%); animation: sweep 6.4s ease-in-out infinite; }
-@keyframes sweep { 0% { transform: translateX(-55%); } 60% { transform: translateX(55%); } 100% { transform: translateX(55%); } }
-
-.grid line { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
-.axisLabels text { fill: rgba(255, 255, 255, 0.35); font-size: 11px; font-weight: 850; }
-.xLabels text { fill: rgba(255, 255, 255, 0.38); font-size: 11px; font-weight: 850; }
-
-.area { fill: url(#areaGradActive); }
-.line { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-.line.total { stroke-width: 2.8; opacity: 0.92; }
-.hoverLine line { stroke: rgba(255, 255, 255, 0.14); stroke-width: 1; }
-
-.dotHover { fill: rgba(255, 255, 255, 0.95); stroke: rgba(7, 14, 35, 0.95); stroke-width: 2; }
-.dotHover.total { fill: rgba(255, 255, 255, 0.92); }
-.dotHover.bank { fill: rgba(242, 255, 0, 0.98); }
-.dotHover.news { fill: rgba(99, 102, 241, 0.98); }
-.dotHover.jobs { fill: rgba(14, 165, 233, 0.98); }
-.dotHover.announcement { fill: rgba(34, 197, 94, 0.98); }
-
-.bars .barSeg { opacity: 0.92; stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28)); }
-.barSeg.bank { fill: rgba(242, 255, 0, 0.26); }
-.barSeg.news { fill: rgba(99, 102, 241, 0.24); }
-.barSeg.jobs { fill: rgba(14, 165, 233, 0.22); }
-.barSeg.announcement { fill: rgba(34, 197, 94, 0.2); }
-.barSeg.ghost { fill: rgba(255, 255, 255, 0.06); stroke: rgba(255, 255, 255, 0.04); filter: none; }
-
-.barCap { opacity: 0.95; stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; }
-.barCap.bank { fill: rgba(242, 255, 0, 0.44); }
-.barCap.news { fill: rgba(99, 102, 241, 0.4); }
-.barCap.jobs { fill: rgba(14, 165, 233, 0.36); }
-.barCap.announcement { fill: rgba(34, 197, 94, 0.34); }
-
-.tooltip { position: absolute; width: 230px; padding: 10px 10px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(7, 14, 35, 0.92); backdrop-filter: blur(10px); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); pointer-events: none; animation: tipIn 140ms ease-out; }
-@keyframes tipIn { from { transform: translateY(4px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-.tipDate { font-weight: 950; color: rgba(255, 255, 255, 0.92); margin-bottom: 8px; }
-.tipRows { display: grid; gap: 6px; }
-.tipRow { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; color: rgba(255, 255, 255, 0.78); font-weight: 850; font-size: 12px; }
-.tDot { width: 10px; height: 10px; border-radius: 999px; }
-.tDot.total { background: rgba(255, 255, 255, 0.85); }
-.tDot.bank { background: rgba(242, 255, 0, 0.9); }
-.tDot.news { background: rgba(99, 102, 241, 0.9); }
-.tDot.jobs { background: rgba(14, 165, 233, 0.9); }
-.tDot.announcement { background: rgba(34, 197, 94, 0.9); }
-.tVal { color: rgba(255, 255, 255, 0.92); }
-
-.legend { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; position: relative; z-index: 1; }
-.legItem { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); color: rgba(255, 255, 255, 0.78); font-weight: 900; font-size: 12px; }
-.legDot { width: 10px; height: 10px; border-radius: 999px; }
-.legDot.total { background: rgba(255, 255, 255, 0.85); }
-.legDot.bank { background: rgba(242, 255, 0, 0.9); }
-.legDot.news { background: rgba(99, 102, 241, 0.9); }
-.legDot.jobs { background: rgba(14, 165, 233, 0.9); }
-.legDot.announcement { background: rgba(34, 197, 94, 0.9); }
-.legHint { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: rgba(255, 255, 255, 0.58); font-weight: 850; font-size: 12px; }
-
-/* (ส่วน chart + calendar ของคุณเดิมด้านล่างคงเดิม) */
-/* ... (rest of your CSS unchanged) ... */
-
-/* ✅ responsive */
-@media (max-width: 1100px) {
-  .statCard { grid-column: span 6; }
-  .statCard.wide { grid-column: span 6; }
-  .chartCard { grid-column: span 12; }
-  .sideCol { grid-column: span 12; }
-  .legHint { margin-left: 0; width: 100%; }
+/* ✅ Match heights: Lapnet + News preview */
+.sideCard.lapnetCard,
+.sideCard.newsPreviewCard {
+  max-height: var(--sideBlockMaxH);
+  display: flex;
+  flex-direction: column;
 }
+
+/* allow internal scrolling */
+.sideCard.lapnetCard .sideBody {
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.newsPreviewBody {
+  margin-top: 10px;
+  position: relative;
+  z-index: 1;
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.newsList {
+  display: grid;
+  gap: 10px;
+}
+
+.newsItem {
+  display: grid;
+  grid-template-columns: 64px 1fr 18px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.newsItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.newsThumb {
+  width: 64px;
+  height: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.18);
+  display: grid;
+  place-items: center;
+}
+
+.newsThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.newsThumbEmpty {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+}
+
+.newsInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.newsTitle {
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.newsMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* responsive */
+@media (max-width: 1100px) {
+  .statCard {
+    grid-column: span 6;
+  }
+
+  .statCard.wide {
+    grid-column: span 6;
+  }
+
+  .leftCol {
+    grid-column: span 12;
+  }
+
+  .sideCol {
+    grid-column: span 12;
+  }
+
+  .legHint {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
 @media (max-width: 920px) {
-  .statCard { grid-column: span 12; }
-  .statCard.wide { grid-column: span 12; }
-  .chartActions { width: 100%; justify-content: space-between; }
-  .calBody { grid-template-columns: 1fr; }
+  .statCard {
+    grid-column: span 12;
+  }
+
+  .statCard.wide {
+    grid-column: span 12;
+  }
+
+  .chartActions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>

@@ -20,6 +20,7 @@ import Board_directorview from '../view/board_director/board_directorview.vue'
 import Board_directoredit from '../view/board_director/board_directoredit.vue'
 import lapnetview from '../view/lapnet/lapnetview.vue'
 import Lapnetedit from '../view/lapnet/lapnetedit.vue'
+import Mainvisitors from '../view/visitors/mainvisitors.vue'
 const routes = [
   {
     path: '/',
@@ -124,6 +125,16 @@ const routes = [
   },
  
 
+
+  // ######################## Visitors part ######################
+
+
+  {
+    path: '/visitors',
+    name: 'visitors',
+    component: Mainvisitors,
+  },
+ 
 
 
   
