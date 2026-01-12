@@ -399,10 +399,8 @@ const id = computed(() => {
 const committees = [
   { key: "ປະທານສະພາບໍລິຫານ", label: "ປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-crown" },
   { key: "ຮອງປະທານສະພາບໍລິຫານ", label: "ຮອງປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-chess-king" },
-  { key: "ຄະນະກຳມະການກວດກາ", label: "ຄະນະກຳມະການກວດກາ", icon: "fa-solid fa-clipboard-check" },
-  { key: "ຄະນະກຳມະການຄົ້ນຄວ້ານະໂຍບາຍ", label: "ຄະນະກຳມະການຄົ້ນຄວ້ານະໂຍບາຍ", icon: "fa-solid fa-shield-virus" },
-  { key: "ຄະນະກຳມະການຄຸ້ມຄອງຄວາມສ່ຽງ", label: "ຄະນະກຳມະການຄຸ້ມຄອງຄວາມສ່ຽງ", icon: "fa-solid fa-user-group" },
-  { key: "ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ", label: "ຄະນະກຳມະການຕິດຕາມພັດທະນາລະບົບ", icon: "fa-solid fa-award" },
+  { key: "ສະມາຊິກສະພາບໍລິຫານ", label: "ສະມາຊິກສະພາບໍລິຫານ", icon: "fa-solid fa-clipboard-check" },
+
 ];
 
 function committeeLabel(key) {

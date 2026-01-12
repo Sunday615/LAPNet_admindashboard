@@ -49,7 +49,50 @@
 
         <div class="navDivider" />
 
-        <!-- ✅ DROPDOWN GROUP (item 3) -->
+        <!-- ✅ VIEW INFORMATION (NEW DROPDOWN) -->
+        <div class="navGroup">
+          <button
+            type="button"
+            class="navGroupBtn"
+            :class="{ active: isViewActive }"
+            @click="toggleView"
+            @mouseenter="navHover($event, true)"
+            @mouseleave="navHover($event, false)"
+            aria-haspopup="true"
+            :aria-expanded="isViewOpen ? 'true' : 'false'"
+          >
+
+          
+            <span class="navIcon"><i class="fa-solid fa-database"></i></span>
+            <span class="navLabel">ເບິ່ງຂໍ້ມູນ</span>
+
+            <span class="navGroupRight">
+              <span class="navGroupHint">{{ viewItems.length }}</span>
+              <i ref="viewChevronEl" class="fa-solid fa-chevron-down navChevron"></i>
+            </span>
+
+            <span class="navPill" />
+          </button>
+
+          <div ref="viewMenuEl" class="subNav">
+            <RouterLink
+              v-for="item in viewItems"
+              :key="item.key"
+              :to="item.to"
+              class="subNavItem"
+              active-class="active"
+              @mouseenter="subHover($event, true)"
+              @mouseleave="subHover($event, false)"
+              @click="ensureViewOpenAfterNavigate"
+            >
+              <span class="subIcon"><i :class="item.fa"></i></span>
+              <span class="subLabel">{{ item.label }}</span>
+              <span class="subPill" />
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- ✅ DROPDOWN GROUP (INSERT INFORMATION) -->
         <div class="navGroup">
           <button
             type="button"
@@ -145,14 +188,29 @@ const navItems = [
 // ✅ split nav
 const mainNavItem = navItems[0];
 const dashboardItems = computed(() => mainNavItem?.children || []);
-const insertItems = navItems.slice(1, 7);
+const insertItems = navItems.slice(1, 7); // ✅ 6 items under insert
 
-// ✅ dropdown state
+// ✅ VIEW INFORMATION items (6)
+const viewItems = [
+  { key: "member_view", label: "ເບິ່ງທະນາຄານສະມາຊິກ", to: "/members", fa: "fa-solid fa-building-columns" },
+  { key: "news_view", label: "ເບິ່ງຂ່າວສານ & ກິດຈະກຳ", to: "/news", fa: "fa-solid fa-newspaper" },
+  { key: "job_view", label: "ເບິ່ງຮັບສະໝັກພະນັກງານ", to: "/jobview", fa: "fa-solid fa-user-plus" },
+  { key: "announcement_view", label: "ເບິ່ງປະກາດແຈ້ງການ", to: "/announcementviewer", fa: "fa-solid fa-bullhorn" },
+  { key: "board_director_view", label: "ເບິ່ງສະພາບໍລິຫານ", to: "/board_directorview", fa: "fa-solid fa-users" },
+  { key: "lapnet_employee_view", label: "ເບິ່ງພະນັກງານ LAPNet", to: "/lapnetview", fa: "fa-solid fa-circle-user" },
+];
+
+// ✅ dropdown state (INSERT)
 const isInsertOpen = ref(false);
 const insertMenuEl = ref(null);
 const insertChevronEl = ref(null);
-
 const isInsertActive = computed(() => insertItems.some((i) => route.path === i.to));
+
+// ✅ dropdown state (VIEW)
+const isViewOpen = ref(false);
+const viewMenuEl = ref(null);
+const viewChevronEl = ref(null);
+const isViewActive = computed(() => viewItems.some((i) => route.path === i.to));
 
 function logout() {
   console.log("logout");
@@ -173,6 +231,7 @@ function subHover(e, enter) {
   gsap.to(el, { x: enter ? 4 : 0, duration: 0.18, ease: "power2.out" });
 }
 
+/* INSERT dropdown anim */
 function openInsertMenu(immediate = false) {
   const menu = insertMenuEl.value;
   const chev = insertChevronEl.value;
@@ -243,6 +302,77 @@ function ensureOpenAfterNavigate() {
   }
 }
 
+/* VIEW dropdown anim */
+function openViewMenu(immediate = false) {
+  const menu = viewMenuEl.value;
+  const chev = viewChevronEl.value;
+  if (!menu) return;
+
+  gsap.killTweensOf(menu);
+  gsap.killTweensOf(chev);
+
+  gsap.set(menu, { display: "block" });
+
+  const h = menu.scrollHeight;
+
+  if (immediate) {
+    gsap.set(menu, { height: "auto", opacity: 1 });
+    gsap.set(chev, { rotate: 180 });
+    return;
+  }
+
+  gsap.fromTo(
+    menu,
+    { height: 0, opacity: 0 },
+    {
+      height: h,
+      opacity: 1,
+      duration: 0.28,
+      ease: "power2.out",
+      onComplete: () => gsap.set(menu, { height: "auto" }),
+    }
+  );
+
+  gsap.to(chev, { rotate: 180, duration: 0.22, ease: "power2.out" });
+}
+
+function closeViewMenu() {
+  const menu = viewMenuEl.value;
+  const chev = viewChevronEl.value;
+  if (!menu) return;
+
+  gsap.killTweensOf(menu);
+  gsap.killTweensOf(chev);
+
+  const h = menu.scrollHeight;
+  gsap.set(menu, { height: h });
+
+  gsap.to(menu, {
+    height: 0,
+    opacity: 0,
+    duration: 0.22,
+    ease: "power2.inOut",
+    onComplete: () => gsap.set(menu, { display: "none" }),
+  });
+
+  gsap.to(chev, { rotate: 0, duration: 0.2, ease: "power2.inOut" });
+}
+
+async function toggleView() {
+  isViewOpen.value = !isViewOpen.value;
+  await nextTick();
+
+  if (isViewOpen.value) openViewMenu(false);
+  else closeViewMenu();
+}
+
+function ensureViewOpenAfterNavigate() {
+  if (!isViewOpen.value) {
+    isViewOpen.value = true;
+    openViewMenu(true);
+  }
+}
+
 // ✅ auto-open if user is on a dropdown route
 watch(
   () => route.path,
@@ -251,6 +381,11 @@ watch(
       isInsertOpen.value = true;
       await nextTick();
       openInsertMenu(false);
+    }
+    if (isViewActive.value && !isViewOpen.value) {
+      isViewOpen.value = true;
+      await nextTick();
+      openViewMenu(false);
     }
   }
 );
@@ -268,6 +403,19 @@ onMounted(async () => {
   tl.to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.42 }, 0.14);
 
   await nextTick();
+
+  // VIEW menu initial
+  if (isViewActive.value) {
+    isViewOpen.value = true;
+    openViewMenu(true);
+  } else {
+    const menu = viewMenuEl.value;
+    const chev = viewChevronEl.value;
+    if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
+    if (chev) gsap.set(chev, { rotate: 0 });
+  }
+
+  // INSERT menu initial
   if (isInsertActive.value) {
     isInsertOpen.value = true;
     openInsertMenu(true);

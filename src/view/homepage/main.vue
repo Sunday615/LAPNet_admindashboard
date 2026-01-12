@@ -1,10 +1,246 @@
 <template>
   <div ref="dashEl">
+    <!-- ✅ TOP BAR: Search + Notifications + Chat + Admin Profile -->
+    <div ref="topBarEl" class="dashTop js-reveal">
+      <!-- Search -->
+      <div ref="searchWrapEl" class="searchWrap" @keydown.esc.prevent="closeSearch">
+        <i class="fa-solid fa-magnifying-glass searchIcon"></i>
+
+        <input
+          v-model.trim="searchQuery"
+          class="searchInput"
+          type="search"
+          placeholder="Search everything... (members, board, news, jobs, announcement, employees)"
+          @focus="openSearch"
+          @keydown.enter.prevent="onSearchEnter"
+        />
+
+        <button v-if="searchQuery" class="searchClear" type="button" title="Clear" @click="clearSearch">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <!-- Search results panel -->
+        <div v-if="showSearchPanel" class="searchPanel" role="listbox">
+          <div class="searchPanelTop">
+            <div class="searchPanelTitle">
+              <i class="fa-solid fa-sparkles"></i>
+              Results for: <b>{{ searchQuery || "-" }}</b>
+            </div>
+            <div class="searchPanelMeta">
+              <span class="pillMini">
+                <i class="fa-solid fa-list"></i>
+                {{ searchTotal }} matches
+              </span>
+              <button class="pillBtn" type="button" @click="closeSearch">
+                Close <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!searchQuery" class="searchEmpty">
+            Start typing to search everything.
+          </div>
+
+          <div v-else-if="!searchTotal" class="searchEmpty">
+            No matches. Try a different keyword.
+          </div>
+
+          <div v-else class="searchGroups">
+            <div v-for="g in searchGroups" :key="g.key" class="searchGroup" v-show="g.items.length">
+              <div class="searchGroupHead">
+                <div class="searchGroupTitle">
+                  <i :class="g.icon"></i>
+                  {{ g.label }}
+                  <span class="groupCount">{{ g.items.length }}</span>
+                </div>
+
+                <button class="seeAllBtn" type="button" @click="goToCategorySearch(g.route)">
+                  See all <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+
+              <div class="searchItems">
+                <button
+                  v-for="(it, idx) in g.items"
+                  :key="it._key || idx"
+                  class="searchItem"
+                  type="button"
+                  @click="goToCategorySearch(g.route)"
+                >
+                  <div class="searchItemMain">
+                    <div class="searchItemTitle">{{ it._title || "Untitled" }}</div>
+                    <div class="searchItemSub" v-if="it._sub">{{ it._sub }}</div>
+                  </div>
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="searchPanelHint">
+            <i class="fa-solid fa-circle-info"></i>
+            Tip: press Enter to jump to the most relevant page.
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="topActions">
+        <!-- Notifications -->
+        <div class="menuWrap" ref="notifWrapEl">
+          <button class="iconBtn" type="button" title="Notifications" @click="toggleNotif">
+            <i class="fa-solid fa-bell"></i>
+            <span v-if="notifUnreadCount" class="badge">{{ notifUnreadCount }}</span>
+          </button>
+
+          <div v-if="showNotifMenu" class="menuPanel" role="menu">
+            <div class="menuTop">
+              <div class="menuTitle">
+                <i class="fa-solid fa-bell"></i>
+                Notifications
+              </div>
+              <button class="menuBtn" type="button" @click="markAllNotifRead">
+                Mark all read
+              </button>
+            </div>
+
+            <div v-if="!notifications.length" class="menuEmpty">No notifications</div>
+
+            <div v-else class="menuList">
+              <button
+                v-for="n in notifications.slice(0, 8)"
+                :key="n.id"
+                class="menuItem"
+                type="button"
+                :class="{ unread: !n.read }"
+                @click="openNotification(n)"
+              >
+                <div class="menuItemMain">
+                  <div class="menuItemTitle">{{ n.title }}</div>
+                  <div class="menuItemBody">{{ n.body }}</div>
+                  <div class="menuItemTime">
+                    <i class="fa-regular fa-clock"></i> {{ n.time }}
+                  </div>
+                </div>
+                <span v-if="!n.read" class="dot"></span>
+              </button>
+            </div>
+
+            <div class="menuFoot">
+              <button class="menuLink" type="button" @click="toggleNotif">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat notifications -->
+        <div class="menuWrap" ref="chatWrapEl">
+          <button class="iconBtn" type="button" title="Chat" @click="toggleChatMenu">
+            <i class="fa-solid fa-comment-dots"></i>
+            <span v-if="chatUnreadCount" class="badge">{{ chatUnreadCount }}</span>
+          </button>
+
+          <div v-if="showChatMenu" class="menuPanel" role="menu">
+            <div class="menuTop">
+              <div class="menuTitle">
+                <i class="fa-solid fa-comment-dots"></i>
+                Chat notifications
+              </div>
+              <button class="menuBtn" type="button" @click="markAllChatRead">
+                Mark all read
+              </button>
+            </div>
+
+            <div v-if="!chatNotifs.length" class="menuEmpty">No new chats</div>
+
+            <div v-else class="menuList">
+              <button
+                v-for="c in chatNotifs.slice(0, 8)"
+                :key="c.id"
+                class="menuItem"
+                type="button"
+                :class="{ unread: !c.read }"
+                @click="openChat(c)"
+              >
+                <div class="menuItemMain">
+                  <div class="menuItemTitle">{{ c.from }}</div>
+                  <div class="menuItemBody">{{ c.preview }}</div>
+                  <div class="menuItemTime">
+                    <i class="fa-regular fa-clock"></i> {{ c.time }}
+                  </div>
+                </div>
+                <span v-if="!c.read" class="dot"></span>
+              </button>
+            </div>
+
+            <div class="menuFoot">
+              <button class="menuLink" type="button" @click="goChat">
+                Open chat <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin profile -->
+        <div class="menuWrap" ref="profileWrapEl">
+          <button class="profileBtn" type="button" @click="toggleProfileMenu" title="Admin profile">
+            <span class="avatar">
+              <img v-if="adminAvatar" :src="adminAvatar" alt="admin" />
+              <span v-else class="avatarTxt">{{ adminInitials }}</span>
+            </span>
+            <span class="profileName">{{ adminName }}</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+
+          <div v-if="showProfileMenu" class="menuPanel" role="menu">
+            <div class="profileTop">
+              <div class="profileBig">
+                <span class="avatar big">
+                  <img v-if="adminAvatar" :src="adminAvatar" alt="admin" />
+                  <span v-else class="avatarTxt">{{ adminInitials }}</span>
+                </span>
+                <div class="profileBigInfo">
+                  <div class="profileBigName">{{ adminName }}</div>
+                  <div class="profileBigSub">{{ adminRole }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="menuList">
+              <button class="menuItem menuAction" type="button" @click="goAdminProfile">
+                <i class="fa-solid fa-id-card"></i>
+                Profile
+              </button>
+              <button class="menuItem menuAction" type="button" @click="goAdminSettings">
+                <i class="fa-solid fa-gear"></i>
+                Settings
+              </button>
+              <button class="menuItem menuAction danger" type="button" @click="logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button class="chartRefreshBtn topRefresh" type="button" @click="refreshAll" title="Refresh all data">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+
     <div class="statGrid">
       <!-- Member -->
-      <div ref="statCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goMembers"
-        @keydown.enter.prevent="goMembers" @keydown.space.prevent="goMembers" @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)">
+      <div
+        ref="statCardEl"
+        class="statCard js-reveal clickable"
+        role="button"
+        tabindex="0"
+        @click="goMembers"
+        @keydown.enter.prevent="goMembers"
+        @keydown.space.prevent="goMembers"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-building-columns"></i>
@@ -33,9 +269,17 @@
       </div>
 
       <!-- Announcement -->
-      <div ref="announcementCardEl" class="statCard js-reveal clickable" role="button" tabindex="0"
-        @click="goAnnouncement" @keydown.enter.prevent="goAnnouncement" @keydown.space.prevent="goAnnouncement"
-        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+      <div
+        ref="announcementCardEl"
+        class="statCard js-reveal clickable"
+        role="button"
+        tabindex="0"
+        @click="goAnnouncement"
+        @keydown.enter.prevent="goAnnouncement"
+        @keydown.space.prevent="goAnnouncement"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-bullhorn"></i>
@@ -64,9 +308,17 @@
       </div>
 
       <!-- News -->
-      <div ref="newsCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goNews"
-        @keydown.enter.prevent="goNews" @keydown.space.prevent="goNews" @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)">
+      <div
+        ref="newsCardEl"
+        class="statCard js-reveal clickable"
+        role="button"
+        tabindex="0"
+        @click="goNews"
+        @keydown.enter.prevent="goNews"
+        @keydown.space.prevent="goNews"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-newspaper"></i>
@@ -95,9 +347,17 @@
       </div>
 
       <!-- Jobs -->
-      <div ref="jobsCardEl" class="statCard js-reveal clickable" role="button" tabindex="0" @click="goJobs"
-        @keydown.enter.prevent="goJobs" @keydown.space.prevent="goJobs" @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)">
+      <div
+        ref="jobsCardEl"
+        class="statCard js-reveal clickable"
+        role="button"
+        tabindex="0"
+        @click="goJobs"
+        @keydown.enter.prevent="goJobs"
+        @keydown.space.prevent="goJobs"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-user-plus"></i>
@@ -126,9 +386,17 @@
       </div>
 
       <!-- Board Director (stat) -->
-      <div ref="boardCardEl" class="statCard js-reveal clickable wide" role="button" tabindex="0"
-        @click="goBoardDirector" @keydown.enter.prevent="goBoardDirector" @keydown.space.prevent="goBoardDirector"
-        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+      <div
+        ref="boardCardEl"
+        class="statCard js-reveal clickable wide"
+        role="button"
+        tabindex="0"
+        @click="goBoardDirector"
+        @keydown.enter.prevent="goBoardDirector"
+        @keydown.space.prevent="goBoardDirector"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-user-tie"></i>
@@ -157,9 +425,17 @@
       </div>
 
       <!-- Lapnet Employee (stat) -->
-      <div ref="lapnetStatCardEl" class="statCard js-reveal clickable wide" role="button" tabindex="0"
-        @click="goLapnetEmp" @keydown.enter.prevent="goLapnetEmp" @keydown.space.prevent="goLapnetEmp"
-        @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+      <div
+        ref="lapnetStatCardEl"
+        class="statCard js-reveal clickable wide"
+        role="button"
+        tabindex="0"
+        @click="goLapnetEmp"
+        @keydown.enter.prevent="goLapnetEmp"
+        @keydown.space.prevent="goLapnetEmp"
+        @mouseenter="cardHover($event, true)"
+        @mouseleave="cardHover($event, false)"
+      >
         <div class="statTop">
           <div class="statIcon">
             <i class="fa-solid fa-users"></i>
@@ -202,8 +478,14 @@
 
             <div class="chartActions">
               <div class="segmented">
-                <button v-for="r in ranges" :key="r.key" class="segBtn" type="button"
-                  :class="{ active: rangeKey === r.key }" @click="setRange(r.key)">
+                <button
+                  v-for="r in ranges"
+                  :key="r.key"
+                  class="segBtn"
+                  type="button"
+                  :class="{ active: rangeKey === r.key }"
+                  @click="setRange(r.key)"
+                >
                   {{ r.label }}
                 </button>
               </div>
@@ -215,8 +497,14 @@
           </div>
 
           <div class="chipRow">
-            <button v-for="c in categories" :key="c.key" class="chip" type="button"
-              :class="[c.key, { active: categoryKey === c.key }]" @click="setCategory(c.key)">
+            <button
+              v-for="c in categories"
+              :key="c.key"
+              class="chip"
+              type="button"
+              :class="[c.key, { active: categoryKey === c.key }]"
+              @click="setCategory(c.key)"
+            >
               <span class="chipDot"></span>
               <span class="chipText">{{ c.label }}</span>
             </button>
@@ -294,14 +582,16 @@
           <span class="cardSheen" />
         </div>
 
-        <!-- ✅ News Preview (max-height matches Lapnet Employees block) -->
+        <!-- ✅ News Preview -->
         <div ref="newsPreviewEl" class="sideCard newsPreviewCard js-reveal">
           <div class="sideTop">
             <div class="sideTitle">
               <span class="sideBadge"><i class="fa-solid fa-newspaper"></i></span>
               <div>
                 <div class="sideH">News Preview</div>
-                <div class="sideSub">Latest posts</div>
+                <div class="sideSub">
+                  Latest posts <span v-if="searchQuery" class="subSearchTag">• filtered</span>
+                </div>
               </div>
             </div>
 
@@ -332,22 +622,36 @@
               {{ newsError }}
             </div>
 
-            <div v-else-if="!newsLatest.length" class="sideState">No data</div>
+            <div v-else-if="!newsFilteredPreview.length" class="sideState">
+              {{ searchQuery ? "No matches" : "No data" }}
+            </div>
 
             <div v-else class="newsList">
-              <div v-for="(n, idx) in newsPreview" :key="String(pick(n, 'id', 'news_id', 'slug') || idx)"
-                class="newsItem" role="button" tabindex="0" @click="goNews" @keydown.enter.prevent="goNews"
-                @keydown.space.prevent="goNews">
+              <div
+                v-for="(n, idx) in newsFilteredPreview"
+                :key="String(pick(n, 'id', 'news_id', 'slug') || idx)"
+                class="newsItem"
+                role="button"
+                tabindex="0"
+                @click="goNews"
+                @keydown.enter.prevent="goNews"
+                @keydown.space.prevent="goNews"
+              >
                 <div class="newsThumb">
-                  <img v-if="newsThumbSrc(n)" :src="newsThumbSrc(n)"
-                    :alt="pick(n, 'header_news', 'headerNews', 'news_title', 'title') || 'news'" />
+                  <img
+                    v-if="newsThumbSrc(n)"
+                    :src="newsThumbSrc(n)"
+                    :alt="pick(n, 'header_news', 'headerNews', 'news_title', 'title') || 'news'"
+                  />
 
                   <div v-else class="newsThumbEmpty"><i class="fa-regular fa-image"></i></div>
                 </div>
 
                 <div class="newsInfo">
                   <div class="newsTitle">
-                    {{ pick(n, "header_news", "headerNews", "news_title", "title", "name", "headline") || "Untitled" }}
+                    {{
+                      pick(n, "header_news", "headerNews", "news_title", "title", "name", "headline") || "Untitled"
+                    }}
                   </div>
 
                   <div class="newsMeta">
@@ -360,7 +664,6 @@
                       <i class="fa-solid fa-tag"></i>
                       {{ pick(n, "category", "news_category", "type", "tag") }}
                     </span>
-
                   </div>
                 </div>
 
@@ -385,7 +688,9 @@
               <span class="sideBadge"><i class="fa-solid fa-user-tie"></i></span>
               <div>
                 <div class="sideH">Board Committee</div>
-                <div class="sideSub">Latest committee members</div>
+                <div class="sideSub">
+                  Latest committee members <span v-if="searchQuery" class="subSearchTag">• filtered</span>
+                </div>
               </div>
             </div>
 
@@ -416,22 +721,28 @@
               {{ boardError }}
             </div>
 
-            <div v-else-if="!boardLatest.length" class="sideState">No data</div>
+            <div v-else-if="!boardFilteredPaged.length" class="sideState">
+              {{ searchQuery ? "No matches" : "No data" }}
+            </div>
 
             <div v-else class="boardList">
-              <div v-for="(b, idx) in boardPaged"
-                :key="String(b?.id ?? b?.director_id ?? b?.board_id ?? b?.name ?? idx)" class="boardItem"
-                @click="goBoardDirector" @keydown.enter.prevent="goBoardDirector"
-                @keydown.space.prevent="goBoardDirector" role="button" tabindex="0">
+              <div
+                v-for="(b, idx) in boardFilteredPaged"
+                :key="String(b?.id ?? b?.director_id ?? b?.board_id ?? b?.name ?? idx)"
+                class="boardItem"
+                @click="goBoardDirector"
+                @keydown.enter.prevent="goBoardDirector"
+                @keydown.space.prevent="goBoardDirector"
+                role="button"
+                tabindex="0"
+              >
                 <div class="boardLogo">
                   <img :src="boardLogoSrc(b)" alt="logobank" />
                 </div>
 
                 <div class="boardInfo">
                   <div class="boardCommittee">
-                    {{
-                      pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee"
-                    }}
+                    {{ pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee" }}
                   </div>
 
                   <div class="boardNameRow">
@@ -462,16 +773,20 @@
               </div>
 
               <!-- Pagination (Board) -->
-              <div class="boardPager" v-if="boardPageCount > 1">
-                <button class="pagerBtn" type="button" @click.stop="boardPrev" :disabled="boardPage <= 1"
-                  title="Previous">
+              <div class="boardPager" v-if="boardPageCountFiltered > 1">
+                <button class="pagerBtn" type="button" @click.stop="boardPrev" :disabled="boardPage <= 1" title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
 
-                <div class="pagerInfo">Page {{ boardPage }} / {{ boardPageCount }}</div>
+                <div class="pagerInfo">Page {{ boardPage }} / {{ boardPageCountFiltered }}</div>
 
-                <button class="pagerBtn" type="button" @click.stop="boardNext" :disabled="boardPage >= boardPageCount"
-                  title="Next">
+                <button
+                  class="pagerBtn"
+                  type="button"
+                  @click.stop="boardNextFiltered"
+                  :disabled="boardPage >= boardPageCountFiltered"
+                  title="Next"
+                >
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -482,14 +797,16 @@
           <span class="cardSheen" />
         </div>
 
-        <!-- ✅ Lapnet Employee Card (max-height matched with News Preview) -->
+        <!-- Lapnet Employee Card -->
         <div ref="lapnetSideEl" class="sideCard lapnetCard">
           <div class="sideTop">
             <div class="sideTitle">
               <span class="sideBadge"><i class="fa-solid fa-users"></i></span>
               <div>
                 <div class="sideH">Lapnet Employees</div>
-                <div class="sideSub">3 per page</div>
+                <div class="sideSub">
+                  3 per page <span v-if="searchQuery" class="subSearchTag">• filtered</span>
+                </div>
               </div>
             </div>
 
@@ -520,25 +837,33 @@
               {{ lapnetEmpError }}
             </div>
 
-            <div v-else-if="!lapnetSorted.length" class="sideState">No data</div>
+            <div v-else-if="!lapnetFilteredPaged.length" class="sideState">
+              {{ searchQuery ? "No matches" : "No data" }}
+            </div>
 
             <div v-else class="sideList">
-              <div v-for="(emp, idx) in lapnetPaged" :key="String(emp?.emp_id ?? emp?.id ?? emp?.name ?? idx)"
-                class="sideItem" @click="goLapnetEmp" @keydown.enter.prevent="goLapnetEmp"
-                @keydown.space.prevent="goLapnetEmp" role="button" tabindex="0">
+              <div
+                v-for="(emp, idx) in lapnetFilteredPaged"
+                :key="String(emp?.emp_id ?? emp?.id ?? emp?.name ?? idx)"
+                class="sideItem"
+                @click="goLapnetEmp"
+                @keydown.enter.prevent="goLapnetEmp"
+                @keydown.space.prevent="goLapnetEmp"
+                role="button"
+                tabindex="0"
+              >
                 <div class="sideAvatar">
-                  <img v-if="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
+                  <img
+                    v-if="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
                     :src="resolveImageUrl(pick(emp, 'image', 'imageprofile', 'imageprodfile', 'photo', 'avatar'))"
-                    alt="emp" />
+                    alt="emp"
+                  />
                   <div v-else class="sideAvatarEmpty"><i class="fa-solid fa-user"></i></div>
                 </div>
 
                 <div class="sideInfo">
                   <div class="sideName">
-                    <span class="miniChip subtle empNoChip">
-                      No. {{ lapnetStartIndex + idx + 1 }}
-                    </span>
-
+                    <span class="miniChip subtle empNoChip">No. {{ lapnetStartIndex + idx + 1 }}</span>
                     {{ pick(emp, "name", "empName", "emp_name") || "-" }}
                   </div>
 
@@ -561,16 +886,20 @@
               </div>
 
               <!-- Pagination (Lapnet) -->
-              <div class="boardPager" v-if="lapnetPageCount > 1">
-                <button class="pagerBtn" type="button" @click.stop="lapnetPrev" :disabled="lapnetPage <= 1"
-                  title="Previous">
+              <div class="boardPager" v-if="lapnetPageCountFiltered > 1">
+                <button class="pagerBtn" type="button" @click.stop="lapnetPrev" :disabled="lapnetPage <= 1" title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
 
-                <div class="pagerInfo">Page {{ lapnetPage }} / {{ lapnetPageCount }}</div>
+                <div class="pagerInfo">Page {{ lapnetPage }} / {{ lapnetPageCountFiltered }}</div>
 
-                <button class="pagerBtn" type="button" @click.stop="lapnetNext"
-                  :disabled="lapnetPage >= lapnetPageCount" title="Next">
+                <button
+                  class="pagerBtn"
+                  type="button"
+                  @click.stop="lapnetNextFiltered"
+                  :disabled="lapnetPage >= lapnetPageCountFiltered"
+                  title="Next"
+                >
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -621,6 +950,7 @@ Chart.register(
 const router = useRouter();
 const dashEl = ref(null);
 
+/** routes */
 function goMembers() {
   router.push("/members");
 }
@@ -639,6 +969,26 @@ function goAnnouncement() {
 function goLapnetEmp() {
   router.push("/lapnetview");
 }
+function goChat() {
+  // ✅ change this path to your real chat page if different
+  router.push("/chat");
+}
+function goAdminProfile() {
+  // ✅ change route as needed
+  router.push("/admin/profile");
+}
+function goAdminSettings() {
+  // ✅ change route as needed
+  router.push("/admin/settings");
+}
+function logout() {
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("auth_token");
+  } catch {}
+  router.push("/login");
+}
 
 /* refs */
 const statCardEl = ref(null);
@@ -653,6 +1003,12 @@ const lapnetStatCardEl = ref(null);
 const lapnetSideEl = ref(null);
 const boardSideEl = ref(null);
 
+const topBarEl = ref(null);
+const searchWrapEl = ref(null);
+const notifWrapEl = ref(null);
+const chatWrapEl = ref(null);
+const profileWrapEl = ref(null);
+
 /* Chart.js */
 const chartCanvasEl = ref(null);
 let chartInst = null;
@@ -662,7 +1018,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const MEMBERS_API = `${API_BASE}/api/members`;
 const BOARD_API = `${API_BASE}/api/boarddirector`;
 
-// ✅ ONLY CHANGE: force News Preview (and News total) to fetch from the exact URL you gave
+// ✅ force News Preview (and News total) to fetch from the exact URL you gave
 const NEWS_API = `http://localhost:3000/api/news`;
 const NEWS_BASE = `http://localhost:3000`; // used for news image resolving (if API returns relative image paths)
 
@@ -871,7 +1227,6 @@ function pick(obj, ...keys) {
   return "";
 }
 
-// ✅ small enhancement: allow optional base override (so News images use localhost base if API returns relative paths)
 function resolveImageUrl(v, baseOverride) {
   if (!v) return "";
   let s = String(v).trim();
@@ -885,6 +1240,299 @@ function resolveImageUrl(v, baseOverride) {
   if (s.startsWith("/")) return base + s;
   s = s.replace(/^\.\//, "");
   return base + "/" + s;
+}
+
+/* ---------------------------
+   ✅ Global Search (search everything)
+---------------------------- */
+const searchQuery = ref("");
+const showSearchPanel = ref(false);
+
+function openSearch() {
+  showSearchPanel.value = true;
+}
+function closeSearch() {
+  showSearchPanel.value = false;
+}
+function clearSearch() {
+  searchQuery.value = "";
+  showSearchPanel.value = false;
+}
+
+function norm(s) {
+  return String(s ?? "").toLowerCase().trim();
+}
+
+// small flatten (safe + fast)
+function flattenText(obj, maxDepth = 2, depth = 0, out = []) {
+  if (obj === null || obj === undefined) return out;
+  if (depth > maxDepth) return out;
+
+  const t = typeof obj;
+  if (t === "string" || t === "number" || t === "boolean") {
+    out.push(String(obj));
+    return out;
+  }
+
+  if (Array.isArray(obj)) {
+    for (const it of obj.slice(0, 40)) flattenText(it, maxDepth, depth + 1, out);
+    return out;
+  }
+
+  if (t === "object") {
+    const keys = Object.keys(obj).slice(0, 40);
+    for (const k of keys) {
+      if (k === "password" || k === "token") continue;
+      flattenText(obj[k], maxDepth, depth + 1, out);
+    }
+    return out;
+  }
+
+  return out;
+}
+
+function matchObj(obj, q) {
+  if (!q) return true;
+  const bag = flattenText(obj, 2).join(" ").toLowerCase();
+  return bag.includes(q);
+}
+
+function mapResult(obj, titleKeys = [], subKeys = [], keyKeys = []) {
+  const _title = pick(obj, ...titleKeys) || pick(obj, "title", "name", "header_news", "news_title", "headline") || "-";
+  const _sub =
+    pick(obj, ...subKeys) ||
+    pick(obj, "category", "news_category", "department", "role", "position", "committee", "commitee") ||
+    "";
+  const _key = pick(obj, ...keyKeys) || pick(obj, "id", "news_id", "emp_id", "director_id", "board_id", "slug") || "";
+  return { ...obj, _title: String(_title), _sub: String(_sub), _key: String(_key) };
+}
+
+const qNorm = computed(() => norm(searchQuery.value));
+
+const memberMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (memberItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["bank_name", "name", "member_name"], ["type", "category"], ["id"]));
+});
+
+const boardMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (boardItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["name", "director_name", "full_name"], ["committee", "commitee", "role", "department"], ["id", "director_id", "board_id"]));
+});
+
+const newsMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (newsItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["header_news", "news_title", "title", "headline"], ["category", "news_category", "type", "tag"], ["id", "news_id", "slug"]));
+});
+
+const jobMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (jobItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["job_title", "title", "position", "name"], ["department", "type", "category"], ["id", "job_id"]));
+});
+
+const announceMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (announcementItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["title", "header", "subject", "name"], ["category", "type"], ["id", "announcement_id"]));
+});
+
+const lapnetMatches = computed(() => {
+  if (!qNorm.value) return [];
+  return (lapnetEmpItems.value || [])
+    .filter((x) => matchObj(x, qNorm.value))
+    .slice(0, 6)
+    .map((x) => mapResult(x, ["name", "emp_name", "empName"], ["role", "department", "position"], ["emp_id", "id"]));
+});
+
+const searchGroups = computed(() => [
+  { key: "members", label: "Members", icon: "fa-solid fa-building-columns", items: memberMatches.value, route: "/members" },
+  { key: "board", label: "Board", icon: "fa-solid fa-user-tie", items: boardMatches.value, route: "/Board_directorview" },
+  { key: "news", label: "News", icon: "fa-solid fa-newspaper", items: newsMatches.value, route: "/news" },
+  { key: "jobs", label: "Jobs", icon: "fa-solid fa-user-plus", items: jobMatches.value, route: "/jobview" },
+  { key: "announcement", label: "Announcement", icon: "fa-solid fa-bullhorn", items: announceMatches.value, route: "/announcementviewer" },
+  { key: "lapnet", label: "Employees", icon: "fa-solid fa-users", items: lapnetMatches.value, route: "/lapnetview" },
+]);
+
+const searchTotal = computed(() =>
+  searchGroups.value.reduce((acc, g) => acc + (g.items?.length || 0), 0)
+);
+
+function goToCategorySearch(path) {
+  // ✅ send query param (your pages can optionally use it)
+  const q = searchQuery.value?.trim();
+  if (q) router.push({ path, query: { q } });
+  else router.push(path);
+  closeSearch();
+}
+
+function onSearchEnter() {
+  const q = searchQuery.value?.trim();
+  if (!q) return;
+
+  const groups = searchGroups.value.filter((g) => g.items.length);
+  if (!groups.length) return;
+
+  // jump to most relevant: first group with matches
+  goToCategorySearch(groups[0].route);
+}
+
+/* Filter previews by search (dashboard) */
+function filterList(list) {
+  const q = qNorm.value;
+  if (!q) return list || [];
+  return (list || []).filter((x) => matchObj(x, q));
+}
+
+/* ---------------------------
+   ✅ Notifications + Chat notifs + Admin profile
+---------------------------- */
+const NOTIF_KEY = "lapnet_admin_notifications_v1";
+const CHAT_KEY = "lapnet_admin_chat_notifs_v1";
+
+const notifications = ref([]);
+const chatNotifs = ref([]);
+
+function loadNotifs() {
+  try {
+    const raw = localStorage.getItem(NOTIF_KEY);
+    const arr = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(arr)) notifications.value = arr;
+  } catch {}
+  if (!notifications.value.length) {
+    notifications.value = [
+      { id: "n1", title: "System", body: "Dashboard loaded successfully.", time: new Date().toLocaleString(), read: false },
+      { id: "n2", title: "Tip", body: "Use the search bar to search everything.", time: new Date().toLocaleString(), read: true },
+    ];
+  }
+}
+function persistNotifs() {
+  try {
+    localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications.value.slice(0, 200)));
+  } catch {}
+}
+watch(notifications, persistNotifs, { deep: true });
+
+function loadChatNotifs() {
+  try {
+    const raw = localStorage.getItem(CHAT_KEY);
+    const arr = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(arr)) chatNotifs.value = arr;
+  } catch {}
+  if (!chatNotifs.value.length) {
+    chatNotifs.value = [
+      { id: "c1", from: "Support", preview: "Hi admin, please check new request.", time: new Date().toLocaleString(), read: false },
+    ];
+  }
+}
+function persistChatNotifs() {
+  try {
+    localStorage.setItem(CHAT_KEY, JSON.stringify(chatNotifs.value.slice(0, 200)));
+  } catch {}
+}
+watch(chatNotifs, persistChatNotifs, { deep: true });
+
+const showNotifMenu = ref(false);
+const showChatMenu = ref(false);
+const showProfileMenu = ref(false);
+
+const notifUnreadCount = computed(() => (notifications.value || []).filter((x) => !x.read).length);
+const chatUnreadCount = computed(() => (chatNotifs.value || []).filter((x) => !x.read).length);
+
+function toggleNotif() {
+  showNotifMenu.value = !showNotifMenu.value;
+  showChatMenu.value = false;
+  showProfileMenu.value = false;
+  if (showNotifMenu.value) closeSearch();
+}
+
+function toggleChatMenu() {
+  showChatMenu.value = !showChatMenu.value;
+  showNotifMenu.value = false;
+  showProfileMenu.value = false;
+  if (showChatMenu.value) closeSearch();
+}
+
+function toggleProfileMenu() {
+  showProfileMenu.value = !showProfileMenu.value;
+  showNotifMenu.value = false;
+  showChatMenu.value = false;
+  if (showProfileMenu.value) closeSearch();
+}
+
+function markAllNotifRead() {
+  notifications.value = (notifications.value || []).map((x) => ({ ...x, read: true }));
+}
+function markAllChatRead() {
+  chatNotifs.value = (chatNotifs.value || []).map((x) => ({ ...x, read: true }));
+}
+
+function openNotification(n) {
+  notifications.value = (notifications.value || []).map((x) => (x.id === n.id ? { ...x, read: true } : x));
+  // ✅ optional: route somewhere depending on type
+}
+
+function openChat(c) {
+  chatNotifs.value = (chatNotifs.value || []).map((x) => (x.id === c.id ? { ...x, read: true } : x));
+  goChat();
+}
+
+/* Admin profile (simple localStorage-driven) */
+const adminName = computed(() => {
+  try {
+    return localStorage.getItem("admin_name") || "Admin";
+  } catch {
+    return "Admin";
+  }
+});
+const adminRole = computed(() => {
+  try {
+    return localStorage.getItem("admin_role") || "Administrator";
+  } catch {
+    return "Administrator";
+  }
+});
+const adminAvatar = computed(() => {
+  try {
+    return localStorage.getItem("admin_avatar") || "";
+  } catch {
+    return "";
+  }
+});
+const adminInitials = computed(() => {
+  const n = String(adminName.value || "A").trim();
+  const parts = n.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] || "A";
+  const b = parts.length > 1 ? parts[1]?.[0] : parts[0]?.[1] || "";
+  return (a + b).toUpperCase();
+});
+
+/* close dropdowns on outside click */
+function onDocClick(e) {
+  const t = e.target;
+  const inside = (el) => el && (el === t || el.contains(t));
+
+  const inSearch = inside(searchWrapEl.value);
+  const inNotif = inside(notifWrapEl.value);
+  const inChat = inside(chatWrapEl.value);
+  const inProfile = inside(profileWrapEl.value);
+
+  if (!inSearch) showSearchPanel.value = false;
+  if (!inNotif) showNotifMenu.value = false;
+  if (!inChat) showChatMenu.value = false;
+  if (!inProfile) showProfileMenu.value = false;
 }
 
 /* Graph */
@@ -1105,7 +1753,6 @@ function cssVar(name, fallback) {
   return v || fallback;
 }
 function rgba(hex, a = 1) {
-  // accepts "#rrggbb"
   const h = String(hex || "").replace("#", "");
   if (h.length !== 6) return `rgba(255,255,255,${a})`;
   const r = parseInt(h.slice(0, 2), 16);
@@ -1115,7 +1762,6 @@ function rgba(hex, a = 1) {
 }
 
 function palette() {
-  // you can map these to your theme vars later
   return {
     txt: cssVar("--txt", "rgba(255,255,255,0.92)"),
     muted: cssVar("--muted", "rgba(255,255,255,0.58)"),
@@ -1152,53 +1798,16 @@ function buildDatasets(ctx) {
     return g;
   };
 
-  // Overview: stacked bars + total line
   if (categoryKey.value === "all") {
     return {
       type: "bar",
       data: {
         labels,
         datasets: [
-          {
-            label: "Bank",
-            data: bank,
-            backgroundColor: rgba(p.bank, 0.18),
-            borderColor: rgba(p.bank, 0.28),
-            borderWidth: 1,
-            borderRadius: 12,
-            borderSkipped: false,
-            stack: "s",
-          },
-          {
-            label: "News",
-            data: news,
-            backgroundColor: rgba(p.news, 0.18),
-            borderColor: rgba(p.news, 0.28),
-            borderWidth: 1,
-            borderRadius: 12,
-            borderSkipped: false,
-            stack: "s",
-          },
-          {
-            label: "Jobs",
-            data: jobs,
-            backgroundColor: rgba(p.jobs, 0.16),
-            borderColor: rgba(p.jobs, 0.26),
-            borderWidth: 1,
-            borderRadius: 12,
-            borderSkipped: false,
-            stack: "s",
-          },
-          {
-            label: "Announcement",
-            data: ann,
-            backgroundColor: rgba(p.announcement, 0.16),
-            borderColor: rgba(p.announcement, 0.26),
-            borderWidth: 1,
-            borderRadius: 12,
-            borderSkipped: false,
-            stack: "s",
-          },
+          { label: "Bank", data: bank, backgroundColor: rgba(p.bank, 0.18), borderColor: rgba(p.bank, 0.28), borderWidth: 1, borderRadius: 12, borderSkipped: false, stack: "s" },
+          { label: "News", data: news, backgroundColor: rgba(p.news, 0.18), borderColor: rgba(p.news, 0.28), borderWidth: 1, borderRadius: 12, borderSkipped: false, stack: "s" },
+          { label: "Jobs", data: jobs, backgroundColor: rgba(p.jobs, 0.16), borderColor: rgba(p.jobs, 0.26), borderWidth: 1, borderRadius: 12, borderSkipped: false, stack: "s" },
+          { label: "Announcement", data: ann, backgroundColor: rgba(p.announcement, 0.16), borderColor: rgba(p.announcement, 0.26), borderWidth: 1, borderRadius: 12, borderSkipped: false, stack: "s" },
           {
             type: "line",
             label: "Total",
@@ -1217,7 +1826,6 @@ function buildDatasets(ctx) {
     };
   }
 
-  // Single category: smooth line + soft fill
   const active = activeSeries.value.map((x) => x.count || 0);
   const colorHex =
     categoryKey.value === "bank"
@@ -1264,9 +1872,7 @@ function renderOrUpdateChart() {
     maintainAspectRatio: false,
     interaction: { mode: "index", intersect: false },
     plugins: {
-      legend: {
-        display: false, // we keep your custom legend under the chart
-      },
+      legend: { display: false },
       tooltip: {
         backgroundColor: "rgba(7, 14, 35, 0.92)",
         borderColor: p.stroke,
@@ -1290,17 +1896,11 @@ function renderOrUpdateChart() {
         beginAtZero: true,
       },
     },
-    elements: {
-      line: { capBezierPoints: true },
-    },
+    elements: { line: { capBezierPoints: true } },
   };
 
   if (!chartInst) {
-    chartInst = new Chart(ctx, {
-      type: cfg.type,
-      data: cfg.data,
-      options,
-    });
+    chartInst = new Chart(ctx, { type: cfg.type, data: cfg.data, options });
   } else {
     chartInst.config.type = cfg.type;
     chartInst.data.labels = cfg.data.labels;
@@ -1325,13 +1925,11 @@ const lapnetPage = ref(1);
 const lapnetPageSize = 3;
 const lapnetStartIndex = computed(() => (lapnetPage.value - 1) * lapnetPageSize);
 
-const lapnetPageCount = computed(() => {
-  const n = lapnetSorted.value?.length || 0;
-  return Math.max(1, Math.ceil(n / lapnetPageSize));
-});
+const lapnetFiltered = computed(() => filterList(lapnetSorted.value));
+const lapnetPageCountFiltered = computed(() => Math.max(1, Math.ceil((lapnetFiltered.value?.length || 0) / lapnetPageSize)));
 
-const lapnetPaged = computed(() => {
-  const list = lapnetSorted.value || [];
+const lapnetFilteredPaged = computed(() => {
+  const list = lapnetFiltered.value || [];
   const start = (lapnetPage.value - 1) * lapnetPageSize;
   return list.slice(start, start + lapnetPageSize);
 });
@@ -1339,31 +1937,34 @@ const lapnetPaged = computed(() => {
 function lapnetPrev() {
   lapnetPage.value = Math.max(1, lapnetPage.value - 1);
 }
-function lapnetNext() {
-  lapnetPage.value = Math.min(lapnetPageCount.value, lapnetPage.value + 1);
+function lapnetNextFiltered() {
+  lapnetPage.value = Math.min(lapnetPageCountFiltered.value, lapnetPage.value + 1);
 }
 
 watch(
-  () => lapnetSorted.value.length,
+  () => lapnetFiltered.value.length,
   () => {
-    const max = lapnetPageCount.value;
+    const max = lapnetPageCountFiltered.value;
     if (lapnetPage.value > max) lapnetPage.value = max || 1;
     if (lapnetPage.value < 1) lapnetPage.value = 1;
   }
 );
 
+watch(qNorm, () => {
+  lapnetPage.value = 1;
+});
+
 /* Board pagination */
 const boardLatest = computed(() => sortByDateDesc(boardItems.value));
+const boardFiltered = computed(() => filterList(boardLatest.value));
+
 const boardPage = ref(1);
 const boardPageSize = 4;
 
-const boardPageCount = computed(() => {
-  const n = boardLatest.value?.length || 0;
-  return Math.max(1, Math.ceil(n / boardPageSize));
-});
+const boardPageCountFiltered = computed(() => Math.max(1, Math.ceil((boardFiltered.value?.length || 0) / boardPageSize)));
 
-const boardPaged = computed(() => {
-  const list = boardLatest.value || [];
+const boardFilteredPaged = computed(() => {
+  const list = boardFiltered.value || [];
   const start = (boardPage.value - 1) * boardPageSize;
   return list.slice(start, start + boardPageSize);
 });
@@ -1371,22 +1972,27 @@ const boardPaged = computed(() => {
 function boardPrev() {
   boardPage.value = Math.max(1, boardPage.value - 1);
 }
-function boardNext() {
-  boardPage.value = Math.min(boardPageCount.value, boardPage.value + 1);
+function boardNextFiltered() {
+  boardPage.value = Math.min(boardPageCountFiltered.value, boardPage.value + 1);
 }
 
 watch(
-  () => boardLatest.value.length,
+  () => boardFiltered.value.length,
   () => {
-    const max = boardPageCount.value;
+    const max = boardPageCountFiltered.value;
     if (boardPage.value > max) boardPage.value = max || 1;
     if (boardPage.value < 1) boardPage.value = 1;
   }
 );
 
+watch(qNorm, () => {
+  boardPage.value = 1;
+});
+
 /* News preview */
 const newsLatest = computed(() => sortByDateDesc(newsItems.value));
-const newsPreview = computed(() => (newsLatest.value || []).slice(0, 6));
+const newsFilteredLatest = computed(() => filterList(newsLatest.value));
+const newsFilteredPreview = computed(() => (newsFilteredLatest.value || []).slice(0, 6));
 
 function newsThumbSrc(n) {
   const raw =
@@ -1406,7 +2012,6 @@ function newsThumbSrc(n) {
       "imageUrl"
     ) || "";
 
-  // ✅ if raw is relative -> force localhost base
   return resolveImageUrl(raw, NEWS_BASE);
 }
 
@@ -1461,7 +2066,7 @@ function persistCalendar() {
   if (!calLoaded.value) return;
   try {
     localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(calEvents.value));
-  } catch { }
+  } catch {}
 }
 watch(calEvents, persistCalendar, { deep: true });
 
@@ -1475,9 +2080,14 @@ function cardHover(e, enter) {
 }
 
 onMounted(async () => {
+  document.addEventListener("click", onDocClick, true);
+
   const els = dashEl.value?.querySelectorAll?.(".js-reveal") || [];
   gsap.set(els, { opacity: 0, y: 12 });
   gsap.to(els, { opacity: 1, y: 0, stagger: 0.06, duration: 0.42, ease: "power3.out" });
+
+  loadNotifs();
+  loadChatNotifs();
 
   loadCalendar();
   calLoaded.value = true;
@@ -1489,6 +2099,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocClick, true);
+
   memberAbortCtrl.value?.abort?.();
   boardAbortCtrl.value?.abort?.();
   lapnetEmpAbortCtrl.value?.abort?.();
@@ -1501,7 +2113,551 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* (ทั้งหมดเหมือนเดิม) */
+/* (เดิมทั้งหมด + เพิ่มของใหม่ด้านบน) */
+
+/* ✅ TOP BAR */
+.dashTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 12px;
+
+  /* ✅ FIX: ensure topbar + overlays always on top */
+  position: relative;
+  z-index: 9999;
+}
+
+.topActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topRefresh {
+  width: 40px;
+  height: 40px;
+}
+
+/* ✅ Search */
+.searchWrap {
+  position: relative;
+  flex: 1;
+  max-width: 740px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.searchIcon {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+}
+
+.searchInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 850;
+}
+
+.searchClear {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+}
+.searchClear:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.searchPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+
+  /* ✅ FIX: raise overlay above everything */
+  z-index: 9999;
+
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(8, 14, 34, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  max-height: 420px;
+  overflow: auto;
+}
+
+.searchPanelTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.searchPanelTitle {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.searchPanelMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pillMini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.pillBtn {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pillBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchEmpty {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 850;
+}
+
+.searchGroups {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.searchGroup {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.searchGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.searchGroupTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 950;
+  font-size: 12px;
+}
+
+.groupCount {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 950;
+}
+
+.seeAllBtn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seeAllBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchItems {
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.searchItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+.searchItem:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchItemTitle {
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.searchItemSub {
+  margin-top: 2px;
+  font-weight: 850;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.searchPanelHint {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 850;
+  font-size: 12px;
+}
+
+/* ✅ Icons + Menus */
+.menuWrap {
+  position: relative;
+}
+
+.iconBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  position: relative;
+}
+.iconBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 950;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.profileBtn {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-weight: 950;
+}
+.profileBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.profileName {
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
+  display: grid;
+  place-items: center;
+}
+.avatar.big {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatarTxt {
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+
+  /* ✅ FIX: raise overlay above everything */
+  z-index: 9999;
+
+  width: 320px;
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(8, 14, 34, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+/* (ที่เหลือเดิมทั้งหมด ไม่แตะ) */
+.menuTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.menuTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menuBtn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menuBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.menuEmpty {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 850;
+}
+
+.menuList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.menuItem {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+.menuItem:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+.menuItem.unread {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.menuItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.menuItemTitle {
+  font-weight: 950;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menuItemBody {
+  font-weight: 850;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.menuItemTime {
+  margin-top: 2px;
+  font-weight: 850;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+
+.menuFoot {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+.menuLink {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.86);
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menuLink:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.profileTop {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.profileBig {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profileBigName {
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+}
+.profileBigSub {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.menuAction {
+  align-items: center;
+  gap: 10px;
+}
+.menuAction i {
+  width: 18px;
+  opacity: 0.9;
+}
+.menuAction.danger {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.menuAction.danger:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* small tag */
+.subSearchTag {
+  font-weight: 950;
+  color: rgba(56, 189, 248, 0.9);
+}
+
+/* ✅ Keep your existing CSS below (unchanged) */
+
 /* Clickable focus */
 .statCard.clickable {
   cursor: pointer;
@@ -1516,7 +2672,591 @@ onBeforeUnmount(() => {
 /* Stats Grid + Cards */
 .statGrid {
   --sideBlockMaxH: 430px;
-  /* ✅ shared max height (Lapnet card + News Preview) */
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+  padding: 6px 0 14px;
+}
+
+.statCard,
+.chartCard,
+.calendarCard,
+.sideCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+/* ... (ที่เหลือ CSS เดิมทั้งหมดของคุณอยู่ต่อได้เหมือนเดิม) ... */
+
+/* responsive */
+@media (max-width: 1100px) {
+  .statCard { grid-column: span 6; }
+  .statCard.wide { grid-column: span 6; }
+  .leftCol { grid-column: span 12; }
+  .sideCol { grid-column: span 12; }
+  .legHint { margin-left: 0; width: 100%; }
+  .dashTop { flex-direction: column; align-items: stretch; }
+  .topActions { justify-content: flex-end; }
+  .menuPanel { right: 0; left: auto; }
+}
+
+@media (max-width: 920px) {
+  .statCard { grid-column: span 12; }
+  .statCard.wide { grid-column: span 12; }
+  .chartActions { width: 100%; justify-content: space-between; }
+}
+
+.dashTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 12px;
+}
+
+.topActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topRefresh {
+  width: 40px;
+  height: 40px;
+}
+
+/* ✅ Search */
+.searchWrap {
+  position: relative;
+  flex: 1;
+  max-width: 740px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.searchIcon {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+}
+
+.searchInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 850;
+}
+
+.searchClear {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+}
+.searchClear:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.searchPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(8, 14, 34, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  max-height: 420px;
+  overflow: auto;
+}
+
+.searchPanelTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.searchPanelTitle {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.searchPanelMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pillMini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.pillBtn {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pillBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchEmpty {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 850;
+}
+
+.searchGroups {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.searchGroup {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.searchGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.searchGroupTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 950;
+  font-size: 12px;
+}
+
+.groupCount {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 950;
+}
+
+.seeAllBtn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seeAllBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchItems {
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.searchItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+.searchItem:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.searchItemTitle {
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.searchItemSub {
+  margin-top: 2px;
+  font-weight: 850;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.searchPanelHint {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 850;
+  font-size: 12px;
+}
+
+/* ✅ Icons + Menus */
+.menuWrap {
+  position: relative;
+}
+
+.iconBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  position: relative;
+}
+.iconBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 950;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.profileBtn {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-weight: 950;
+}
+.profileBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.profileName {
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
+  display: grid;
+  place-items: center;
+}
+.avatar.big {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatarTxt {
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: 320px;
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(8, 14, 34, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.menuTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.menuTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menuBtn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menuBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.menuEmpty {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 850;
+}
+
+.menuList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.menuItem {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+.menuItem:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+.menuItem.unread {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.menuItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.menuItemTitle {
+  font-weight: 950;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menuItemBody {
+  font-weight: 850;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.menuItemTime {
+  margin-top: 2px;
+  font-weight: 850;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+
+.menuFoot {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+.menuLink {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.86);
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menuLink:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.profileTop {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.profileBig {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profileBigName {
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+}
+.profileBigSub {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.menuAction {
+  align-items: center;
+  gap: 10px;
+}
+.menuAction i {
+  width: 18px;
+  opacity: 0.9;
+}
+.menuAction.danger {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.menuAction.danger:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* small tag */
+.subSearchTag {
+  font-weight: 950;
+  color: rgba(56, 189, 248, 0.9);
+}
+
+/* ✅ Keep your existing CSS below (unchanged) */
+
+/* Clickable focus */
+.statCard.clickable {
+  cursor: pointer;
+}
+
+.statCard.clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1), 0 18px 44px rgba(0, 0, 0, 0.28);
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+/* Stats Grid + Cards */
+.statGrid {
+  --sideBlockMaxH: 430px;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 12px;
@@ -1568,27 +3308,21 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: -2px;
   pointer-events: none;
-  background: linear-gradient(115deg,
-      rgba(255, 255, 255, 0) 25%,
-      rgba(255, 255, 255, 0.08) 45%,
-      rgba(255, 255, 255, 0) 70%);
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 25%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 255, 255, 0) 70%
+  );
   transform: translateX(-40%);
   opacity: 0.12;
   animation: sheen 5.5s ease-in-out infinite;
 }
 
 @keyframes sheen {
-  0% {
-    transform: translateX(-60%);
-  }
-
-  55% {
-    transform: translateX(60%);
-  }
-
-  100% {
-    transform: translateX(60%);
-  }
+  0% { transform: translateX(-60%); }
+  55% { transform: translateX(60%); }
+  100% { transform: translateX(60%); }
 }
 
 .statTop {
@@ -1677,11 +3411,7 @@ onBeforeUnmount(() => {
   animation: spin 0.85s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Left column wrapper */
 .leftCol {
@@ -1853,30 +3583,11 @@ onBeforeUnmount(() => {
   font-weight: 950;
 }
 
-.chip.bank .chipDot {
-  background: rgba(242, 255, 0, 0.9);
-  box-shadow: 0 0 0 6px rgba(242, 255, 0, 0.12);
-}
-
-.chip.news .chipDot {
-  background: rgba(99, 102, 241, 0.9);
-  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.12);
-}
-
-.chip.jobs .chipDot {
-  background: rgba(14, 165, 233, 0.9);
-  box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.12);
-}
-
-.chip.announcement .chipDot {
-  background: rgba(34, 197, 94, 0.9);
-  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12);
-}
-
-.chip.all .chipDot {
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
-}
+.chip.bank .chipDot { background: rgba(242, 255, 0, 0.9); box-shadow: 0 0 0 6px rgba(242, 255, 0, 0.12); }
+.chip.news .chipDot { background: rgba(99, 102, 241, 0.9); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.12); }
+.chip.jobs .chipDot { background: rgba(14, 165, 233, 0.9); box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.12); }
+.chip.announcement .chipDot { background: rgba(34, 197, 94, 0.9); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12); }
+.chip.all .chipDot { background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08); }
 
 .chartMeta {
   margin-top: 10px;
@@ -1899,16 +3610,14 @@ onBeforeUnmount(() => {
   font-weight: 850;
 }
 
-.metaPill.subtle {
-  opacity: 0.85;
-}
+.metaPill.subtle { opacity: 0.85; }
 
 .errorPill {
   border-color: rgba(239, 68, 68, 0.25);
   color: rgba(239, 68, 68, 0.95);
 }
 
-/* ✅ Chart.js wrapper */
+/* Chart.js wrapper */
 .chartCanvasWrap {
   margin-top: 12px;
   position: relative;
@@ -1969,31 +3678,12 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.legDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-}
-
-.legDot.total {
-  background: rgba(255, 255, 255, 0.85);
-}
-
-.legDot.bank {
-  background: rgba(242, 255, 0, 0.9);
-}
-
-.legDot.news {
-  background: rgba(99, 102, 241, 0.9);
-}
-
-.legDot.jobs {
-  background: rgba(14, 165, 233, 0.9);
-}
-
-.legDot.announcement {
-  background: rgba(34, 197, 94, 0.9);
-}
+.legDot { width: 10px; height: 10px; border-radius: 999px; }
+.legDot.total { background: rgba(255, 255, 255, 0.85); }
+.legDot.bank { background: rgba(242, 255, 0, 0.9); }
+.legDot.news { background: rgba(99, 102, 241, 0.9); }
+.legDot.jobs { background: rgba(14, 165, 233, 0.9); }
+.legDot.announcement { background: rgba(34, 197, 94, 0.9); }
 
 .legHint {
   margin-left: auto;
@@ -2143,10 +3833,7 @@ onBeforeUnmount(() => {
   color: rgba(239, 68, 68, 0.95);
 }
 
-.sideList {
-  display: grid;
-  gap: 10px;
-}
+.sideList { display: grid; gap: 10px; }
 
 .sideItem {
   display: grid;
@@ -2178,22 +3865,11 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
-.sideAvatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.sideAvatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.sideAvatarEmpty {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-}
+.sideAvatarEmpty { color: rgba(255, 255, 255, 0.7); font-size: 14px; }
 
-.sideInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.sideInfo { display: flex; flex-direction: column; gap: 4px; }
 
 .sideName {
   font-weight: 950;
@@ -2204,17 +3880,9 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.sideRole {
-  font-weight: 850;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-}
+.sideRole { font-weight: 850; color: rgba(255, 255, 255, 0.68); font-size: 12px; }
 
-.sideChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.sideChips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .miniChip {
   display: inline-flex;
@@ -2236,10 +3904,7 @@ onBeforeUnmount(() => {
 }
 
 /* Board card design */
-.sideCard.boardCard {
-  background: rgba(255, 255, 255, 0.026);
-  border-color: rgba(255, 255, 255, 0.09);
-}
+.sideCard.boardCard { background: rgba(255, 255, 255, 0.026); border-color: rgba(255, 255, 255, 0.09); }
 
 .boardHero {
   position: absolute;
@@ -2252,10 +3917,7 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 
-.boardList {
-  display: grid;
-  gap: 10px;
-}
+.boardList { display: grid; gap: 10px; }
 
 .boardItem {
   display: grid;
@@ -2293,19 +3955,9 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
-.boardLogo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scale(1.02);
-}
+.boardLogo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.02); }
 
-.boardInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
+.boardInfo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 
 .boardCommittee {
   font-weight: 950;
@@ -2317,12 +3969,7 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.boardNameRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
+.boardNameRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
 .boardName {
   font-weight: 950;
@@ -2349,20 +3996,10 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.boardMetaRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.boardMetaRow { display: flex; flex-wrap: wrap; gap: 6px; }
 
-.boardChevron {
-  color: rgba(255, 255, 255, 0.45);
-  justify-self: end;
-}
-
-.boardItem:hover .boardChevron {
-  color: rgba(255, 255, 255, 0.78);
-}
+.boardChevron { color: rgba(255, 255, 255, 0.45); justify-self: end; }
+.boardItem:hover .boardChevron { color: rgba(255, 255, 255, 0.78); }
 
 /* Pagination */
 .boardPager {
@@ -2388,23 +4025,12 @@ onBeforeUnmount(() => {
   transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
 }
 
-.pagerBtn:hover:enabled {
-  border-color: rgba(99, 102, 241, 0.22);
-  transform: translateY(-1px);
-}
+.pagerBtn:hover:enabled { border-color: rgba(99, 102, 241, 0.22); transform: translateY(-1px); }
+.pagerBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.pagerBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+.pagerInfo { font-weight: 950; font-size: 12px; color: rgba(255, 255, 255, 0.78); }
 
-.pagerInfo {
-  font-weight: 950;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-/* ✅ Match heights: Lapnet + News preview */
+/* Match heights: Lapnet + News preview */
 .sideCard.lapnetCard,
 .sideCard.newsPreviewCard {
   max-height: var(--sideBlockMaxH);
@@ -2413,23 +4039,10 @@ onBeforeUnmount(() => {
 }
 
 /* allow internal scrolling */
-.sideCard.lapnetCard .sideBody {
-  overflow: auto;
-  padding-bottom: 4px;
-}
+.sideCard.lapnetCard .sideBody { overflow: auto; padding-bottom: 4px; }
+.newsPreviewBody { margin-top: 10px; position: relative; z-index: 1; overflow: auto; padding-bottom: 4px; }
 
-.newsPreviewBody {
-  margin-top: 10px;
-  position: relative;
-  z-index: 1;
-  overflow: auto;
-  padding-bottom: 4px;
-}
-
-.newsList {
-  display: grid;
-  gap: 10px;
-}
+.newsList { display: grid; gap: 10px; }
 
 .newsItem {
   display: grid;
@@ -2444,11 +4057,7 @@ onBeforeUnmount(() => {
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
-.newsItem:hover {
-  transform: translateY(-1px);
-  border-color: rgba(56, 189, 248, 0.18);
-  background: rgba(255, 255, 255, 0.03);
-}
+.newsItem:hover { transform: translateY(-1px); border-color: rgba(56, 189, 248, 0.18); background: rgba(255, 255, 255, 0.03); }
 
 .newsThumb {
   width: 64px;
@@ -2461,23 +4070,11 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
-.newsThumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.newsThumb img { width: 100%; height: 100%; object-fit: cover; }
 
-.newsThumbEmpty {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 14px;
-}
+.newsThumbEmpty { color: rgba(255, 255, 255, 0.55); font-size: 14px; }
 
-.newsInfo {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+.newsInfo { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .newsTitle {
   font-weight: 950;
@@ -2488,48 +4085,23 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.newsMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.newsMeta { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* responsive */
 @media (max-width: 1100px) {
-  .statCard {
-    grid-column: span 6;
-  }
-
-  .statCard.wide {
-    grid-column: span 6;
-  }
-
-  .leftCol {
-    grid-column: span 12;
-  }
-
-  .sideCol {
-    grid-column: span 12;
-  }
-
-  .legHint {
-    margin-left: 0;
-    width: 100%;
-  }
+  .statCard { grid-column: span 6; }
+  .statCard.wide { grid-column: span 6; }
+  .leftCol { grid-column: span 12; }
+  .sideCol { grid-column: span 12; }
+  .legHint { margin-left: 0; width: 100%; }
+  .dashTop { flex-direction: column; align-items: stretch; }
+  .topActions { justify-content: flex-end; }
+  .menuPanel { right: 0; left: auto; }
 }
 
 @media (max-width: 920px) {
-  .statCard {
-    grid-column: span 12;
-  }
-
-  .statCard.wide {
-    grid-column: span 12;
-  }
-
-  .chartActions {
-    width: 100%;
-    justify-content: space-between;
-  }
+  .statCard { grid-column: span 12; }
+  .statCard.wide { grid-column: span 12; }
+  .chartActions { width: 100%; justify-content: space-between; }
 }
 </style>
