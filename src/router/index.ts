@@ -21,6 +21,8 @@ import Board_directoredit from '../view/board_director/board_directoredit.vue'
 import lapnetview from '../view/lapnet/lapnetview.vue'
 import Lapnetedit from '../view/lapnet/lapnetedit.vue'
 import Mainvisitors from '../view/visitors/mainvisitors.vue'
+import Createform from '../view/createform/createform.vue'
+import mainnotification from '../view/notification/mainnotification.vue'
 const routes = [
   {
     path: '/',
@@ -134,7 +136,22 @@ const routes = [
     name: 'visitors',
     component: Mainvisitors,
   },
+
+
+
+  // ######################## createform part ######################
+    {
+    path: '/createform',
+    name: 'createform',
+    component: Createform,
+  },
  
+    // ######################## createform part ######################
+    {
+    path: '/notification',
+    name: 'notification',
+    component: mainnotification,
+  },
 
 
   

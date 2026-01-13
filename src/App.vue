@@ -32,7 +32,7 @@
           <span class="navPill" />
         </RouterLink>
 
-        <!-- ✅ DASHBOARD CHILDREN (item 2) — make same size as main items -->
+        <!-- ✅ DASHBOARD CHILDREN (item 2) -->
         <RouterLink
           v-for="item in dashboardItems"
           :key="item.key"
@@ -61,8 +61,6 @@
             aria-haspopup="true"
             :aria-expanded="isViewOpen ? 'true' : 'false'"
           >
-
-          
             <span class="navIcon"><i class="fa-solid fa-database"></i></span>
             <span class="navLabel">ເບິ່ງຂໍ້ມູນ</span>
 
@@ -175,7 +173,12 @@ const navItems = [
     label: "ພາບລວມ",
     to: "/dashboard",
     fa: "fa-solid fa-chart-line",
-    children: [{ key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" }],
+    children: [
+      { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
+
+      // ✅ NEW: under Visitor
+      { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
+    ],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
   { key: "news", label: "ເພີ່ມຂ່າວສານ ແລະ ກິດຈະກຳ", to: "/newinsert", fa: "fa-solid fa-newspaper" },
