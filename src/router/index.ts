@@ -148,8 +148,8 @@ const routes = [
  
     // ######################## createform part ######################
     {
-    path: '/notification',
-    name: 'notification',
+    path: '/notifications',
+    name: 'notifications',
     component: mainnotification,
   },
 

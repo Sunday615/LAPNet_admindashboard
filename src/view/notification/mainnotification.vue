@@ -1,603 +1,863 @@
-<!-- src/pages/admin/Notifications.vue -->
+<!-- AdminNotifications.vue
+  ✅ หน้า "ແຈ້ງເຕືອນ" สำหรับ Admin Dashboard (ใช้งานกับตาราง notifications + /api/notifications)
+  - ดึงรายการจาก DB: notifications (จาก trigger ที่คุณสร้างไว้)
+  - ฟีเจอร์:
+    - ค้นหา (q)
+    - filter entity / action
+    - unread only
+    - mark read / mark all read
+    - delete
+    - กด "Open" เพื่อไปหน้า linkpath (ถ้ามี)
+  - ใช้ GSAP สำหรับ animation
+  - ใช้ Global theme จาก App.vue (CSS vars)
+-->
 <template>
-  <div class="notif-page">
-    <header class="notif-header">
-      <div class="title-wrap">
-        <h1 class="notif-title">Notifications</h1>
-        <p class="notif-subtitle">
-          Track admin panel activity (insert / edit / delete / set active).
+  <section class="page" ref="pageEl">
+    <!-- Header -->
+    <header class="page__header">
+      <div class="page__titleWrap">
+        <h1 class="page__title">ແຈ້ງເຕືອນ (Admin Dashboard)</h1>
+        <p class="page__subtitle">
+          ລາຍການແຈ້ງເຕືອນຈາກ Events (insert / edit / delete / active_on / active_off)
         </p>
       </div>
 
-      <div class="stats-wrap">
-        <div class="stat-card">
-          <div class="stat-label">Total</div>
-          <div class="stat-value">{{ notifications.length }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Unread</div>
-          <div class="stat-value">{{ unreadCount }}</div>
+      <div class="page__actions">
+        <div class="search">
+          <span class="search__icon" aria-hidden="true">⌕</span>
+          <input
+            v-model="q"
+            class="input"
+            type="text"
+            placeholder="Search: title / message / entity / action..."
+            @input="onSearchInput"
+          />
         </div>
 
-        <div class="header-actions">
-          <button class="btn" type="button" @click="refresh" :disabled="loading">
-            {{ loading ? "Loading..." : "Refresh" }}
-          </button>
-          <button class="btn" type="button" @click="markAllRead" :disabled="notifications.length === 0">
-            Mark all read
-          </button>
-          <button class="btn danger" type="button" @click="clearAll" :disabled="notifications.length === 0">
-            Clear
-          </button>
-        </div>
+        <select v-model="entity" class="select">
+          <option value="">All entity</option>
+          <option v-for="e in ENTITIES" :key="e" :value="e">{{ e }}</option>
+        </select>
+
+        <select v-model="action" class="select">
+          <option value="">All action</option>
+          <option v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</option>
+        </select>
+
+        <label class="switch">
+          <input type="checkbox" v-model="unreadOnly" />
+          <span class="switch__ui"></span>
+          <span class="switch__label">Unread only</span>
+        </label>
+
+        <button class="btn btn--primary" type="button" @click="markAllRead" :disabled="loading">
+          Mark all read
+        </button>
+
+        <button class="btn" type="button" @click="reloadAll" :disabled="loading">
+          Refresh
+        </button>
       </div>
     </header>
 
-    <section class="notif-controls">
-      <div class="control">
-        <label class="control-label">Entity</label>
-        <select class="control-input" v-model="filters.entity">
-          <option value="">All</option>
-          <option v-for="e in entityOptions" :key="e.value" :value="e.value">
-            {{ e.label }}
-          </option>
-        </select>
+    <!-- Toast -->
+    <transition name="toast">
+      <div v-if="toast.show" class="toast" role="status" aria-live="polite">
+        <div class="toast__dot" aria-hidden="true"></div>
+        <div class="toast__body">
+          <div class="toast__title">{{ toast.title }}</div>
+          <div class="toast__msg">{{ toast.message }}</div>
+        </div>
+        <button class="toast__close" type="button" @click="toast.show = false">✕</button>
       </div>
+    </transition>
 
-      <div class="control">
-        <label class="control-label">Action</label>
-        <select class="control-input" v-model="filters.action">
-          <option value="">All</option>
-          <option v-for="a in actionOptions" :key="a.value" :value="a.value">
-            {{ a.label }}
-          </option>
-        </select>
-      </div>
-
-      <div class="control grow">
-        <label class="control-label">Search</label>
-        <input
-          class="control-input"
-          v-model="filters.search"
-          placeholder="Search message / target / actor..."
-          type="text"
-        />
-      </div>
-
-      <label class="control check">
-        <input type="checkbox" v-model="filters.unreadOnly" />
-        <span>Unread only</span>
-      </label>
-    </section>
-
-    <section class="notif-content">
-      <div v-if="filtered.length === 0" class="empty">
-        <div class="empty-title">No notifications</div>
-        <div class="empty-subtitle">
-          When you insert / edit / delete in your admin modules, they’ll show here.
+    <!-- Main Card -->
+    <div class="card" ref="cardEl">
+      <div class="card__head">
+        <div class="card__headLeft">
+          <h2 class="card__headTitle">Notifications</h2>
+          <div class="pill">
+            Unread: <b>{{ unreadCount }}</b> · Showing: <b>{{ items.length }}</b>
+          </div>
         </div>
 
-        <div class="empty-actions">
-          <button class="btn" type="button" @click="seedExamples">Add example items</button>
+        <div class="card__headRight">
+          <div class="pill pill--soft">
+            limit <b>{{ limit }}</b>
+          </div>
         </div>
       </div>
 
-      <TransitionGroup
-        v-else
-        name="noop"
-        tag="div"
-        class="notif-list"
-        @before-enter="onBeforeEnter"
-        @enter="onEnter"
-        @leave="onLeave"
-      >
-        <article
-          v-for="(n, idx) in filtered"
-          :key="n.id"
-          class="notif-item"
-          :data-index="idx"
-          :class="{ unread: !n.readAt }"
-          @click="markOneRead(n)"
-        >
-          <div class="item-left">
-            <div class="badges">
-              <span class="badge entity">{{ entityLabel(n.entity) }}</span>
-              <span class="badge" :class="actionClass(n.action)">{{ actionLabel(n.action) }}</span>
-              <span v-if="!n.readAt" class="badge unread-badge">Unread</span>
-            </div>
+      <!-- Loading / Error -->
+      <div v-if="loading" class="state">
+        <div class="spinner" aria-hidden="true"></div>
+        <div>Loading notifications...</div>
+      </div>
 
-            <div class="message">
-              {{ n.message }}
-            </div>
+      <div v-else-if="error" class="state state--error">
+        <div class="state__title">Load failed</div>
+        <div class="state__msg">{{ error }}</div>
+        <button class="btn btn--primary" @click="loadNotifications(true)">Try again</button>
+      </div>
 
-            <div class="meta">
-              <span class="meta-time">{{ formatTime(n.createdAt) }}</span>
-              <span v-if="n.actor?.name" class="meta-dot">•</span>
-              <span v-if="n.actor?.name" class="meta-actor">By {{ n.actor.name }}</span>
-              <span v-if="n.targetLabel" class="meta-dot">•</span>
-              <span v-if="n.targetLabel" class="meta-target">Target: {{ n.targetLabel }}</span>
-            </div>
-          </div>
+      <!-- Table -->
+      <div v-else class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Status</th>
+              <th style="width: 150px;">Entity</th>
+              <th style="width: 150px;">Action</th>
+              <th style="width: 260px;">Title</th>
+              <th>Message</th>
+              <th style="width: 190px;">Time</th>
+              <th style="width: 220px; text-align: right;">Actions</th>
+            </tr>
+          </thead>
 
-          <div class="item-right">
-            <button class="icon-btn" type="button" title="Mark read" @click.stop="markOneRead(n)">
-              ✓
-            </button>
-          </div>
-        </article>
-      </TransitionGroup>
-    </section>
-  </div>
+          <tbody>
+            <tr v-if="items.length === 0">
+              <td colspan="7" class="empty">No notifications</td>
+            </tr>
+
+            <tr
+              v-for="n in items"
+              :key="n.id"
+              :data-row-id="n.id"
+              :class="[{ 'row--unread': !n.isRead }, { 'row--flash': n.id === flashRowId }]"
+            >
+              <td>
+                <div class="status">
+                  <span class="dot" :class="n.isRead ? 'dot--read' : 'dot--unread'"></span>
+                  <span class="muted">{{ n.isRead ? "read" : "unread" }}</span>
+                </div>
+              </td>
+
+              <td>
+                <div class="mono">{{ n.entity }}</div>
+                <div v-if="n.refId" class="muted mono">#{{ n.refId }}</div>
+              </td>
+
+              <td>
+                <div class="tag">{{ n.action }}</div>
+              </td>
+
+              <td>
+                <div class="titleCell">{{ n.title || "-" }}</div>
+                <div v-if="n.linkpath" class="muted mono">{{ n.linkpath }}</div>
+              </td>
+
+              <td>
+                <div class="msgCell">{{ n.message || "-" }}</div>
+              </td>
+
+              <td>
+                <div class="muted">{{ formatDateTime(n.time) }}</div>
+                <div v-if="n.readTime" class="muted">read: {{ formatDateTime(n.readTime) }}</div>
+              </td>
+
+              <td class="actions">
+                <button class="btn btn--ghost" :disabled="!n.linkpath" @click="openLink(n)">
+                  Open
+                </button>
+                <button class="btn btn--ghost" :disabled="n.isRead" @click="markRead(n)">
+                  Mark read
+                </button>
+                <button class="btn btn--danger" @click="removeItem(n)">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Load more -->
+        <div class="loadMore">
+          <button class="btn" type="button" @click="loadMore" :disabled="loading || !hasMore">
+            {{ hasMore ? "Load more" : "No more" }}
+          </button>
+        </div>
+      </div>
+
+      <div class="card__foot">
+        <div class="hint">
+          <b>Note:</b> ຂໍ້ມູນຈາກ <span class="mono">notifications</span> table (trigger) ·
+          Filter/ຄົ້ນຫາ query params ຂອງ API
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { nextTick, onMounted, reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import gsap from "gsap";
 
+const router = useRouter();
 
+/**
+ * ✅ API ตาม backend ที่เราทำไว้:
+ * - GET    /api/notifications?limit=50&offset=0&unread=1&entity=member&action=insert&q=...
+ * - GET    /api/notifications/unread-count
+ * - PATCH  /api/notifications/:id/read
+ * - PATCH  /api/notifications/read-all
+ * - DELETE /api/notifications/:id
+ */
+const API = {
+  list: (params) => {
+    const qs = new URLSearchParams(params).toString();
+    return `/api/notifications${qs ? `?${qs}` : ""}`;
+  },
+  unreadCount: "/api/notifications/unread-count",
+  read: (id) => `/api/notifications/${id}/read`,
+  readAll: "/api/notifications/read-all",
+  remove: (id) => `/api/notifications/${id}`,
+};
 
+const ENTITIES = ["member", "announcement", "news", "jobs", "boarddirector", "emp_lapnet"];
+const ACTIONS = ["insert", "edit", "delete", "active_on", "active_off"];
+
+// ---------- Refs ----------
+const pageEl = ref(null);
+const cardEl = ref(null);
+
+// ---------- State ----------
+const items = ref([]);
 const loading = ref(false);
-const notifications = ref([]);
+const error = ref("");
 
-/**
- * Filters
- */
-const filters = reactive({
-  entity: "",
-  action: "",
-  search: "",
-  unreadOnly: false,
+const unreadCount = ref(0);
+
+const q = ref("");
+const entity = ref("");
+const action = ref("");
+const unreadOnly = ref(false);
+
+const limit = ref(50);
+const offset = ref(0);
+const hasMore = ref(true);
+
+let searchTimer = null;
+
+const toast = reactive({
+  show: false,
+  title: "",
+  message: "",
+  type: "info",
+  _t: null,
 });
 
-/**
- * Options (match your admin panel structure)
- */
-const entityOptions = [
-  { value: "member", label: "Member" },
-  { value: "announcement", label: "Announcement" },
-  { value: "news", label: "News" },
-  { value: "jobs", label: "Jobs" },
-  { value: "boarddirector", label: "BoardDirector" },
-  { value: "emp_company", label: "Emp_company" },
-];
+const flashRowId = ref(null);
+let flashTimer = null;
 
-const actionOptions = [
-  { value: "insert", label: "Insert" },
-  { value: "edit", label: "Edit" },
-  { value: "delete", label: "Delete" },
-  { value: "set_active", label: "Set active" },
-  { value: "set_inactive", label: "Set inactive" },
-];
+// ---------- Helpers ----------
+function showToast(type, title, message) {
+  toast.type = type;
+  toast.title = title;
+  toast.message = message;
+  toast.show = true;
 
-/**
- * Derived
- */
-const unreadCount = computed(() => notifications.value.filter((n) => !n.readAt).length);
+  gsap.fromTo(".toast", { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" });
 
-const filtered = computed(() => {
-  const q = filters.search.trim().toLowerCase();
-
-  return notifications.value
-    .filter((n) => (filters.entity ? String(n.entity).toLowerCase() === filters.entity : true))
-    .filter((n) => (filters.action ? normalizeAction(n.action) === filters.action : true))
-    .filter((n) => (filters.unreadOnly ? !n.readAt : true))
-    .filter((n) => {
-      if (!q) return true;
-      const hay = [
-        n.message,
-        n.entity,
-        n.action,
-        n.targetLabel,
-        n.actor?.name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-});
-
-function normalizeAction(action) {
-  const a = String(action || "").toLowerCase();
-  if (a === "activate") return "set_active";
-  if (a === "deactivate") return "set_inactive";
-  return a;
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(() => (toast.show = false), 3000);
 }
 
-/**
- * Labels
- */
-function entityLabel(entity) {
-  return getEntityLabel(entity);
-}
-function actionLabel(action) {
-  return getActionLabel(action);
-}
-function actionClass(action) {
-  const a = normalizeAction(action);
-  if (a === "insert") return "good";
-  if (a === "edit") return "warn";
-  if (a === "delete") return "danger";
-  if (a === "set_active") return "active";
-  if (a === "set_inactive") return "inactive";
-  return "neutral";
+function formatDateTime(d) {
+  if (!d) return "-";
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleString();
 }
 
-function formatTime(iso) {
+function flashRow(id) {
+  flashRowId.value = id;
+  window.clearTimeout(flashTimer);
+
+  nextTick(() => {
+    const el = document.querySelector(`[data-row-id="${CSS.escape(String(id))}"]`);
+    if (!el) return;
+
+    gsap.fromTo(
+      el,
+      { backgroundColor: "rgba(255, 210, 77, 0.25)" },
+      { backgroundColor: "rgba(255, 210, 77, 0)", duration: 1.1, ease: "power2.out" }
+    );
+  });
+
+  flashTimer = window.setTimeout(() => (flashRowId.value = null), 1400);
+}
+
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    method: opts.method || "GET",
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    credentials: "include",
+  });
+
+  const text = await res.text();
+  let data = null;
   try {
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
+    data = text ? JSON.parse(text) : null;
   } catch {
-    return String(iso || "");
+    data = text;
+  }
+
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+function normalizeRow(r) {
+  return {
+    id: r.idnotification ?? r.id ?? r._id,
+    entity: r.entity ?? "-",
+    action: r.action ?? "-",
+    refId: r.ref_id ?? null,
+    title: r.title ?? "",
+    message: r.message ?? "",
+    payload: r.payload ?? null,
+    linkpath: r.linkpath ?? "",
+    isRead: !!(r.is_read ?? r.isRead),
+    time: r.time ?? null,
+    readTime: r.read_time ?? r.readTime ?? null,
+  };
+}
+
+function buildParams(extra = {}) {
+  const params = {
+    limit: String(limit.value),
+    offset: String(offset.value),
+    ...(q.value?.trim() ? { q: q.value.trim() } : {}),
+    ...(entity.value ? { entity: entity.value } : {}),
+    ...(action.value ? { action: action.value } : {}),
+    ...(unreadOnly.value ? { unread: "1" } : {}),
+    ...extra,
+  };
+  return params;
+}
+
+// ---------- API calls ----------
+async function loadUnreadCount() {
+  try {
+    const data = await apiFetch(API.unreadCount);
+    unreadCount.value = data?.unread ?? 0;
+  } catch {
+    // ไม่ต้อง throw เพื่อไม่ให้หน้า fail ทั้งหมด
   }
 }
 
-/**
- * Load from backend (if configured)
- */
-async function refresh() {
+async function loadNotifications(reset = false) {
+  if (loading.value) return;
+
+  if (reset) {
+    offset.value = 0;
+    hasMore.value = true;
+  }
+
   loading.value = true;
+  error.value = "";
+
   try {
-    const { ok, items } = await listNotifications({ limit: 200 });
-    if (ok && Array.isArray(items)) {
-      // newest on top
-      notifications.value = items
-        .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }
+    const data = await apiFetch(API.list(buildParams()));
+    const rows = Array.isArray(data) ? data : data?.items || [];
+    const normalized = rows.map(normalizeRow);
+
+    if (reset) items.value = normalized;
+    else items.value = [...items.value, ...normalized];
+
+    // heuristic: ถ้าได้น้อยกว่า limit -> ไม่มีต่อ
+    hasMore.value = normalized.length === limit.value;
+
+    await nextTick();
+    const trs = document.querySelectorAll("tbody tr");
+    gsap.fromTo(trs, { opacity: 0.86, y: 4 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.01 });
+
+    loadUnreadCount();
+  } catch (e) {
+    error.value = e?.message || String(e);
   } finally {
     loading.value = false;
   }
 }
 
-/**
- * Mark read
- */
-async function markOneRead(n) {
-  if (!n || n.readAt) return;
+async function loadMore() {
+  if (!hasMore.value) return;
+  offset.value += limit.value;
+  await loadNotifications(false);
+}
 
-  // optimistic
-  n.readAt = new Date().toISOString();
-
+async function markRead(item) {
   try {
-    await markNotificationRead(n.id);
-  } catch {
-    // keep optimistic
+    await apiFetch(API.read(item.id), { method: "PATCH" });
+    item.isRead = true;
+    item.readTime = new Date().toISOString();
+
+    showToast("success", "Updated", "Marked as read");
+    flashRow(item.id);
+    loadUnreadCount();
+  } catch (e) {
+    showToast("error", "Failed", e?.message || String(e));
   }
 }
 
 async function markAllRead() {
-  const now = new Date().toISOString();
-  notifications.value.forEach((n) => {
-    if (!n.readAt) n.readAt = now;
-  });
+  const ok = window.confirm("Mark all notifications as read?");
+  if (!ok) return;
 
   try {
-    await apiMarkAllRead();
-  } catch {}
+    await apiFetch(API.readAll, { method: "PATCH" });
+    items.value = items.value.map((x) => ({ ...x, isRead: true, readTime: x.readTime || new Date().toISOString() }));
+    showToast("success", "Done", "All notifications marked as read");
+    loadUnreadCount();
+  } catch (e) {
+    showToast("error", "Failed", e?.message || String(e));
+  }
 }
 
-async function clearAll() {
-  // optimistic
-  notifications.value = [];
+async function removeItem(item) {
+  const ok = window.confirm(`Delete this notification?\n${item.entity}.${item.action} (#${item.refId || "-"})`);
+  if (!ok) return;
+
   try {
-    await clearAllNotifications();
-  } catch {}
+    await apiFetch(API.remove(item.id), { method: "DELETE" });
+    items.value = items.value.filter((x) => x.id !== item.id);
+    showToast("success", "Deleted", "Notification removed");
+    loadUnreadCount();
+  } catch (e) {
+    showToast("error", "Failed", e?.message || String(e));
+  }
 }
 
-/**
- * Realtime in-app events (from other pages)
- */
-let unsub = null;
+function openLink(item) {
+  if (!item.linkpath) return;
+  router.push(item.linkpath);
+}
 
+async function reloadAll() {
+  await loadNotifications(true);
+  await loadUnreadCount();
+  showToast("success", "Refreshed", "Loaded latest notifications");
+}
+
+// ---------- Search debounce ----------
+function onSearchInput() {
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    loadNotifications(true);
+  }, 220);
+}
+
+// ---------- Watch filters ----------
+watch([entity, action, unreadOnly], () => loadNotifications(true));
+
+// ---------- Lifecycle ----------
 onMounted(async () => {
-  // page intro animation
-  gsap.from(".notif-title", { opacity: 0, y: 8, duration: 0.35, ease: "power2.out" });
-  gsap.from(".notif-subtitle", { opacity: 0, y: 8, duration: 0.35, delay: 0.05, ease: "power2.out" });
+  if (pageEl.value) gsap.fromTo(pageEl.value, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" });
+  if (cardEl.value) gsap.fromTo(cardEl.value, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.28 });
 
-  await refresh();
-
-  // subscribe to realtime events
-  unsub = onAdminNotification((n) => {
-    // add to top
-    notifications.value = [n, ...notifications.value];
-  });
+  await loadUnreadCount();
+  await loadNotifications(true);
 });
-
-onBeforeUnmount(() => {
-  if (typeof unsub === "function") unsub();
-});
-
-/**
- * GSAP list animations (TransitionGroup hooks)
- */
-function onBeforeEnter(el) {
-  el.style.opacity = "0";
-  el.style.transform = "translateY(10px)";
-}
-
-function onEnter(el, done) {
-  const idx = Number(el.dataset.index || 0);
-  gsap.to(el, {
-    opacity: 1,
-    y: 0,
-    duration: 0.25,
-    ease: "power2.out",
-    delay: Math.min(idx * 0.02, 0.2),
-    onComplete: done,
-  });
-}
-
-function onLeave(el, done) {
-  gsap.to(el, {
-    opacity: 0,
-    y: -8,
-    duration: 0.2,
-    ease: "power2.in",
-    onComplete: done,
-  });
-}
-
-/**
- * Demo seed (optional)
- */
-async function seedExamples() {
-  await notifyAdmin({ entity: "member", action: "insert", targetLabel: "John Doe" });
-  await notifyAdmin({ entity: "announcement", action: "edit", targetLabel: "Holiday schedule" });
-  await notifyAdmin({ entity: "news", action: "delete", targetLabel: "Old post #12" });
-}
 </script>
 
 <style scoped>
-/* Global-theme friendly: uses CSS variables with safe fallbacks */
-.notif-page {
+/* ✅ ใช้ CSS variables จาก App.vue เป็นหลัก (global theme) */
+.page {
   padding: 18px;
-  color: var(--text-1, #111);
+  color: var(--text, #eaeaea);
 }
 
-.notif-header {
-  display: grid;
-  grid-template-columns: 1fr auto;
+.page__header {
+  display: flex;
   gap: 14px;
-  align-items: start;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
-.title-wrap {
-  min-width: 240px;
+.page__titleWrap {
+  min-width: 280px;
 }
-
-.notif-title {
-  font-size: 22px;
-  font-weight: 700;
+.page__title {
   margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
-
-.notif-subtitle {
+.page__subtitle {
   margin: 6px 0 0;
-  color: var(--text-2, #555);
+  opacity: 0.75;
   font-size: 13px;
 }
 
-.stats-wrap {
+.page__actions {
   display: flex;
   gap: 10px;
-  align-items: stretch;
+  align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-.stat-card {
-  border: 1px solid var(--border, rgba(0,0,0,0.12));
-  background: var(--surface-1, #fff);
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+.search__icon {
+  opacity: 0.7;
+}
+
+.input {
+  width: 100%;
+  min-width: 240px;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+}
+
+.select {
+  min-width: 160px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  color: inherit;
+  outline: none;
+  font-size: 13px;
+}
+
+/* Buttons */
+.btn {
+  appearance: none;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  color: inherit;
   border-radius: 12px;
   padding: 10px 12px;
-  min-width: 110px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--text-2, #555);
-}
-
-.stat-value {
-  font-size: 18px;
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.btn {
-  border: 1px solid var(--border, rgba(0,0,0,0.14));
-  background: var(--surface-1, #fff);
-  color: var(--text-1, #111);
-  border-radius: 10px;
-  padding: 8px 10px;
   font-size: 13px;
   cursor: pointer;
-  transition: transform 0.12s ease;
+  transition: transform 0.08s ease, opacity 0.2s ease;
 }
-
+.btn:hover {
+  opacity: 0.95;
+}
+.btn:active {
+  transform: scale(0.99);
+}
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+.btn--primary {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--primary, rgba(120, 92, 255, 0.35));
+}
+.btn--ghost {
+  background: transparent;
+}
+.btn--danger {
+  background: rgba(255, 80, 80, 0.18);
+  border-color: rgba(255, 80, 80, 0.25);
 }
 
-.btn.danger {
-  border-color: var(--danger-border, rgba(220, 38, 38, 0.35));
+/* Card */
+.card {
+  border-radius: 16px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface, rgba(255, 255, 255, 0.04));
+  overflow: hidden;
+  box-shadow: var(--shadow, 0 10px 30px rgba(0, 0, 0, 0.25));
 }
 
-.notif-controls {
+.card__head {
+  padding: 14px 14px 10px;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  align-items: end;
-  border: 1px solid var(--border, rgba(0,0,0,0.12));
-  background: var(--surface-1, #fff);
-  border-radius: 14px;
-  padding: 12px;
-  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
 }
-
-.control {
+.card__headLeft {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 160px;
-}
-
-.control.grow {
-  flex: 1;
-  min-width: 220px;
-}
-
-.control-label {
-  font-size: 12px;
-  color: var(--text-2, #555);
-}
-
-.control-input {
-  border: 1px solid var(--border, rgba(0,0,0,0.14));
-  background: var(--surface-0, #fff);
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 13px;
-  outline: none;
-}
-
-.control.check {
-  flex-direction: row;
   align-items: center;
-  gap: 8px;
-  min-width: auto;
-  padding: 6px 6px 2px;
-  user-select: none;
-  font-size: 13px;
-  color: var(--text-2, #555);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card__headTitle {
+  margin: 0;
+  font-size: 15px;
+}
+.card__headRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.notif-content {
-  border-radius: 14px;
+.card__foot {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+.hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Table */
+.tableWrap {
+  overflow: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  vertical-align: top;
+}
+th {
+  text-align: left;
+  opacity: 0.75;
+  font-weight: 600;
+}
+.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.actions .btn {
+  margin-left: 6px;
 }
 
 .empty {
-  border: 1px dashed var(--border, rgba(0,0,0,0.22));
-  background: var(--surface-1, #fff);
-  border-radius: 14px;
   padding: 18px;
-}
-
-.empty-title {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.empty-subtitle {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-2, #555);
-}
-
-.empty-actions {
-  margin-top: 12px;
-}
-
-.notif-list {
-  display: grid;
-  gap: 10px;
-}
-
-.notif-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: start;
-  border: 1px solid var(--border, rgba(0,0,0,0.12));
-  background: var(--surface-1, #fff);
-  border-radius: 14px;
-  padding: 12px;
-  cursor: pointer;
-}
-
-.notif-item.unread {
-  border-color: var(--focus-border, rgba(59, 130, 246, 0.35));
-  box-shadow: 0 1px 0 rgba(0,0,0,0.03);
-}
-
-.badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-
-.badge {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border, rgba(0,0,0,0.14));
-  background: var(--surface-0, rgba(0,0,0,0.03));
-}
-
-.badge.entity {
-  font-weight: 700;
-}
-
-.badge.unread-badge {
-  border-color: var(--focus-border, rgba(59, 130, 246, 0.35));
-}
-
-.badge.good { border-color: rgba(34,197,94,0.35); }
-.badge.warn { border-color: rgba(245,158,11,0.35); }
-.badge.danger { border-color: rgba(239,68,68,0.35); }
-.badge.active { border-color: rgba(59,130,246,0.35); }
-.badge.inactive { border-color: rgba(100,116,139,0.35); }
-.badge.neutral { border-color: rgba(0,0,0,0.14); }
-
-.message {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.meta {
-  font-size: 12px;
-  color: var(--text-2, #555);
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.meta-dot {
+  text-align: center;
   opacity: 0.7;
 }
 
-.item-right {
-  display: flex;
-  align-items: start;
+.row--unread {
+  background: rgba(255, 255, 255, 0.02);
+}
+.row--flash {
+  outline: 2px solid rgba(255, 210, 77, 0.25);
+  outline-offset: -2px;
 }
 
-.icon-btn {
-  border: 1px solid var(--border, rgba(0,0,0,0.14));
-  background: var(--surface-0, rgba(0,0,0,0.03));
-  border-radius: 10px;
-  padding: 6px 9px;
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+.muted {
+  opacity: 0.7;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+.pill--soft {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.titleCell {
+  font-weight: 700;
+}
+.msgCell {
+  opacity: 0.92;
+}
+
+/* Status dot */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
+}
+.dot--unread {
+  background: rgba(255, 210, 77, 0.95);
+}
+.dot--read {
+  background: rgba(120, 92, 255, 0.7);
+  box-shadow: 0 0 0 6px rgba(120, 92, 255, 0.12);
+}
+
+/* Switch */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.switch input {
+  display: none;
+}
+.switch__ui {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
   cursor: pointer;
+}
+.switch__ui::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  top: 2px;
+  left: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  transition: transform 0.18s ease;
+}
+.switch input:checked + .switch__ui {
+  background: var(--primary, rgba(120, 92, 255, 0.35));
+}
+.switch input:checked + .switch__ui::after {
+  transform: translateX(20px);
+}
+.switch__label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* States */
+.state {
+  padding: 20px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.85;
+}
+.state--error {
+  color: var(--danger-text, #ffb3b3);
+}
+.state__title {
+  font-weight: 700;
+}
+.state__msg {
+  opacity: 0.85;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Load more */
+.loadMore {
+  padding: 12px 14px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  width: min(420px, calc(100vw - 28px));
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--surface, rgba(20, 20, 25, 0.92));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 12px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  z-index: 80;
+}
+.toast__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary, rgba(120, 92, 255, 0.8));
+  margin-top: 6px;
+}
+.toast__body {
+  flex: 1;
+}
+.toast__title {
+  font-weight: 800;
+  font-size: 13px;
+}
+.toast__msg {
+  opacity: 0.8;
+  font-size: 12px;
+  margin-top: 3px;
+}
+.toast__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (max-width: 980px) {
+  .input {
+    min-width: 200px;
+  }
+  th:nth-child(5),
+  td:nth-child(5) {
+    min-width: 320px;
+  }
 }
 </style>

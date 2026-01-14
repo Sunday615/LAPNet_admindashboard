@@ -166,7 +166,7 @@
                         <span v-if="committeeItems(m?.committee).length === 0" class="chip chipEmpty">
                           <span class="chipLeft">
                             <span class="chipIconWrap">
-                              <i class="chipIcon fa-solid fa-tag"></i>
+                             <i class="fa-solid fa-users"></i>
                             </span>
                             <span class="chipText">-</span>
                           </span>
@@ -480,6 +480,7 @@ const COMMITTEES = [
     icon: "fa-solid fa-chess-king",
     aliases: ["ຮອງປະທານສະພາບໍລິຫານ", "vice president", "vice_president", "vice-chair", "vice chair"],
   },
+
   {
     key: "audit",
     label: "ຄະນະກຳມະການກວດກາ",
@@ -551,7 +552,7 @@ function normalizeCommittee(raw) {
   if (lower.includes("vice")) return COMMITTEES.find((x) => x.key === "vice_president");
 
   // fallback: โชว์ข้อความเดิม + icon tag
-  return { key: "custom", label: s, icon: "fa-solid fa-tag" };
+  return { key: "custom", label: s, icon: "fa-solid fa-users" };
 }
 
 function uniqBy(list, keyFn) {

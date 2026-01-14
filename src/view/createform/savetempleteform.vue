@@ -298,21 +298,8 @@
                           <tr v-for="(r, ri) in (q.gridRows || [])" :key="ri">
                             <td class="gridRowHead" v-html="nonEmptyHtml(r) ? r : `Row ${ri + 1}`"></td>
                             <td v-for="(c, ci) in (q.gridCols || [])" :key="ci" class="gridCell">
-                              <input
-  v-if="q.type === 'table_option'"
-  type="radio"
-  :name="`${q.id}_row_${ri}`"
-  :checked="isTableOptionChecked(q, ri, ci)"
-  @change="setTableOption(q, ri, ci)"
-/>
-
-<input
-  v-else
-  type="checkbox"
-  :checked="isTableCheckboxChecked(q, ri, ci)"
-  @change="toggleTableCheckbox(q, ri, ci)"
-/>
-
+                              <input v-if="q.type === 'table_option'" type="radio" :name="`${q.id}_row_${ri}`" />
+                              <input v-else type="checkbox" />
                             </td>
                           </tr>
                         </tbody>
@@ -326,10 +313,9 @@
             </div>
 
             <div class="previewFooter">
-              <button class="btn" type="button" @click="submitPreview" :disabled="isSubmitting">
+              <button class="btn" type="button" @click="submitPreview">
                 <i class="fa-solid fa-paper-plane"></i> Submit (preview)
-                </button>
-
+              </button>
               <button class="btn ghost" type="button" @click="togglePreview">
                 <i class="fa-solid fa-arrow-left"></i>
                 Back
@@ -394,7 +380,7 @@
                       contenteditable
                       spellcheck="false"
                       dir="ltr"
-                      data-placeholder="ຫົວຂໍ້"
+                      data-placeholder="Title (bold/italic/underline whole title • link makes title red)"
                       data-editor="title"
                       :data-qid="q.id"
                       v-rich="[q, 'title']"
@@ -420,7 +406,7 @@
                       contenteditable
                       spellcheck="false"
                       dir="ltr"
-                      data-placeholder="ຄຳອະທິບາຍ"
+                      data-placeholder="Description (image will show below)"
                       data-editor="description"
                       :data-qid="q.id"
                       v-rich="[q, 'description']"
@@ -982,71 +968,6 @@ const previewDateAnswer = reactive({});
  *  Utilities
  * ==========================
  */
-// ✅ เพิ่ม state สำหรับคำตอบตาราง
-const previewTableAnswer = reactive({}); // { [qid]: { [rowLabel]: colLabel | string[] } }
-
-function tableRowKey(q, ri) {
-  const rows = Array.isArray(q.gridRows) ? q.gridRows : [];
-  return stripHtml(rows[ri] ?? `Row ${ri + 1}`) || `Row ${ri + 1}`;
-}
-function tableColVal(q, ci) {
-  const cols = Array.isArray(q.gridCols) ? q.gridCols : [];
-  return stripHtml(cols[ci] ?? `Col ${ci + 1}`) || `Col ${ci + 1}`;
-}
-
-// table_option: เลือกได้ 1 ช่องต่อ 1 แถว
-function setTableOption(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") previewTableAnswer[q.id] = {};
-  previewTableAnswer[q.id][rKey] = cVal;
-}
-function isTableOptionChecked(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  return previewTableAnswer[q.id]?.[rKey] === cVal;
-}
-
-// table_checkbox: เลือกได้หลายช่อง (รวมหลายคอลัมน์ในแถวเดียวกัน)
-function toggleTableCheckbox(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") previewTableAnswer[q.id] = {};
-  if (!Array.isArray(previewTableAnswer[q.id][rKey])) previewTableAnswer[q.id][rKey] = [];
-
-  const arr = previewTableAnswer[q.id][rKey];
-  const idx = arr.indexOf(cVal);
-  if (idx >= 0) arr.splice(idx, 1);
-  else arr.push(cVal);
-}
-function isTableCheckboxChecked(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  const arr = previewTableAnswer[q.id]?.[rKey];
-  return Array.isArray(arr) && arr.includes(cVal);
-}
-
-// ใช้เช็ค required ของตาราง
-function isEmptyTableAnswer(q) {
-  const obj = previewTableAnswer[q.id];
-  if (!obj || typeof obj !== "object") return true;
-
-  if (q.type === "table_option") {
-    const rows = (q.gridRows || []).map(stripHtml).filter(Boolean);
-    if (!rows.length) return true;
-    // ✅ แบบเข้ม: ต้องตอบครบทุกแถว
-    return rows.some((r) => !obj[r]);
-  }
-
-  if (q.type === "table_checkbox") {
-    // ✅ แบบผ่อน: มีอย่างน้อย 1 ช่องที่ถูกเลือกก็พอ
-    const any = Object.values(obj).some((v) => Array.isArray(v) && v.length > 0);
-    return !any;
-  }
-
-  return true;
-}
-
 function isEmptyAnswer(val) {
   if (val === null || val === undefined) return true;
   if (typeof val === "string") return val.trim().length === 0;
@@ -1106,13 +1027,6 @@ function initPreviewForQuestion(q) {
   if (q.type === "checkbox") {
     if (!Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = [];
   }
-  // ✅ init table answers
-if (q.type === "table_option" || q.type === "table_checkbox") {
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") {
-    previewTableAnswer[q.id] = {};
-  }
-}
-
 
   // date model holder
   if (q.type === "date") {
@@ -2189,36 +2103,13 @@ function downloadJson() {
  *  ✅ Preview submit (unchanged schema)
  * ==========================
  */
-const isSubmitting = ref(false);
-
-async function ensureFormId() {
-  if (formId.value) return formId.value;
-
-  const payload = apiPayload.value;
-
-  const resp = await fetch(`${API_BASE}/api/forms`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await resp.json();
-  if (!resp.ok || !data.ok) throw new Error(data.message || "Create form failed");
-
-  formId.value = data.id;
-
-  // เก็บ draft (พร้อม id) เผื่อ reload แล้ว PUT ต่อได้
-  localStorage.setItem("lapnet_create_form_draft", jsonText.value);
-
-  return formId.value;
-}
 async function submitPreview() {
-  if (isSubmitting.value) return;
-
   try {
-    isSubmitting.value = true;
+    if (!formId.value) {
+      showToast("Please Save form first (to get formId)", "danger");
+      return;
+    }
 
-    // ✅ validate ก่อน (ถ้าผิด จะไม่สร้างฟอร์มทิ้งไว้)
     if (form.collectEmail && !String(previewEmail.value || "").trim()) {
       showToast("Email is required", "danger");
       return;
@@ -2231,7 +2122,6 @@ async function submitPreview() {
       if (q.type === "score") val = Number(previewScoreAnswer[q.id] || 0) || null;
       else if (q.type === "date") val = String(previewDateAnswer[q.id] || "");
       else if (q.type === "upload") val = null;
-      else if (q.type === "table_option" || q.type === "table_checkbox") val = previewTableAnswer[q.id] || {};
       else val = previewAnswer[q.id];
 
       const hasFiles = Array.isArray(previewFiles[q.id]) && previewFiles[q.id].length > 0;
@@ -2242,18 +2132,12 @@ async function submitPreview() {
             showToast(`Required: ${stripHtml(q.title) || "Upload question"}`, "danger");
             return;
           }
-        } else if (q.type === "table_option" || q.type === "table_checkbox") {
-          if (isEmptyTableAnswer(q)) {
-            showToast(`Required: ${stripHtml(q.title) || "Table question"}`, "danger");
-            return;
-          }
         } else if (isEmptyAnswer(val)) {
           showToast(`Required: ${stripHtml(q.title) || "Untitled question"}`, "danger");
           return;
         }
       }
 
-      // checkbox ต้องเป็น array เสมอ
       if (q.type === "checkbox" && !Array.isArray(val)) {
         val = Array.isArray(previewAnswer[q.id]) ? previewAnswer[q.id] : [];
       }
@@ -2263,10 +2147,6 @@ async function submitPreview() {
       }
     }
 
-    // ✅ ตรงนี้คือหัวใจ: ถ้ายังไม่มี formId -> สร้างฟอร์มให้ก่อน (insert form + questions)
-    const id = await ensureFormId();
-
-    // ✅ แล้วค่อย insert submission/answers (+ files)
     const fd = new FormData();
     fd.append(
       "payload",
@@ -2282,7 +2162,7 @@ async function submitPreview() {
       for (const f of files) fd.append(`file_${q.id}`, f);
     }
 
-    const resp = await fetch(`${API_BASE}/api/forms/${id}/submissions`, {
+    const resp = await fetch(`${API_BASE}/api/forms/${formId.value}/submissions`, {
       method: "POST",
       body: fd,
     });
@@ -2290,20 +2170,17 @@ async function submitPreview() {
     const data = await resp.json();
     if (!resp.ok || !data.ok) throw new Error(data.message || "Submit failed");
 
-    showToast(`Data insert success (submissionId: ${data.submissionId})`);
+    showToast(`Submitted! (submissionId: ${data.submissionId})`);
 
-    // reset preview state
     previewEmail.value = "";
     for (const k of Object.keys(previewAnswer)) delete previewAnswer[k];
-    for (const k of Object.keys(previewTableAnswer)) delete previewTableAnswer[k];
     for (const k of Object.keys(previewScoreAnswer)) delete previewScoreAnswer[k];
     for (const k of Object.keys(previewDateAnswer)) delete previewDateAnswer[k];
     for (const k of Object.keys(previewFiles)) delete previewFiles[k];
+
     for (const q of questions.value) if (Array.isArray(q.uploadPreviewFiles)) q.uploadPreviewFiles = [];
   } catch (e) {
     showToast(e.message || "Submit failed", "danger");
-  } finally {
-    isSubmitting.value = false;
   }
 }
 
@@ -2526,8 +2403,6 @@ onMounted(async () => {
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   line-height: 1.45;
 }
-
-
 .richInput:focus { border-color: rgba(56, 189, 248, 0.35); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1); }
 .richInput:empty:before { content: attr(data-placeholder); color: rgba(255, 255, 255, 0.45); }
 

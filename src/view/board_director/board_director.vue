@@ -320,7 +320,7 @@ const saving = ref(false);
 const committees = [
   { key: "ປະທານສະພາບໍລິຫານ", label: "ປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-crown" },
   { key: "ຮອງປະທານສະພາບໍລິຫານ", label: "ຮອງປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-chess-king" },
-  { key: "ສະມາຊິກສະພາບໍລິຫານ", label: "ສະມາຊິກສະພາບໍລິຫານ", icon: "fa-solid fa-clipboard-check" },
+  { key: "ສະມາຊິກສະພາບໍລິຫານ", label: "ສະມາຊິກສະພາບໍລິຫານ", icon: "fa-solid fa-users" },
 
 ];
 

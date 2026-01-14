@@ -176,7 +176,10 @@ const navItems = [
     children: [
       { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
 
-      // ✅ NEW: under Visitor
+      // ✅ NEW: Notifications (under Visitor, above Create Form)
+      { key: "notifications", label: "ແຈ້ງເຕືອນ", to: "/notifications", fa: "fa-solid fa-bell" },
+
+      // ✅ under Visitor
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
     ],
   },
