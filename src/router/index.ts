@@ -23,6 +23,7 @@ import Lapnetedit from '../view/lapnet/lapnetedit.vue'
 import Mainvisitors from '../view/visitors/mainvisitors.vue'
 import Createform from '../view/createform/createform.vue'
 import mainnotification from '../view/notification/mainnotification.vue'
+import Formtemplete from '../view/createform/formtemplete.vue'
 const routes = [
   {
     path: '/',
@@ -151,6 +152,11 @@ const routes = [
     path: '/notifications',
     name: 'notifications',
     component: mainnotification,
+  },
+    {
+    path: '/formtemplete',
+    name: 'formtemplete',
+    component: Formtemplete,
   },
 
 

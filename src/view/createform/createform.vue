@@ -84,7 +84,12 @@
 
             <div class="field fieldRow">
               <div class="switchWrap">
-                <button class="switch" type="button" :class="{ on: form.collectEmail }" @click="form.collectEmail = !form.collectEmail">
+                <button
+                  class="switch"
+                  type="button"
+                  :class="{ on: form.collectEmail }"
+                  @click="form.collectEmail = !form.collectEmail"
+                >
                   <span class="knob"></span>
                 </button>
                 <div class="switchText">
@@ -94,7 +99,12 @@
               </div>
 
               <div class="switchWrap">
-                <button class="switch" type="button" :class="{ on: form.allowEditAfterSubmit }" @click="form.allowEditAfterSubmit = !form.allowEditAfterSubmit">
+                <button
+                  class="switch"
+                  type="button"
+                  :class="{ on: form.allowEditAfterSubmit }"
+                  @click="form.allowEditAfterSubmit = !form.allowEditAfterSubmit"
+                >
                   <span class="knob"></span>
                 </button>
                 <div class="switchText">
@@ -207,7 +217,12 @@
                       </div>
                     </div>
 
-                    <div class="dropZone" @dragover.prevent @drop.prevent="onUploadDrop($event, q)" @click="triggerUploadPick(q.id)">
+                    <div
+                      class="dropZone"
+                      @dragover.prevent
+                      @drop.prevent="onUploadDrop($event, q)"
+                      @click="triggerUploadPick(q.id)"
+                    >
                       <i class="fa-solid fa-cloud-arrow-up"></i>
                       <div class="dzText">
                         <div class="dzTitle">Drag & drop file here</div>
@@ -250,7 +265,11 @@
                       </button>
                     </div>
                     <div class="scoreHint">
-                      {{ previewScoreAnswer[q.id] ? `Selected: ${previewScoreAnswer[q.id]}/${q.scoreMax || 5}` : `${q.scoreMax || 5} points` }}
+                      {{
+                        previewScoreAnswer[q.id]
+                          ? `Selected: ${previewScoreAnswer[q.id]}/${q.scoreMax || 5}`
+                          : `${q.scoreMax || 5} points`
+                      }}
                     </div>
                   </div>
 
@@ -291,7 +310,11 @@
                         <thead>
                           <tr>
                             <th class="gridCorner"></th>
-                            <th v-for="(c, ci) in (q.gridCols || [])" :key="ci" v-html="nonEmptyHtml(c) ? c : `Col ${ci + 1}`"></th>
+                            <th
+                              v-for="(c, ci) in (q.gridCols || [])"
+                              :key="ci"
+                              v-html="nonEmptyHtml(c) ? c : `Col ${ci + 1}`"
+                            ></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -299,20 +322,19 @@
                             <td class="gridRowHead" v-html="nonEmptyHtml(r) ? r : `Row ${ri + 1}`"></td>
                             <td v-for="(c, ci) in (q.gridCols || [])" :key="ci" class="gridCell">
                               <input
-  v-if="q.type === 'table_option'"
-  type="radio"
-  :name="`${q.id}_row_${ri}`"
-  :checked="isTableOptionChecked(q, ri, ci)"
-  @change="setTableOption(q, ri, ci)"
-/>
+                                v-if="q.type === 'table_option'"
+                                type="radio"
+                                :name="`${q.id}_row_${ri}`"
+                                :checked="isTableOptionChecked(q, ri, ci)"
+                                @change="setTableOption(q, ri, ci)"
+                              />
 
-<input
-  v-else
-  type="checkbox"
-  :checked="isTableCheckboxChecked(q, ri, ci)"
-  @change="toggleTableCheckbox(q, ri, ci)"
-/>
-
+                              <input
+                                v-else
+                                type="checkbox"
+                                :checked="isTableCheckboxChecked(q, ri, ci)"
+                                @change="toggleTableCheckbox(q, ri, ci)"
+                              />
                             </td>
                           </tr>
                         </tbody>
@@ -328,7 +350,7 @@
             <div class="previewFooter">
               <button class="btn" type="button" @click="submitPreview" :disabled="isSubmitting">
                 <i class="fa-solid fa-paper-plane"></i> Submit (preview)
-                </button>
+              </button>
 
               <button class="btn ghost" type="button" @click="togglePreview">
                 <i class="fa-solid fa-arrow-left"></i>
@@ -441,7 +463,12 @@
                       <div class="imgGrid">
                         <div v-for="img in q.images" :key="img.id" class="imgTile">
                           <img :src="img.src" alt="preview" />
-                          <button class="imgRemove" type="button" @click="removeQuestionImage(q.id, img.id)" title="Remove image">
+                          <button
+                            class="imgRemove"
+                            type="button"
+                            @click="removeQuestionImage(q.id, img.id)"
+                            title="Remove image"
+                          >
                             <i class="fa-solid fa-xmark"></i>
                           </button>
                         </div>
@@ -573,7 +600,12 @@
                     </div>
 
                     <div class="switchWrap" style="margin-top: 10px;">
-                      <button class="switch" type="button" :class="{ on: q.uploadRestrictEnabled }" @click="q.uploadRestrictEnabled = !q.uploadRestrictEnabled">
+                      <button
+                        class="switch"
+                        type="button"
+                        :class="{ on: q.uploadRestrictEnabled }"
+                        @click="q.uploadRestrictEnabled = !q.uploadRestrictEnabled"
+                      >
                         <span class="knob"></span>
                       </button>
                       <div class="switchText">
@@ -593,7 +625,13 @@
                           </button>
 
                           <div class="chipRow">
-                            <span v-for="t in (q.fileTypes || [])" :key="t" class="chip" @click="toggleFileType(q, t)" title="Click to remove">
+                            <span
+                              v-for="t in (q.fileTypes || [])"
+                              :key="t"
+                              class="chip"
+                              @click="toggleFileType(q, t)"
+                              title="Click to remove"
+                            >
                               {{ t }}
                               <i class="fa-solid fa-xmark"></i>
                             </span>
@@ -602,7 +640,11 @@
 
                           <div v-if="openFileTypeFor === q.id" class="fileTypeMenu">
                             <label v-for="t in FILE_TYPES" :key="t.key" class="fileTypeRow">
-                              <input type="checkbox" :checked="(q.fileTypes || []).includes(t.key)" @change="toggleFileType(q, t.key)" />
+                              <input
+                                type="checkbox"
+                                :checked="(q.fileTypes || []).includes(t.key)"
+                                @change="toggleFileType(q, t.key)"
+                              />
                               <span>{{ t.key }}</span>
                             </label>
                           </div>
@@ -947,6 +989,46 @@
       </div>
     </div>
 
+    <!-- ✅ NEW: Save success alert overlay -->
+    <div v-if="saveAlert.show" class="overlay" @mousedown.self="closeSaveAlert">
+      <div class="overlayCard alertCard">
+        <div class="overlayTop">
+          <div class="overlayTitle">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Saved successfully</span>
+          </div>
+          <button class="miniBtn danger" type="button" @click="closeSaveAlert" title="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="overlayBody">
+          <div class="alertText">
+            Your form has been saved.
+          </div>
+          <div v-if="saveAlert.id" class="alertMeta">
+            Form ID: <b>{{ saveAlert.id }}</b>
+          </div>
+
+          <div class="overlayActions">
+            <button class="btn" type="button" @click="goViewTemplates">
+              <i class="fa-solid fa-eye"></i>
+              View
+            </button>
+
+            <button class="btn ghost" type="button" @click="closeSaveAlert">
+              <i class="fa-solid fa-xmark"></i>
+              Close
+            </button>
+          </div>
+
+          <div class="hintTiny" style="margin-top: 2px;">
+            View will redirect to <b>/formtemplete</b> (change path if your route is different).
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast -->
     <div ref="toastRef" class="toast" :class="{ show: toast.show, danger: toast.type === 'danger' }" aria-live="polite">
       <i class="fa-solid" :class="toast.type === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-check'"></i>
@@ -957,8 +1039,16 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import gsap from "gsap";
 import flatpickr from "flatpickr";
+
+/**
+ * ==========================
+ *  Router
+ * ==========================
+ */
+const router = useRouter();
 
 /**
  * ==========================
@@ -967,13 +1057,112 @@ import flatpickr from "flatpickr";
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
+/**
+ * ==========================
+ *  ✅ Template storage (FormTemplates page reads this)
+ * ==========================
+ */
+const TPL_KEY = "lapnet_form_templates";
+const uidTpl = () => `tpl_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+
+function readTemplatesStore() {
+  try {
+    const raw = localStorage.getItem(TPL_KEY);
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function writeTemplatesStore(arr) {
+  try {
+    localStorage.setItem(TPL_KEY, JSON.stringify(arr, null, 2));
+  } catch {
+    // ignore storage error
+  }
+}
+function cloneJsonSafe(obj) {
+  try {
+    return structuredClone(obj);
+  } catch {
+    return JSON.parse(JSON.stringify(obj));
+  }
+}
+
+/**
+ * ✅ Upsert template by sourceFormId (so Save ซ้ำจะ "อัปเดต" template เดิม ไม่สร้างซ้ำเรื่อย ๆ)
+ * - sourceFormId = formId ที่ได้จาก DB ตอน saveDraft สำเร็จ
+ * - name/note ถ้าผู้ใช้ไป Rename ในหน้า templates แล้ว จะ "รักษาไว้" ไม่เขียนทับ
+ */
+function upsertTemplateFromPayload(payload, sourceFormId) {
+  try {
+    const now = new Date().toISOString();
+    const list = readTemplatesStore();
+
+    const sfid = sourceFormId != null ? String(sourceFormId) : null;
+
+    let t = null;
+    if (sfid) {
+      t = list.find((x) => String(x?.sourceFormId || "") === sfid);
+    }
+
+    const fallbackName = String(payload?.meta?.title || "").trim() || "Untitled template";
+
+    if (!t) {
+      list.unshift({
+        id: uidTpl(),
+        sourceFormId: sfid,
+        name: fallbackName,
+        note: "",
+        createdAt: now,
+        updatedAt: now,
+        payload: cloneJsonSafe(payload),
+      });
+    } else {
+      // ✅ update payload + updatedAt แต่รักษา name/note เดิมไว้
+      t.updatedAt = now;
+      t.sourceFormId = sfid;
+      t.payload = cloneJsonSafe(payload);
+
+      if (!String(t.name || "").trim()) t.name = fallbackName;
+      if (t.createdAt == null) t.createdAt = now;
+    }
+
+    writeTemplatesStore(list);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ==========================
+ *  ✅ NEW: Save success alert overlay state
+ * ==========================
+ */
+const saveAlert = reactive({ show: false, id: null });
+
+function openSaveAlert(id) {
+  saveAlert.show = true;
+  saveAlert.id = id != null ? String(id) : null;
+}
+function closeSaveAlert() {
+  saveAlert.show = false;
+  saveAlert.id = null;
+}
+function goViewTemplates() {
+  // ✅ close overlay first then redirect
+  closeSaveAlert();
+  router.push("/formtemplete");
+}
+
 // เก็บ id ฟอร์มที่ save แล้ว (สำคัญมากเพื่อให้ PUT ได้)
 const formId = ref(null);
 
 // คำตอบใน preview
 const previewEmail = ref("");
 const previewAnswer = reactive({}); // string/array/object per question
-const previewFiles = reactive({});  // { [qid]: File[] }
+const previewFiles = reactive({}); // { [qid]: File[] }
 const previewScoreAnswer = reactive({});
 const previewDateAnswer = reactive({});
 
@@ -1079,18 +1268,30 @@ function scoreIconClass(icon) {
 }
 function typeLabel(type) {
   switch (type) {
-    case "short": return "Short";
-    case "long": return "Long";
-    case "option": return "Option";
-    case "checkbox": return "Checkbox";
-    case "dropdown": return "Dropdown";
-    case "upload": return "Upload";
-    case "score": return "Score";
-    case "table_option": return "Table option";
-    case "table_checkbox": return "Table checkbox";
-    case "date": return "Date";
-    case "time": return "Time";
-    default: return type;
+    case "short":
+      return "Short";
+    case "long":
+      return "Long";
+    case "option":
+      return "Option";
+    case "checkbox":
+      return "Checkbox";
+    case "dropdown":
+      return "Dropdown";
+    case "upload":
+      return "Upload";
+    case "score":
+      return "Score";
+    case "table_option":
+      return "Table option";
+    case "table_checkbox":
+      return "Table checkbox";
+    case "date":
+      return "Date";
+    case "time":
+      return "Time";
+    default:
+      return type;
   }
 }
 
@@ -1107,12 +1308,11 @@ function initPreviewForQuestion(q) {
     if (!Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = [];
   }
   // ✅ init table answers
-if (q.type === "table_option" || q.type === "table_checkbox") {
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") {
-    previewTableAnswer[q.id] = {};
+  if (q.type === "table_option" || q.type === "table_checkbox") {
+    if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") {
+      previewTableAnswer[q.id] = {};
+    }
   }
-}
-
 
   // date model holder
   if (q.type === "date") {
@@ -1257,7 +1457,7 @@ const vRich = {
     const target = arr[0];
     const key = arr[1];
 
-    const getVal = () => String((target && key != null) ? target[key] ?? "" : "");
+    const getVal = () => String(target && key != null ? target[key] ?? "" : "");
     const setVal = (v) => {
       if (target && key != null) target[key] = v;
     };
@@ -1291,7 +1491,7 @@ const vRich = {
     const target = arr[0];
     const key = arr[1];
 
-    const next = String((target && key != null) ? target[key] ?? "" : "");
+    const next = String(target && key != null ? target[key] ?? "" : "");
     const focused = document.activeElement === el;
 
     if (!focused && el.innerHTML !== next) el.innerHTML = next;
@@ -1349,7 +1549,9 @@ const vFlatpickr = {
     if (!nextVal && cur) fp.clear();
   },
   beforeUnmount(el) {
-    try { el.__fp?.destroy?.(); } catch {}
+    try {
+      el.__fp?.destroy?.();
+    } catch {}
     el.__fp = null;
   },
 };
@@ -1404,7 +1606,9 @@ const vTimepickr = {
     if (!nextVal && cur) fp.clear();
   },
   beforeUnmount(el) {
-    try { el.__tp?.destroy?.(); } catch {}
+    try {
+      el.__tp?.destroy?.();
+    } catch {}
     el.__tp = null;
   },
 };
@@ -1462,18 +1666,25 @@ function normalizeDraftType(qq) {
     return mode === "checkbox" ? "table_checkbox" : "table_option";
   }
   if (
-    t === "short" || t === "long" || t === "option" || t === "checkbox" || t === "dropdown" ||
-    t === "upload" || t === "score" || t === "table_option" || t === "table_checkbox" || t === "date" || t === "time"
-  ) return t;
+    t === "short" ||
+    t === "long" ||
+    t === "option" ||
+    t === "checkbox" ||
+    t === "dropdown" ||
+    t === "upload" ||
+    t === "score" ||
+    t === "table_option" ||
+    t === "table_checkbox" ||
+    t === "date" ||
+    t === "time"
+  )
+    return t;
   return "short";
 }
 
 /**
  * ==========================
  *  ✅ Build payload that matches MySQL schema (backend)
- *  - meta: {title, description, collectEmail, allowEditAfterSubmit}
- *  - questions: each has
- *      id,type,title,description,required,images,options,upload,score,table,sort_order
  * ==========================
  */
 const apiPayload = computed(() => {
@@ -1503,11 +1714,7 @@ const apiPayload = computed(() => {
       title: String(q.title ?? ""),
       description: String(q.description ?? ""),
       required: !!q.required,
-
-      // ✅ backend inserts into form_questions.sort_order
       sort_order: Number(q.sort_order ?? (idx + 1)),
-
-      // ✅ JSON columns in MySQL
       images,
       options: [],
       upload: null,
@@ -1548,9 +1755,7 @@ const apiPayload = computed(() => {
     return base;
   });
 
-  // ✅ ensure sort_order continuous
   qs.forEach((q, i) => (q.sort_order = i + 1));
-
   return { meta, questions: qs };
 });
 
@@ -1563,7 +1768,6 @@ const jsonText = computed(() => {
   const payload = {
     ...apiPayload.value,
     updatedAt: new Date().toISOString(),
-    // เก็บ formId ไว้ใน draft จะได้ restore ตอน reload
     id: formId.value || null,
   };
   return JSON.stringify(payload, null, 2);
@@ -1945,7 +2149,6 @@ function removeQuestion(id) {
       ease: "power2.in",
       onComplete: () => {
         questions.value.splice(idx, 1);
-        // re-sort
         questions.value.forEach((qq, i) => (qq.sort_order = i + 1));
         showToast("Deleted");
       },
@@ -1958,8 +2161,11 @@ function removeQuestion(id) {
 }
 
 function structuredCloneSafe(obj) {
-  try { return structuredClone(obj); }
-  catch { return JSON.parse(JSON.stringify(obj)); }
+  try {
+    return structuredClone(obj);
+  } catch {
+    return JSON.parse(JSON.stringify(obj));
+  }
 }
 
 async function duplicateQuestion(id) {
@@ -2015,7 +2221,6 @@ function onTypeChange(q) {
   if (!Array.isArray(q.images)) q.images = [];
   if (!q.sort_order) q.sort_order = questions.value.findIndex((x) => x.id === q.id) + 1;
 
-  // ✅ keep preview model consistent (checkbox must be array)
   initPreviewForQuestion(q);
 }
 
@@ -2092,8 +2297,6 @@ function normalizeGrid(q) {
 
 function togglePreview() {
   isPreview.value = !isPreview.value;
-
-  // ✅ FIX: init preview models before rendering preview controls
   if (isPreview.value) initPreviewState();
 
   nextTick(() => {
@@ -2107,6 +2310,8 @@ function togglePreview() {
 /**
  * ==========================
  *  ✅ SAVE: send apiPayload ONLY (no updatedAt)
+ *  ✅ + Auto save/update Template to /formtemplates storage
+ *  ✅ + NEW: show alert overlay (View / Close) on success
  * ==========================
  */
 async function saveDraft() {
@@ -2130,7 +2335,13 @@ async function saveDraft() {
     // ✅ keep draft locally (store id too)
     localStorage.setItem("lapnet_create_form_draft", jsonText.value);
 
-    showToast(`Saved to DB (id: ${data.id})`);
+    // ✅ auto save/update template store
+    const okTpl = upsertTemplateFromPayload(payload, formId.value);
+
+    showToast(`Saved to DB (id: ${data.id})${okTpl ? " + Template saved" : ""}`);
+
+    // ✅ NEW: open alert overlay after success
+    openSaveAlert(data.id);
 
     if (btnSaveRef.value) {
       gsap.fromTo(btnSaveRef.value, { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
@@ -2206,8 +2417,6 @@ async function ensureFormId() {
   if (!resp.ok || !data.ok) throw new Error(data.message || "Create form failed");
 
   formId.value = data.id;
-
-  // เก็บ draft (พร้อม id) เผื่อ reload แล้ว PUT ต่อได้
   localStorage.setItem("lapnet_create_form_draft", jsonText.value);
 
   return formId.value;
@@ -2218,7 +2427,6 @@ async function submitPreview() {
   try {
     isSubmitting.value = true;
 
-    // ✅ validate ก่อน (ถ้าผิด จะไม่สร้างฟอร์มทิ้งไว้)
     if (form.collectEmail && !String(previewEmail.value || "").trim()) {
       showToast("Email is required", "danger");
       return;
@@ -2253,7 +2461,6 @@ async function submitPreview() {
         }
       }
 
-      // checkbox ต้องเป็น array เสมอ
       if (q.type === "checkbox" && !Array.isArray(val)) {
         val = Array.isArray(previewAnswer[q.id]) ? previewAnswer[q.id] : [];
       }
@@ -2263,10 +2470,8 @@ async function submitPreview() {
       }
     }
 
-    // ✅ ตรงนี้คือหัวใจ: ถ้ายังไม่มี formId -> สร้างฟอร์มให้ก่อน (insert form + questions)
     const id = await ensureFormId();
 
-    // ✅ แล้วค่อย insert submission/answers (+ files)
     const fd = new FormData();
     fd.append(
       "payload",
@@ -2292,7 +2497,6 @@ async function submitPreview() {
 
     showToast(`Data insert success (submissionId: ${data.submissionId})`);
 
-    // reset preview state
     previewEmail.value = "";
     for (const k of Object.keys(previewAnswer)) delete previewAnswer[k];
     for (const k of Object.keys(previewTableAnswer)) delete previewTableAnswer[k];
@@ -2318,7 +2522,6 @@ onMounted(async () => {
     if (draft) {
       const parsed = JSON.parse(draft);
 
-      // ✅ restore formId (สำคัญเพื่อให้ PUT ได้)
       if (parsed?.id) formId.value = parsed.id;
 
       if (parsed?.meta) {
@@ -2357,13 +2560,21 @@ onMounted(async () => {
             scoreMax: Number(qq.score?.max ?? qq.scoreMax ?? 5),
             scoreIcon: qq.score?.icon ?? qq.scoreIcon ?? "star",
 
-            gridRows: Array.isArray(qq.table?.rows) ? [...qq.table.rows]
-              : Array.isArray(qq.grid?.rows) ? [...qq.grid.rows]
-              : Array.isArray(qq.gridRows) ? [...qq.gridRows] : [],
+            gridRows: Array.isArray(qq.table?.rows)
+              ? [...qq.table.rows]
+              : Array.isArray(qq.grid?.rows)
+              ? [...qq.grid.rows]
+              : Array.isArray(qq.gridRows)
+              ? [...qq.gridRows]
+              : [],
 
-            gridCols: Array.isArray(qq.table?.cols) ? [...qq.table.cols]
-              : Array.isArray(qq.grid?.cols) ? [...qq.grid.cols]
-              : Array.isArray(qq.gridCols) ? [...qq.gridCols] : [],
+            gridCols: Array.isArray(qq.table?.cols)
+              ? [...qq.table.cols]
+              : Array.isArray(qq.grid?.cols)
+              ? [...qq.grid.cols]
+              : Array.isArray(qq.gridCols)
+              ? [...qq.gridCols]
+              : [],
           };
 
           onTypeChange(q);
@@ -2395,6 +2606,8 @@ onMounted(async () => {
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && overlay.show) closeOverlay();
+    // ✅ NEW: ESC closes save alert too
+    if (e.key === "Escape" && saveAlert.show) closeSaveAlert();
   });
 });
 </script>
@@ -2408,7 +2621,48 @@ onMounted(async () => {
   padding: 10px 6px;
   color: var(--txt);
 }
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 99999;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(8, 12, 28, 0.72);
+  backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+.toast.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.toast.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+}
 
+/* ✅ NEW: Save alert content styling (uses existing overlay styles) */
+.alertCard {
+  width: min(520px, calc(100vw - 24px));
+}
+.alertText {
+  font-size: 14px;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+}
+.alertMeta {
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.72);
+}
 .pageTopbar {
   display: flex;
   align-items: flex-start;
