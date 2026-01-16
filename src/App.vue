@@ -181,9 +181,6 @@ const navItems = [
 
       // ✅ under Visitor
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
-
-      // ✅ NEW: View Form (under ສ້າງ Form)
-      { key: "view_form", label: "ເບິ່ງ Form", to: "/formtemplete", fa: "fa-solid fa-rectangle-list" },
     ],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },

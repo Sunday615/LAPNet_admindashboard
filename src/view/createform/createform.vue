@@ -8,7 +8,9 @@
           <h1 class="pageTitle">ສ້າງ Form</h1>
           <span class="pill">Builder</span>
         </div>
-        <p class="pageSub">ສ້າງແບບຟອມແນວ Google Form • ເພີ່ມຄຳຖາມ • ຕັ້ງ Required • Export JSON</p>
+        <p class="pageSub">
+          ສ້າງແບບຟອມແນວ Google Form • ເພີ່ມຄຳຖາມ • ຕັ້ງ Required • Export JSON
+        </p>
       </div>
 
       <div class="topRight">
@@ -46,7 +48,7 @@
             </div>
 
             <div class="metaActions">
-              <button class="miniBtn" type="button" @click="resetAll" title="Reset">
+              <button class="miniBtn" type="button" @click="resetAll()" title="Reset">
                 <i class="fa-solid fa-arrow-rotate-left"></i>
               </button>
               <button class="miniBtn" type="button" @click="addQuestion('short')" title="Add question">
@@ -84,12 +86,7 @@
 
             <div class="field fieldRow">
               <div class="switchWrap">
-                <button
-                  class="switch"
-                  type="button"
-                  :class="{ on: form.collectEmail }"
-                  @click="form.collectEmail = !form.collectEmail"
-                >
+                <button class="switch" type="button" :class="{ on: form.collectEmail }" @click="form.collectEmail = !form.collectEmail">
                   <span class="knob"></span>
                 </button>
                 <div class="switchText">
@@ -99,12 +96,7 @@
               </div>
 
               <div class="switchWrap">
-                <button
-                  class="switch"
-                  type="button"
-                  :class="{ on: form.allowEditAfterSubmit }"
-                  @click="form.allowEditAfterSubmit = !form.allowEditAfterSubmit"
-                >
+                <button class="switch" type="button" :class="{ on: form.allowEditAfterSubmit }" @click="form.allowEditAfterSubmit = !form.allowEditAfterSubmit">
                   <span class="knob"></span>
                 </button>
                 <div class="switchText">
@@ -162,22 +154,9 @@
                 </div>
 
                 <div class="previewControl">
-                  <input
-                    v-if="q.type === 'short'"
-                    v-model="previewAnswer[q.id]"
-                    class="input"
-                    placeholder="Short answer"
-                    dir="ltr"
-                  />
+                  <input v-if="q.type === 'short'" v-model="previewAnswer[q.id]" class="input" placeholder="Short answer" dir="ltr" />
 
-                  <textarea
-                    v-else-if="q.type === 'long'"
-                    v-model="previewAnswer[q.id]"
-                    class="textarea"
-                    rows="4"
-                    placeholder="Long answer..."
-                    dir="ltr"
-                  />
+                  <textarea v-else-if="q.type === 'long'" v-model="previewAnswer[q.id]" class="textarea" rows="4" placeholder="Long answer..." dir="ltr" />
 
                   <div v-else-if="q.type === 'option'" class="choiceList">
                     <label v-for="(op, i) in q.options" :key="i" class="choiceRow">
@@ -186,7 +165,6 @@
                     </label>
                   </div>
 
-                  <!-- ✅ FIX: checkbox ต้องเป็น array เสมอ (init ตอนเข้า preview) -->
                   <div v-else-if="q.type === 'checkbox'" class="choiceList">
                     <label v-for="(op, i) in q.options" :key="i" class="choiceRow">
                       <input type="checkbox" :value="stripHtml(op)" v-model="previewAnswer[q.id]" />
@@ -217,12 +195,7 @@
                       </div>
                     </div>
 
-                    <div
-                      class="dropZone"
-                      @dragover.prevent
-                      @drop.prevent="onUploadDrop($event, q)"
-                      @click="triggerUploadPick(q.id)"
-                    >
+                    <div class="dropZone" @dragover.prevent @drop.prevent="onUploadDrop($event, q)" @click="triggerUploadPick(q.id)">
                       <i class="fa-solid fa-cloud-arrow-up"></i>
                       <div class="dzText">
                         <div class="dzTitle">Drag & drop file here</div>
@@ -273,7 +246,7 @@
                     </div>
                   </div>
 
-                  <!-- ✅ DATE ONLY via FLATPICKR (no time). Global dark theme in App.vue -->
+                  <!-- date -->
                   <input
                     v-else-if="q.type === 'date'"
                     class="input inputModern"
@@ -283,7 +256,7 @@
                     v-flatpickr="{ qid: q.id, model: previewDateAnswer }"
                   />
 
-                  <!-- ✅ FIX: TIME PICKER = flatpickr overlay -->
+                  <!-- time -->
                   <input
                     v-else-if="q.type === 'time'"
                     class="input inputModern"
@@ -298,7 +271,7 @@
                     <div class="gridMeta">
                       <div class="gridPill">
                         <i class="fa-solid fa-table-cells"></i>
-                        <span>{{ q.type === 'table_checkbox' ? "Table (Checkbox)" : "Table (Option)" }}</span>
+                        <span>{{ q.type === 'table_checkbox' ? "Table (Checkbox)" : "Table(Option)" }}</span>
                       </div>
                       <div class="gridHint">
                         {{ q.type === "table_checkbox" ? "Select multiple cells" : "Select one per row" }}
@@ -310,11 +283,7 @@
                         <thead>
                           <tr>
                             <th class="gridCorner"></th>
-                            <th
-                              v-for="(c, ci) in (q.gridCols || [])"
-                              :key="ci"
-                              v-html="nonEmptyHtml(c) ? c : `Col ${ci + 1}`"
-                            ></th>
+                            <th v-for="(c, ci) in (q.gridCols || [])" :key="ci" v-html="nonEmptyHtml(c) ? c : `Col ${ci + 1}`"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -328,7 +297,6 @@
                                 :checked="isTableOptionChecked(q, ri, ci)"
                                 @change="setTableOption(q, ri, ci)"
                               />
-
                               <input
                                 v-else
                                 type="checkbox"
@@ -452,7 +420,6 @@
                       @drop.prevent="onRichDrop($event)"
                     ></div>
 
-                    <!-- Image preview UNDER description (NO CROP) -->
                     <div v-if="(q.images || []).length" class="imgPreviewWrap">
                       <div class="imgPreviewHead">
                         <i class="fa-regular fa-image"></i>
@@ -463,12 +430,7 @@
                       <div class="imgGrid">
                         <div v-for="img in q.images" :key="img.id" class="imgTile">
                           <img :src="img.src" alt="preview" />
-                          <button
-                            class="imgRemove"
-                            type="button"
-                            @click="removeQuestionImage(q.id, img.id)"
-                            title="Remove image"
-                          >
+                          <button class="imgRemove" type="button" @click="removeQuestionImage(q.id, img.id)" title="Remove image">
                             <i class="fa-solid fa-xmark"></i>
                           </button>
                         </div>
@@ -508,7 +470,7 @@
                     </div>
                   </div>
 
-                  <!-- Options editor: option / checkbox / dropdown -->
+                  <!-- Options editor -->
                   <div v-if="needsOptions(q.type)" class="options">
                     <div class="optionsHead">
                       <div class="optionsTitle">
@@ -536,6 +498,7 @@
                           :data-placeholder="`Item ${i + 1}`"
                           data-editor="option"
                           :data-qid="q.id"
+                          :data-idx="i"
                           v-rich="[q.options, i]"
                           @focus="onEditorFocus($event)"
                           @blur="onEditorBlur($event)"
@@ -600,12 +563,7 @@
                     </div>
 
                     <div class="switchWrap" style="margin-top: 10px;">
-                      <button
-                        class="switch"
-                        type="button"
-                        :class="{ on: q.uploadRestrictEnabled }"
-                        @click="q.uploadRestrictEnabled = !q.uploadRestrictEnabled"
-                      >
+                      <button class="switch" type="button" :class="{ on: q.uploadRestrictEnabled }" @click="q.uploadRestrictEnabled = !q.uploadRestrictEnabled">
                         <span class="knob"></span>
                       </button>
                       <div class="switchText">
@@ -625,13 +583,7 @@
                           </button>
 
                           <div class="chipRow">
-                            <span
-                              v-for="t in (q.fileTypes || [])"
-                              :key="t"
-                              class="chip"
-                              @click="toggleFileType(q, t)"
-                              title="Click to remove"
-                            >
+                            <span v-for="t in (q.fileTypes || [])" :key="t" class="chip" @click="toggleFileType(q, t)" title="Click to remove">
                               {{ t }}
                               <i class="fa-solid fa-xmark"></i>
                             </span>
@@ -640,11 +592,7 @@
 
                           <div v-if="openFileTypeFor === q.id" class="fileTypeMenu">
                             <label v-for="t in FILE_TYPES" :key="t.key" class="fileTypeRow">
-                              <input
-                                type="checkbox"
-                                :checked="(q.fileTypes || []).includes(t.key)"
-                                @change="toggleFileType(q, t.key)"
-                              />
+                              <input type="checkbox" :checked="(q.fileTypes || []).includes(t.key)" @change="toggleFileType(q, t.key)" />
                               <span>{{ t.key }}</span>
                             </label>
                           </div>
@@ -743,6 +691,7 @@
                               :data-placeholder="`Row ${i + 1}`"
                               data-editor="gridRow"
                               :data-qid="q.id"
+                              :data-idx="i"
                               v-rich="[q.gridRows, i]"
                               @focus="onEditorFocus($event)"
                               @blur="onEditorBlur($event)"
@@ -780,6 +729,7 @@
                               :data-placeholder="`Col ${i + 1}`"
                               data-editor="gridCol"
                               :data-qid="q.id"
+                              :data-idx="i"
                               v-rich="[q.gridCols, i]"
                               @focus="onEditorFocus($event)"
                               @blur="onEditorBlur($event)"
@@ -913,7 +863,6 @@
         </div>
 
         <div class="overlayBody">
-          <!-- URL input -->
           <div class="field">
             <label class="label">{{ overlay.mode === "link" ? "URL" : "Image URL" }}</label>
             <input
@@ -933,7 +882,6 @@
             </div>
           </div>
 
-          <!-- upload image from computer -->
           <div v-if="overlay.mode === 'image'" class="field">
             <label class="label">Upload image</label>
             <div class="overlayUploadRow">
@@ -946,14 +894,7 @@
               </div>
             </div>
 
-            <input
-              ref="overlayImageInputRef"
-              type="file"
-              class="hiddenInput"
-              accept="image/*"
-              multiple
-              @change="onOverlayImagePick"
-            />
+            <input ref="overlayImageInputRef" type="file" class="hiddenInput" accept="image/*" multiple @change="onOverlayImagePick" />
           </div>
 
           <div v-if="overlay.mode === 'image' && overlay.url" class="overlayPreview">
@@ -980,7 +921,7 @@
               Remove link
             </button>
 
-            <button class="btn" type="button" @click="applyOverlay" :disabled="!overlay.url || (overlay.mode==='image' && overlayImgError)">
+            <button class="btn" type="button" @click="applyOverlay" :disabled="!overlay.url || (overlay.mode === 'image' && overlayImgError)">
               <i class="fa-solid fa-check"></i>
               Apply URL
             </button>
@@ -989,7 +930,7 @@
       </div>
     </div>
 
-    <!-- ✅ NEW: Save success alert overlay -->
+    <!-- Save success alert -->
     <div v-if="saveAlert.show" class="overlay" @mousedown.self="closeSaveAlert">
       <div class="overlayCard alertCard">
         <div class="overlayTop">
@@ -1003,9 +944,7 @@
         </div>
 
         <div class="overlayBody">
-          <div class="alertText">
-            Your form has been saved.
-          </div>
+          <div class="alertText">Your form has been saved.</div>
           <div v-if="saveAlert.id" class="alertMeta">
             Form ID: <b>{{ saveAlert.id }}</b>
           </div>
@@ -1038,211 +977,76 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 import flatpickr from "flatpickr";
 
 /**
  * ==========================
- *  Router
+ * Router / Config
  * ==========================
  */
 const router = useRouter();
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const TEMPLATE_API = `${API_BASE}/api/form-templates`;
+
+/**
+ * ✅ DRAFT KEY (เดิมคุณใช้ไว้โหลดค่าเก่า)
+ *    ตอนนี้เราจะ "ไม่โหลด" และ "ลบทิ้งเมื่อเข้าหน้า"
+ */
+const DRAFT_KEY = "lapnet_create_form_draft";
 
 /**
  * ==========================
- *  Config
+ * State refs (UI)
  * ==========================
  */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const topbarRef = ref(null);
+const metaCardRef = ref(null);
+const builderRef = ref(null);
+const previewRef = ref(null);
+const listRef = ref(null);
+const sideToolsRef = ref(null);
+
+const btnPreviewRef = ref(null);
+const btnSaveRef = ref(null);
+const btnCopyRef = ref(null);
+const btnDownloadRef = ref(null);
+const btnAddRef = ref(null);
+
+const toastRef = ref(null);
+const overlayRef = ref(null);
+const overlayCardRef = ref(null);
 
 /**
  * ==========================
- *  ✅ Template storage (FormTemplates page reads this)
+ * Toast
  * ==========================
  */
-const TPL_KEY = "lapnet_form_templates";
-const uidTpl = () => `tpl_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+const toast = reactive({ show: false, text: "", type: "ok" });
+let toastTimer = null;
 
-function readTemplatesStore() {
-  try {
-    const raw = localStorage.getItem(TPL_KEY);
-    const arr = JSON.parse(raw || "[]");
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-function writeTemplatesStore(arr) {
-  try {
-    localStorage.setItem(TPL_KEY, JSON.stringify(arr, null, 2));
-  } catch {
-    // ignore storage error
-  }
-}
-function cloneJsonSafe(obj) {
-  try {
-    return structuredClone(obj);
-  } catch {
-    return JSON.parse(JSON.stringify(obj));
-  }
-}
+function showToast(text, type = "ok") {
+  toast.text = String(text || "");
+  toast.type = type;
+  toast.show = true;
 
-/**
- * ✅ Upsert template by sourceFormId (so Save ซ้ำจะ "อัปเดต" template เดิม ไม่สร้างซ้ำเรื่อย ๆ)
- * - sourceFormId = formId ที่ได้จาก DB ตอน saveDraft สำเร็จ
- * - name/note ถ้าผู้ใช้ไป Rename ในหน้า templates แล้ว จะ "รักษาไว้" ไม่เขียนทับ
- */
-function upsertTemplateFromPayload(payload, sourceFormId) {
-  try {
-    const now = new Date().toISOString();
-    const list = readTemplatesStore();
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.show = false), 2200);
 
-    const sfid = sourceFormId != null ? String(sourceFormId) : null;
-
-    let t = null;
-    if (sfid) {
-      t = list.find((x) => String(x?.sourceFormId || "") === sfid);
-    }
-
-    const fallbackName = String(payload?.meta?.title || "").trim() || "Untitled template";
-
-    if (!t) {
-      list.unshift({
-        id: uidTpl(),
-        sourceFormId: sfid,
-        name: fallbackName,
-        note: "",
-        createdAt: now,
-        updatedAt: now,
-        payload: cloneJsonSafe(payload),
-      });
-    } else {
-      // ✅ update payload + updatedAt แต่รักษา name/note เดิมไว้
-      t.updatedAt = now;
-      t.sourceFormId = sfid;
-      t.payload = cloneJsonSafe(payload);
-
-      if (!String(t.name || "").trim()) t.name = fallbackName;
-      if (t.createdAt == null) t.createdAt = now;
-    }
-
-    writeTemplatesStore(list);
-    return true;
-  } catch {
-    return false;
+  if (toastRef.value) {
+    gsap.killTweensOf(toastRef.value);
+    gsap.fromTo(toastRef.value, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: "power2.out" });
   }
 }
 
 /**
  * ==========================
- *  ✅ NEW: Save success alert overlay state
+ * Helpers
  * ==========================
  */
-const saveAlert = reactive({ show: false, id: null });
-
-function openSaveAlert(id) {
-  saveAlert.show = true;
-  saveAlert.id = id != null ? String(id) : null;
-}
-function closeSaveAlert() {
-  saveAlert.show = false;
-  saveAlert.id = null;
-}
-function goViewTemplates() {
-  // ✅ close overlay first then redirect
-  closeSaveAlert();
-  router.push("/formtemplete");
-}
-
-// เก็บ id ฟอร์มที่ save แล้ว (สำคัญมากเพื่อให้ PUT ได้)
-const formId = ref(null);
-
-// คำตอบใน preview
-const previewEmail = ref("");
-const previewAnswer = reactive({}); // string/array/object per question
-const previewFiles = reactive({}); // { [qid]: File[] }
-const previewScoreAnswer = reactive({});
-const previewDateAnswer = reactive({});
-
-/**
- * ==========================
- *  Utilities
- * ==========================
- */
-// ✅ เพิ่ม state สำหรับคำตอบตาราง
-const previewTableAnswer = reactive({}); // { [qid]: { [rowLabel]: colLabel | string[] } }
-
-function tableRowKey(q, ri) {
-  const rows = Array.isArray(q.gridRows) ? q.gridRows : [];
-  return stripHtml(rows[ri] ?? `Row ${ri + 1}`) || `Row ${ri + 1}`;
-}
-function tableColVal(q, ci) {
-  const cols = Array.isArray(q.gridCols) ? q.gridCols : [];
-  return stripHtml(cols[ci] ?? `Col ${ci + 1}`) || `Col ${ci + 1}`;
-}
-
-// table_option: เลือกได้ 1 ช่องต่อ 1 แถว
-function setTableOption(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") previewTableAnswer[q.id] = {};
-  previewTableAnswer[q.id][rKey] = cVal;
-}
-function isTableOptionChecked(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  return previewTableAnswer[q.id]?.[rKey] === cVal;
-}
-
-// table_checkbox: เลือกได้หลายช่อง (รวมหลายคอลัมน์ในแถวเดียวกัน)
-function toggleTableCheckbox(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") previewTableAnswer[q.id] = {};
-  if (!Array.isArray(previewTableAnswer[q.id][rKey])) previewTableAnswer[q.id][rKey] = [];
-
-  const arr = previewTableAnswer[q.id][rKey];
-  const idx = arr.indexOf(cVal);
-  if (idx >= 0) arr.splice(idx, 1);
-  else arr.push(cVal);
-}
-function isTableCheckboxChecked(q, ri, ci) {
-  const rKey = tableRowKey(q, ri);
-  const cVal = tableColVal(q, ci);
-  const arr = previewTableAnswer[q.id]?.[rKey];
-  return Array.isArray(arr) && arr.includes(cVal);
-}
-
-// ใช้เช็ค required ของตาราง
-function isEmptyTableAnswer(q) {
-  const obj = previewTableAnswer[q.id];
-  if (!obj || typeof obj !== "object") return true;
-
-  if (q.type === "table_option") {
-    const rows = (q.gridRows || []).map(stripHtml).filter(Boolean);
-    if (!rows.length) return true;
-    // ✅ แบบเข้ม: ต้องตอบครบทุกแถว
-    return rows.some((r) => !obj[r]);
-  }
-
-  if (q.type === "table_checkbox") {
-    // ✅ แบบผ่อน: มีอย่างน้อย 1 ช่องที่ถูกเลือกก็พอ
-    const any = Object.values(obj).some((v) => Array.isArray(v) && v.length > 0);
-    return !any;
-  }
-
-  return true;
-}
-
-function isEmptyAnswer(val) {
-  if (val === null || val === undefined) return true;
-  if (typeof val === "string") return val.trim().length === 0;
-  if (Array.isArray(val)) return val.length === 0;
-  if (typeof val === "object") return Object.keys(val).length === 0;
-  return false;
-}
+const uid = () => `q_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 function stripHtml(html) {
   const s = String(html ?? "");
   return s.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
@@ -1256,8 +1060,13 @@ function prettyBytes(n) {
   if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
   return `${(num / (1024 * 1024)).toFixed(1)} MB`;
 }
-const uid = () => `q_${Math.random().toString(16).slice(2)}_${Date.now()}`;
-
+function cloneJsonSafe(obj) {
+  try {
+    return structuredClone(obj);
+  } catch {
+    return JSON.parse(JSON.stringify(obj));
+  }
+}
 function needsOptions(type) {
   return type === "option" || type === "checkbox" || type === "dropdown";
 }
@@ -1268,75 +1077,314 @@ function scoreIconClass(icon) {
 }
 function typeLabel(type) {
   switch (type) {
-    case "short":
-      return "Short";
-    case "long":
-      return "Long";
-    case "option":
-      return "Option";
-    case "checkbox":
-      return "Checkbox";
-    case "dropdown":
-      return "Dropdown";
-    case "upload":
-      return "Upload";
-    case "score":
-      return "Score";
-    case "table_option":
-      return "Table option";
-    case "table_checkbox":
-      return "Table checkbox";
-    case "date":
-      return "Date";
-    case "time":
-      return "Time";
-    default:
-      return type;
+    case "short": return "Short";
+    case "long": return "Long";
+    case "option": return "Option";
+    case "checkbox": return "Checkbox";
+    case "dropdown": return "Dropdown";
+    case "upload": return "Upload";
+    case "score": return "Score";
+    case "table_option": return "Table option";
+    case "table_checkbox": return "Table checkbox";
+    case "date": return "Date";
+    case "time": return "Time";
+    default: return type;
   }
 }
+function focusPop() {}
+function blurPop() {}
 
 /**
  * ==========================
- *  ✅ FIX: ensure checkbox preview model is ARRAY
+ * Overlay (link/image)
  * ==========================
  */
-function initPreviewForQuestion(q) {
-  if (!q?.id) return;
+const overlay = reactive({ show: false, mode: "link", url: "" }); // mode: link|image
+const overlayImgError = ref(false);
+const overlayImageInputRef = ref(null);
 
-  // checkbox MUST be array, otherwise Vue will treat it as boolean and "check all"
-  if (q.type === "checkbox") {
-    if (!Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = [];
+function closeOverlay() {
+  overlay.show = false;
+  overlay.url = "";
+  overlayImgError.value = false;
+}
+function openLinkOverlay() {
+  if (!activeEditorMeta.qid) {
+    showToast("Click Title field first", "danger");
+    return;
   }
-  // ✅ init table answers
-  if (q.type === "table_option" || q.type === "table_checkbox") {
-    if (!previewTableAnswer[q.id] || typeof previewTableAnswer[q.id] !== "object") {
-      previewTableAnswer[q.id] = {};
-    }
+  if (activeEditorMeta.editor !== "title") {
+    showToast("Hyperlink ใช้กับ Title เท่านั้น (คลิก Title ก่อน)", "danger");
+    return;
+  }
+  overlay.mode = "link";
+  overlay.url = currentTitleLink(activeEditorMeta.qid) || "";
+  overlay.show = true;
+}
+function openImageOverlay() {
+  if (!activeEditorMeta.qid) {
+    showToast("Click a question field first", "danger");
+    return;
+  }
+  overlay.mode = "image";
+  overlay.url = "";
+  overlay.show = true;
+}
+function titleHasLink(html) {
+  return /<a\b/i.test(String(html || ""));
+}
+function currentTitleLink(qid) {
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return "";
+  const m = String(q.title || "").match(/<a\b[^>]*href=["']([^"']+)["']/i);
+  return m?.[1] || "";
+}
+function removeTitleLink(qid) {
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+  q.title = stripAnchorKeepText(q.title);
+  showToast("Removed link");
+}
+function removeActiveTitleLink() {
+  if (!activeEditorMeta.qid) return;
+  removeTitleLink(activeEditorMeta.qid);
+  closeOverlay();
+}
+function stripAnchorKeepText(html) {
+  const s = String(html || "");
+  return s.replace(/<a\b[^>]*>/gi, "").replace(/<\/a>/gi, "");
+}
+function applyOverlay() {
+  if (!activeEditorMeta.qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+  const url = String(overlay.url || "").trim();
+  if (!url) return;
+
+  const q = questions.value.find((x) => x.id === activeEditorMeta.qid);
+  if (!q) return;
+
+  if (overlay.mode === "link") {
+    const text = stripHtml(q.title) || "Link";
+    q.title = `<a href="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtmlText(text)}</a>`;
+    showToast("Link applied");
+    closeOverlay();
+    return;
   }
 
-  // date model holder
-  if (q.type === "date") {
-    if (typeof previewDateAnswer[q.id] !== "string") previewDateAnswer[q.id] = String(previewDateAnswer[q.id] || "");
-  }
-
-  // score model holder
-  if (q.type === "score") {
-    if (typeof previewScoreAnswer[q.id] !== "number") previewScoreAnswer[q.id] = Number(previewScoreAnswer[q.id] || 0);
-  }
-
-  // time stored in previewAnswer[qid] as string by v-timepickr directive
-  if (q.type === "time") {
-    if (Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = "";
-    if (previewAnswer[q.id] == null) previewAnswer[q.id] = "";
+  if (overlay.mode === "image") {
+    q.images = Array.isArray(q.images) ? q.images : [];
+    q.images.push({ id: uid(), src: url, kind: "url" });
+    showToast("Image added");
+    closeOverlay();
   }
 }
-function initPreviewState() {
-  for (const q of questions.value) initPreviewForQuestion(q);
+function escapeHtmlText(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+function escapeHtmlAttr(s) {
+  return escapeHtmlText(s);
+}
+
+function triggerOverlayImagePick() {
+  overlayImageInputRef.value?.click?.();
+}
+async function onOverlayImagePick(e) {
+  const files = Array.from(e?.target?.files || []);
+  e.target.value = "";
+  if (!files.length) return;
+
+  if (!activeEditorMeta.qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+  const q = questions.value.find((x) => x.id === activeEditorMeta.qid);
+  if (!q) return;
+
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) continue;
+    const dataUrl = await readFileAsDataURL(f);
+    q.images.push({ id: uid(), src: dataUrl, kind: "upload" });
+  }
+  showToast("Uploaded image(s)");
+  closeOverlay();
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
 }
 
 /**
  * ==========================
- *  Form State
+ * Active editor tracking + formatting
+ * ==========================
+ */
+const activeEditorEl = ref(null);
+const activeEditorMeta = reactive({ qid: null, editor: null, idx: null });
+
+function onEditorFocus(e) {
+  activeEditorEl.value = e.target;
+  const ds = e.target?.dataset || {};
+  activeEditorMeta.qid = ds.qid || null;
+  activeEditorMeta.editor = ds.editor || null;
+  activeEditorMeta.idx = ds.idx != null ? Number(ds.idx) : null;
+}
+function onEditorBlur() {
+  activeEditorEl.value = null;
+}
+function fmtSmart(cmd) {
+  if (!activeEditorEl.value) {
+    showToast("Click a text field first", "danger");
+    return;
+  }
+  try {
+    document.execCommand(cmd);
+  } catch {
+    const el = activeEditorEl.value;
+    const html = el.innerHTML || "";
+    if (cmd === "bold") el.innerHTML = `<b>${html}</b>`;
+    if (cmd === "italic") el.innerHTML = `<i>${html}</i>`;
+    if (cmd === "underline") el.innerHTML = `<u>${html}</u>`;
+    el.dispatchEvent(new Event("input"));
+  }
+}
+
+/**
+ * drag-drop image into any rich field -> attach to q.images
+ */
+async function onRichDrop(e) {
+  const ds = e.target?.dataset || {};
+  const qid = ds.qid || activeEditorMeta.qid;
+  if (!qid) return;
+
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+
+  const files = Array.from(e.dataTransfer?.files || []);
+  if (files.length) {
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) continue;
+      const dataUrl = await readFileAsDataURL(f);
+      q.images.push({ id: uid(), src: dataUrl, kind: "drop" });
+    }
+    showToast("Image dropped");
+    return;
+  }
+
+  const txt = (e.dataTransfer?.getData("text/plain") || "").trim();
+  if (txt && isLikelyImageUrl(txt)) {
+    q.images.push({ id: uid(), src: txt, kind: "url" });
+    showToast("Image URL added");
+  }
+}
+function isLikelyImageUrl(url) {
+  return /^https?:\/\/.+\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i.test(url);
+}
+function removeQuestionImage(qid, imgId) {
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+  q.images = (q.images || []).filter((x) => x.id !== imgId);
+}
+
+/**
+ * ==========================
+ * Directives: v-rich / v-flatpickr / v-timepickr
+ * ==========================
+ */
+const vRich = {
+  mounted(el, binding) {
+    const [target, key] = binding.value || [];
+    if (!target) return;
+
+    el.innerHTML = (target?.[key] ?? "") + "";
+
+    const onInput = () => {
+      try {
+        target[key] = el.innerHTML;
+      } catch {}
+    };
+
+    el.__rich_onInput = onInput;
+    el.addEventListener("input", onInput);
+
+    const onPaste = (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+      document.execCommand("insertText", false, text);
+    };
+    el.__rich_onPaste = onPaste;
+    el.addEventListener("paste", onPaste);
+  },
+  updated(el, binding) {
+    const [target, key] = binding.value || [];
+    if (!target) return;
+    const v = (target?.[key] ?? "") + "";
+    if (el.innerHTML !== v) el.innerHTML = v;
+  },
+  beforeUnmount(el) {
+    if (el.__rich_onInput) el.removeEventListener("input", el.__rich_onInput);
+    if (el.__rich_onPaste) el.removeEventListener("paste", el.__rich_onPaste);
+  },
+};
+
+const fpInstances = new Map();
+
+const vFlatpickr = {
+  mounted(el, binding) {
+    const { qid, model } = binding.value || {};
+    if (!qid || !model) return;
+    const inst = flatpickr(el, {
+      dateFormat: "Y-m-d",
+      allowInput: true,
+      onChange: (dates, str) => {
+        model[qid] = str;
+      },
+    });
+    fpInstances.set(el, inst);
+  },
+  beforeUnmount(el) {
+    const inst = fpInstances.get(el);
+    if (inst) inst.destroy();
+    fpInstances.delete(el);
+  },
+};
+
+const vTimepickr = {
+  mounted(el, binding) {
+    const { qid, model } = binding.value || {};
+    if (!qid || !model) return;
+    const inst = flatpickr(el, {
+      enableTime: true,
+      noCalendar: true,
+      time_24hr: true,
+      dateFormat: "H:i",
+      allowInput: true,
+      onChange: (dates, str) => {
+        model[qid] = str;
+      },
+    });
+    fpInstances.set(el, inst);
+  },
+  beforeUnmount(el) {
+    const inst = fpInstances.get(el);
+    if (inst) inst.destroy();
+    fpInstances.delete(el);
+  },
+};
+
+/**
+ * ==========================
+ * Form State
  * ==========================
  */
 const form = reactive({
@@ -1353,37 +1401,25 @@ function makeQuestion(type = "short") {
     title: "",
     description: "",
     required: false,
-
-    // ✅ IMPORTANT: keep JSON-safe defaults
     images: [],
-
     options: [],
-
     uploadRestrictEnabled: false,
     fileTypes: [],
     maxSizeMB: 10,
     maxFiles: 1,
     uploadPreviewFiles: [],
-
     scoreMax: 5,
     scoreIcon: "star",
-
     gridRows: [],
     gridCols: [],
-
-    // ✅ IMPORTANT: for MySQL sort_order
     sort_order: 1,
   };
 
-  if (type === "option" || type === "checkbox" || type === "dropdown") {
-    base.options = ["Choice 1", "Choice 2"];
-  }
+  if (type === "option" || type === "checkbox" || type === "dropdown") base.options = ["Choice 1", "Choice 2"];
   if (type === "upload") {
-    base.uploadRestrictEnabled = false;
     base.fileTypes = ["image", "pdf"];
     base.maxSizeMB = 10;
     base.maxFiles = 1;
-    base.uploadPreviewFiles = [];
   }
   if (type === "score") {
     base.scoreMax = 5;
@@ -1402,291 +1438,272 @@ const isPreview = ref(false);
 
 /**
  * ==========================
- *  Refs (UI)
+ * Question operations
  * ==========================
  */
-const topbarRef = ref(null);
-const metaCardRef = ref(null);
-const builderRef = ref(null);
-const previewRef = ref(null);
-const listRef = ref(null);
-const sideToolsRef = ref(null);
-
-const btnPreviewRef = ref(null);
-const btnSaveRef = ref(null);
-const btnCopyRef = ref(null);
-const btnDownloadRef = ref(null);
-const btnAddRef = ref(null);
-
-const toastRef = ref(null);
-
-const overlayRef = ref(null);
-const overlayCardRef = ref(null);
-
-/**
- * ==========================
- *  Toast
- * ==========================
- */
-const toast = reactive({ show: false, text: "", type: "ok" });
-let toastTimer = null;
-
-function showToast(text, type = "ok") {
-  toast.text = text;
-  toast.type = type;
-  toast.show = true;
-
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.show = false), 2200);
-
-  if (toastRef.value) {
-    gsap.killTweensOf(toastRef.value);
-    gsap.fromTo(toastRef.value, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: "power2.out" });
+function addQuestion(type = "short") {
+  const q = makeQuestion(type);
+  questions.value.push(q);
+  questions.value.forEach((x, i) => (x.sort_order = i + 1));
+  showToast("Added");
+  nextTick(() => {
+    if (listRef.value) {
+      const cards = listRef.value.querySelectorAll(".qCard");
+      const last = cards[cards.length - 1];
+      last?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    }
+  });
+}
+function removeQuestion(qid) {
+  if (questions.value.length <= 1) {
+    showToast("At least 1 question", "danger");
+    return;
+  }
+  questions.value = questions.value.filter((q) => q.id !== qid);
+  questions.value.forEach((x, i) => (x.sort_order = i + 1));
+}
+function duplicateQuestion(qid) {
+  const idx = questions.value.findIndex((q) => q.id === qid);
+  if (idx < 0) return;
+  const copy = cloneJsonSafe(questions.value[idx]);
+  copy.id = uid();
+  copy.images = (copy.images || []).map((im) => ({ ...im, id: uid() }));
+  questions.value.splice(idx + 1, 0, copy);
+  questions.value.forEach((x, i) => (x.sort_order = i + 1));
+  showToast("Duplicated");
+}
+function onTypeChange(q) {
+  const type = q.type;
+  if (needsOptions(type) && (!Array.isArray(q.options) || !q.options.length)) q.options = ["Choice 1", "Choice 2"];
+  if (type === "upload") {
+    q.uploadRestrictEnabled = !!q.uploadRestrictEnabled;
+    q.fileTypes = Array.isArray(q.fileTypes) && q.fileTypes.length ? q.fileTypes : ["image", "pdf"];
+    q.maxSizeMB = Number(q.maxSizeMB || 10);
+    q.maxFiles = Number(q.maxFiles || 1);
+    q.uploadPreviewFiles = Array.isArray(q.uploadPreviewFiles) ? q.uploadPreviewFiles : [];
+  }
+  if (type === "score") {
+    q.scoreMax = Number(q.scoreMax || 5);
+    q.scoreIcon = q.scoreIcon || "star";
+  }
+  if (type === "table_option" || type === "table_checkbox") {
+    q.gridRows = Array.isArray(q.gridRows) && q.gridRows.length ? q.gridRows : ["Row 1", "Row 2"];
+    q.gridCols = Array.isArray(q.gridCols) && q.gridCols.length ? q.gridCols : ["Col 1", "Col 2"];
   }
 }
 
 /**
- * ==========================
- *  Directives
- * ==========================
+ * Options ops
  */
-/** caret stable directive */
-const vRich = {
-  mounted(el, binding) {
-    const arr = binding.value || [];
-    const target = arr[0];
-    const key = arr[1];
+function addOption(q) {
+  q.options = Array.isArray(q.options) ? q.options : [];
+  q.options.push(`Item ${q.options.length + 1}`);
+}
+function duplicateOption(q, i) {
+  q.options = Array.isArray(q.options) ? q.options : [];
+  const v = q.options[i] ?? "";
+  q.options.splice(i + 1, 0, v);
+}
+function removeOption(q, i) {
+  q.options = Array.isArray(q.options) ? q.options : [];
+  q.options.splice(i, 1);
+  if (!q.options.length) q.options.push("Choice 1");
+}
+function normalizeOptions(q) {
+  q.options = (Array.isArray(q.options) ? q.options : []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
+  if (!q.options.length) q.options = ["Choice 1", "Choice 2"];
+}
 
-    const getVal = () => String(target && key != null ? target[key] ?? "" : "");
-    const setVal = (v) => {
-      if (target && key != null) target[key] = v;
-    };
-
-    el.innerHTML = getVal();
-
-    const state = { composing: false };
-
-    const onInput = () => {
-      if (state.composing) return;
-      setVal(el.innerHTML);
-    };
-    const onCompStart = () => (state.composing = true);
-    const onCompEnd = () => {
-      state.composing = false;
-      setVal(el.innerHTML);
-    };
-
-    el.addEventListener("input", onInput);
-    el.addEventListener("compositionstart", onCompStart);
-    el.addEventListener("compositionend", onCompEnd);
-
-    el.__richCleanup = () => {
-      el.removeEventListener("input", onInput);
-      el.removeEventListener("compositionstart", onCompStart);
-      el.removeEventListener("compositionend", onCompEnd);
-    };
-  },
-  updated(el, binding) {
-    const arr = binding.value || [];
-    const target = arr[0];
-    const key = arr[1];
-
-    const next = String(target && key != null ? target[key] ?? "" : "");
-    const focused = document.activeElement === el;
-
-    if (!focused && el.innerHTML !== next) el.innerHTML = next;
-  },
-  beforeUnmount(el) {
-    if (typeof el.__richCleanup === "function") el.__richCleanup();
-  },
-};
-
-/** ✅ flatpickr date-only directive */
-const vFlatpickr = {
-  mounted(el, binding) {
-    const v = binding?.value || {};
-    const qid = v?.qid || null;
-    const model = v?.model || null;
-
-    if (el.tagName !== "INPUT") return;
-
-    const fp = flatpickr(el, {
-      enableTime: false,
-      noCalendar: false,
-      dateFormat: "Y-m-d",
-      allowInput: true,
-      disableMobile: true,
-
-      onReady: (_, __, instance) => {
-        instance?.calendarContainer?.classList?.add?.("fp-dark");
-      },
-
-      onChange: (_, dateStr) => {
-        if (model && qid) model[qid] = dateStr || "";
-      },
-      onClose: (_, dateStr) => {
-        if (model && qid) model[qid] = dateStr || "";
-      },
-    });
-
-    el.__fp = fp;
-
-    if (model && qid && model[qid]) {
-      fp.setDate(String(model[qid]), false, "Y-m-d");
-    }
-  },
-  updated(el, binding) {
-    const fp = el.__fp;
-    if (!fp) return;
-
-    const v = binding?.value || {};
-    const qid = v?.qid || null;
-    const model = v?.model || null;
-    const nextVal = model && qid ? String(model[qid] || "") : "";
-
-    const cur = String(fp.input?.value || "");
-    if (nextVal && cur !== nextVal) fp.setDate(nextVal, false, "Y-m-d");
-    if (!nextVal && cur) fp.clear();
-  },
-  beforeUnmount(el) {
-    try {
-      el.__fp?.destroy?.();
-    } catch {}
-    el.__fp = null;
-  },
-};
-
-/** ✅ flatpickr TIME-only directive (overlay picker) */
-const vTimepickr = {
-  mounted(el, binding) {
-    const v = binding?.value || {};
-    const qid = v?.qid || null;
-    const model = v?.model || null;
-
-    if (el.tagName !== "INPUT") return;
-
-    const fp = flatpickr(el, {
-      enableTime: true,
-      noCalendar: true,
-      dateFormat: "H:i",
-      time_24hr: true,
-      allowInput: true,
-      clickOpens: true,
-      disableMobile: true,
-
-      onReady: (_, __, instance) => {
-        instance?.calendarContainer?.classList?.add?.("fp-dark");
-      },
-
-      onChange: (_, timeStr) => {
-        if (model && qid) model[qid] = timeStr || "";
-      },
-      onClose: () => {
-        if (model && qid) model[qid] = String(fp?.input?.value || "");
-      },
-    });
-
-    el.__tp = fp;
-
-    if (model && qid && model[qid]) {
-      fp.setDate(String(model[qid]), false, "H:i");
-    }
-  },
-  updated(el, binding) {
-    const fp = el.__tp;
-    if (!fp) return;
-
-    const v = binding?.value || {};
-    const qid = v?.qid || null;
-    const model = v?.model || null;
-    const nextVal = model && qid ? String(model[qid] || "") : "";
-
-    const cur = String(fp.input?.value || "");
-    if (nextVal && cur !== nextVal) fp.setDate(nextVal, false, "H:i");
-    if (!nextVal && cur) fp.clear();
-  },
-  beforeUnmount(el) {
-    try {
-      el.__tp?.destroy?.();
-    } catch {}
-    el.__tp = null;
-  },
-};
+/**
+ * Grid ops
+ */
+function addGridRow(q) {
+  q.gridRows = Array.isArray(q.gridRows) ? q.gridRows : [];
+  q.gridRows.push(`Row ${q.gridRows.length + 1}`);
+}
+function removeGridRow(q, i) {
+  q.gridRows = Array.isArray(q.gridRows) ? q.gridRows : [];
+  q.gridRows.splice(i, 1);
+  if (!q.gridRows.length) q.gridRows = ["Row 1"];
+}
+function addGridCol(q) {
+  q.gridCols = Array.isArray(q.gridCols) ? q.gridCols : [];
+  q.gridCols.push(`Col ${q.gridCols.length + 1}`);
+}
+function removeGridCol(q, i) {
+  q.gridCols = Array.isArray(q.gridCols) ? q.gridCols : [];
+  q.gridCols.splice(i, 1);
+  if (!q.gridCols.length) q.gridCols = ["Col 1"];
+}
+function normalizeGrid(q) {
+  q.gridRows = (Array.isArray(q.gridRows) ? q.gridRows : []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
+  q.gridCols = (Array.isArray(q.gridCols) ? q.gridCols : []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
+  if (!q.gridRows.length) q.gridRows = ["Row 1", "Row 2"];
+  if (!q.gridCols.length) q.gridCols = ["Col 1", "Col 2"];
+}
 
 /**
  * ==========================
- *  File type constants
+ * File types menu
  * ==========================
  */
 const FILE_TYPES = [
-  { key: "docx" },
-  { key: "pptx" },
-  { key: "sheet" },
   { key: "image" },
   { key: "pdf" },
-  { key: "video" },
-  { key: "mp3" },
+  { key: "doc" },
+  { key: "docx" },
+  { key: "xls" },
+  { key: "xlsx" },
+  { key: "ppt" },
+  { key: "pptx" },
+  { key: "zip" },
+  { key: "txt" },
 ];
+const openFileTypeFor = ref(null);
 
-const FILE_ACCEPT_MAP = {
-  docx: ".doc,.docx",
-  pptx: ".ppt,.pptx",
-  sheet: ".xls,.xlsx,.csv",
-  image: "image/*",
-  pdf: "application/pdf",
-  video: "video/*",
-  mp3: "audio/mpeg,audio/mp3",
-};
-
-function uploadAcceptAttr(q) {
-  if (!q.uploadRestrictEnabled) return "";
-  const types = Array.isArray(q.fileTypes) ? q.fileTypes : [];
-  if (!types.length) return "";
-  const set = new Set();
-  for (const t of types) {
-    const a = FILE_ACCEPT_MAP[t];
-    if (!a) continue;
-    a.split(",").forEach((x) => set.add(x.trim()));
-  }
-  return Array.from(set).join(",");
+function toggleFileTypeMenu(qid) {
+  openFileTypeFor.value = openFileTypeFor.value === qid ? null : qid;
+}
+function toggleFileType(q, key) {
+  q.fileTypes = Array.isArray(q.fileTypes) ? q.fileTypes : [];
+  const idx = q.fileTypes.indexOf(key);
+  if (idx >= 0) q.fileTypes.splice(idx, 1);
+  else q.fileTypes.push(key);
 }
 
 /**
  * ==========================
- *  ✅ Normalize type (for draft and for API)
+ * Upload preview handling (no backend upload)
+ * ==========================
+ */
+const uploadInputRefs = reactive({});
+function setUploadInputRef(qid, el) {
+  if (el) uploadInputRefs[qid] = el;
+}
+function triggerUploadPick(qid) {
+  uploadInputRefs[qid]?.click?.();
+}
+function uploadAcceptAttr(q) {
+  if (!q.uploadRestrictEnabled) return "";
+  const types = Array.isArray(q.fileTypes) ? q.fileTypes : [];
+  const map = {
+    image: "image/*",
+    pdf: "application/pdf",
+    doc: ".doc",
+    docx: ".docx",
+    xls: ".xls",
+    xlsx: ".xlsx",
+    ppt: ".ppt",
+    pptx: ".pptx",
+    zip: ".zip",
+    txt: ".txt",
+  };
+  const accepts = types.map((t) => map[t]).filter(Boolean);
+  return accepts.join(",");
+}
+function validateUpload(q, files) {
+  const maxFiles = Number(q.maxFiles || 1);
+  const maxSizeMB = Number(q.maxSizeMB || 10);
+  const maxBytes = maxSizeMB * 1024 * 1024;
+
+  if (files.length > maxFiles) {
+    showToast(`Too many files (max ${maxFiles})`, "danger");
+    return false;
+  }
+  for (const f of files) {
+    if (f.size > maxBytes) {
+      showToast(`File too large (max ${maxSizeMB}MB)`, "danger");
+      return false;
+    }
+  }
+  return true;
+}
+function onUploadPick(e, q) {
+  const files = Array.from(e?.target?.files || []);
+  e.target.value = "";
+  if (!files.length) return;
+  if (!validateUpload(q, files)) return;
+
+  q.uploadPreviewFiles = files.map((f) => ({
+    id: uid(),
+    name: f.name,
+    size: f.size,
+    type: f.type,
+  }));
+}
+function onUploadDrop(e, q) {
+  const files = Array.from(e.dataTransfer?.files || []);
+  if (!files.length) return;
+  if (!validateUpload(q, files)) return;
+
+  q.uploadPreviewFiles = files.map((f) => ({
+    id: uid(),
+    name: f.name,
+    size: f.size,
+    type: f.type,
+  }));
+}
+function removeUploadPreviewFile(q, fid) {
+  q.uploadPreviewFiles = (q.uploadPreviewFiles || []).filter((x) => x.id !== fid);
+}
+
+/**
+ * ==========================
+ * Preview answer state
+ * ==========================
+ */
+const previewEmail = ref("");
+const previewAnswer = reactive({});
+const previewScoreAnswer = reactive({});
+const previewDateAnswer = reactive({});
+const previewTableAnswer = reactive({});
+
+/**
+ * table preview helpers
+ */
+function ensureTableState(qid) {
+  if (!previewTableAnswer[qid]) previewTableAnswer[qid] = { option: {}, checks: [] };
+}
+function isTableOptionChecked(q, ri, ci) {
+  ensureTableState(q.id);
+  return previewTableAnswer[q.id]?.option?.[ri] === ci;
+}
+function setTableOption(q, ri, ci) {
+  ensureTableState(q.id);
+  previewTableAnswer[q.id].option[ri] = ci;
+}
+function cellKey(qid, ri, ci) {
+  return `${qid}:${ri}:${ci}`;
+}
+function isTableCheckboxChecked(q, ri, ci) {
+  ensureTableState(q.id);
+  const key = cellKey(q.id, ri, ci);
+  return (previewTableAnswer[q.id].checks || []).includes(key);
+}
+function toggleTableCheckbox(q, ri, ci) {
+  ensureTableState(q.id);
+  const key = cellKey(q.id, ri, ci);
+  const arr = previewTableAnswer[q.id].checks;
+  const idx = arr.indexOf(key);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(key);
+}
+
+/**
+ * ==========================
+ * Draft payload -> DB
  * ==========================
  */
 function normalizeDraftType(qq) {
   const t = qq?.type;
-  if (t === "paragraph") return "long";
-  if (t === "mc") return "option";
-  if (t === "file") return "upload";
-  if (t === "grid") {
-    const mode = qq?.grid?.mode ?? qq?.gridMode;
-    return mode === "checkbox" ? "table_checkbox" : "table_option";
-  }
   if (
-    t === "short" ||
-    t === "long" ||
-    t === "option" ||
-    t === "checkbox" ||
-    t === "dropdown" ||
-    t === "upload" ||
-    t === "score" ||
-    t === "table_option" ||
-    t === "table_checkbox" ||
-    t === "date" ||
-    t === "time"
-  )
-    return t;
+    t === "short" || t === "long" || t === "option" || t === "checkbox" || t === "dropdown" ||
+    t === "upload" || t === "score" || t === "table_option" || t === "table_checkbox" ||
+    t === "date" || t === "time"
+  ) return t;
   return "short";
 }
 
-/**
- * ==========================
- *  ✅ Build payload that matches MySQL schema (backend)
- * ==========================
- */
 const apiPayload = computed(() => {
   const meta = {
     title: String(form.title ?? ""),
@@ -1700,11 +1717,7 @@ const apiPayload = computed(() => {
 
     const images = Array.isArray(q.images)
       ? q.images
-          .map((x) => ({
-            id: String(x?.id || uid()),
-            src: String(x?.src || ""),
-            kind: String(x?.kind || "url"),
-          }))
+          .map((x) => ({ id: String(x?.id || uid()), src: String(x?.src || ""), kind: String(x?.kind || "url") }))
           .filter((x) => x.src.trim().length > 0)
       : [];
 
@@ -1723,9 +1736,7 @@ const apiPayload = computed(() => {
     };
 
     if (needsOptions(type)) {
-      base.options = (Array.isArray(q.options) ? q.options : [])
-        .map((x) => String(x ?? ""))
-        .filter((x) => x.length > 0);
+      base.options = (Array.isArray(q.options) ? q.options : []).map((x) => String(x ?? "")).filter((x) => x.length > 0);
     }
 
     if (type === "upload") {
@@ -1738,10 +1749,7 @@ const apiPayload = computed(() => {
     }
 
     if (type === "score") {
-      base.score = {
-        max: Number(q.scoreMax || 5),
-        icon: String(q.scoreIcon || "star"),
-      };
+      base.score = { max: Number(q.scoreMax || 5), icon: String(q.scoreIcon || "star") };
     }
 
     if (type === "table_option" || type === "table_checkbox") {
@@ -1761,618 +1769,200 @@ const apiPayload = computed(() => {
 
 /**
  * ==========================
- *  JSON shown in UI (can include updatedAt, but NOT sent to API)
+ * Local template store
  * ==========================
+ */
+const TPL_KEY = "lapnet_form_templates";
+const uidTpl = () => `tpl_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+
+function readTemplatesStore() {
+  try {
+    const raw = localStorage.getItem(TPL_KEY);
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function writeTemplatesStore(arr) {
+  try {
+    localStorage.setItem(TPL_KEY, JSON.stringify(arr, null, 2));
+  } catch {}
+}
+function upsertTemplateFromPayload(payload, sourceFormId, opts = {}) {
+  try {
+    const now = new Date().toISOString();
+    const list = readTemplatesStore();
+
+    const sfid = sourceFormId != null ? String(sourceFormId) : null;
+    const serverId = opts?.serverId != null ? String(opts.serverId) : null;
+
+    let t = null;
+    if (sfid) t = list.find((x) => String(x?.sourceFormId || "") === sfid);
+
+    const fallbackName = String(payload?.meta?.title || "").trim() || "Untitled template";
+
+    if (!t) {
+      list.unshift({
+        id: uidTpl(),
+        serverId,
+        sourceFormId: sfid,
+        name: fallbackName,
+        note: "",
+        createdAt: now,
+        updatedAt: now,
+        payload: cloneJsonSafe(payload),
+      });
+    } else {
+      t.updatedAt = now;
+      t.sourceFormId = sfid;
+      t.payload = cloneJsonSafe(payload);
+      if (serverId) t.serverId = serverId;
+      if (!String(t.name || "").trim()) t.name = fallbackName;
+      if (t.createdAt == null) t.createdAt = now;
+    }
+
+    writeTemplatesStore(list);
+
+    if (sfid) localStorage.setItem("lapnet_last_template_sourceFormId", sfid);
+    if (serverId) localStorage.setItem("lapnet_last_template_serverId", serverId);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ==========================
+ * Save success alert
+ * ==========================
+ */
+const saveAlert = reactive({ show: false, id: null, sourceFormId: null });
+
+function openSaveAlert({ id, sourceFormId }) {
+  saveAlert.show = true;
+  saveAlert.id = id != null ? String(id) : null;
+  saveAlert.sourceFormId = sourceFormId != null ? String(sourceFormId) : null;
+}
+function closeSaveAlert() {
+  saveAlert.show = false;
+  saveAlert.id = null;
+  saveAlert.sourceFormId = null;
+}
+function goViewTemplates() {
+  closeSaveAlert();
+  router.push("/form-templates");
+}
+
+/**
+ * ==========================
+ * IDs (bigint safe)
+ * ==========================
+ */
+const formId = ref(null);
+const templateServerId = ref(null);
+
+function genDigitsId() {
+  const r = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `${Date.now()}${r}`;
+}
+function ensureSourceFormId() {
+  if (formId.value && /^\d+$/.test(String(formId.value))) return String(formId.value);
+  const id = genDigitsId();
+  formId.value = id;
+  return id;
+}
+
+/**
+ * ==========================
+ * DB API call: POST /api/form-templates/upsert
+ * ==========================
+ */
+async function upsertTemplateToDB({ sourceFormId, payload, name, note, activetoggle = 0 }) {
+  const sfid = sourceFormId != null ? String(sourceFormId).trim() : "";
+  if (!/^\d+$/.test(sfid)) throw new Error("sourceFormId must be digits string");
+
+  const body = {
+    sourceFormId: sfid,
+    name: String(name || "").trim() || String(payload?.meta?.title || "").trim() || "Untitled template",
+    note: note == null ? null : String(note),
+    payload,
+    activetoggle,
+  };
+
+  const resp = await fetch(`${TEMPLATE_API}/upsert`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data.ok) throw new Error(data.message || "Save template failed");
+
+  return {
+    id: data.id != null ? String(data.id) : null,
+    sourceFormId: data.sourceFormId != null ? String(data.sourceFormId) : sfid,
+    activetoggle: Number(data.activetoggle) ? 1 : 0,
+  };
+}
+
+/**
+ * Draft JSON text
  */
 const jsonText = computed(() => {
   const payload = {
     ...apiPayload.value,
     updatedAt: new Date().toISOString(),
-    id: formId.value || null,
+    sourceFormId: formId.value || null,
+    templateId: templateServerId.value || null,
   };
   return JSON.stringify(payload, null, 2);
 });
 
 /**
- * ==========================
- *  Active editor state
- * ==========================
- */
-const activeEditorEl = ref(null);
-const activeEditorQid = ref(null);
-const activeEditorKind = ref(null);
-
-function focusPop(e) {
-  const el = e.currentTarget;
-  gsap.to(el, { scale: 1.01, duration: 0.18, ease: "power2.out" });
-}
-function blurPop(e) {
-  const el = e.currentTarget;
-  gsap.to(el, { scale: 1, duration: 0.18, ease: "power2.out" });
-}
-function onEditorFocus(e) {
-  activeEditorEl.value = e.currentTarget;
-  activeEditorQid.value = e.currentTarget?.dataset?.qid || null;
-  activeEditorKind.value = e.currentTarget?.dataset?.editor || null;
-  focusPop(e);
-}
-function onEditorBlur(e) {
-  blurPop(e);
-}
-
-/**
- * ==========================
- *  Title formatting
- * ==========================
- */
-function isFullyWrappedByTag(html, tag) {
-  const t = String(tag).toLowerCase();
-  const h = String(html ?? "").trim();
-  const re = new RegExp(`^<${t}[^>]*>[\\s\\S]*<\\/${t}>$`, "i");
-  return re.test(h);
-}
-function unwrapOuterTag(html, tag) {
-  const t = String(tag).toLowerCase();
-  const h = String(html ?? "").trim();
-  const open = new RegExp(`^<${t}[^>]*>`, "i");
-  const close = new RegExp(`<\\/${t}>$`, "i");
-  return h.replace(open, "").replace(close, "");
-}
-function toggleWholeTagOnActive(tag) {
-  const el = activeEditorEl.value;
-  if (!el) {
-    showToast("Select title field first", "danger");
-    return;
-  }
-  const html = el.innerHTML || "";
-  const nextHtml = isFullyWrappedByTag(html, tag) ? unwrapOuterTag(html, tag) : `<${tag}>${html}</${tag}>`;
-  el.innerHTML = nextHtml;
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.focus();
-}
-function fmtSmart(cmd) {
-  if (!activeEditorEl.value) {
-    showToast("Select a text field first", "danger");
-    return;
-  }
-  if (activeEditorKind.value === "title") {
-    if (cmd === "bold") return toggleWholeTagOnActive("strong");
-    if (cmd === "italic") return toggleWholeTagOnActive("em");
-    if (cmd === "underline") return toggleWholeTagOnActive("u");
-  }
-  activeEditorEl.value.focus();
-  document.execCommand(cmd, false, null);
-  activeEditorEl.value.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
-/**
- * ==========================
- *  Hyperlink helpers
- * ==========================
- */
-function titleHasLink(html) {
-  return /<a\s+[^>]*href=/i.test(String(html ?? ""));
-}
-function getFirstHref(html) {
-  const s = String(html ?? "");
-  const m = s.match(/<a\s+[^>]*href\s*=\s*["']([^"']+)["']/i);
-  return m?.[1] || "";
-}
-function stripAllAnchorsKeepText(html) {
-  return String(html ?? "").replace(/<a\b[^>]*>/gi, "").replace(/<\/a>/gi, "");
-}
-function syncEditorDom(qid, kind, html) {
-  const root = listRef.value;
-  if (!root) return;
-  const el = root.querySelector?.(`[data-qid="${qid}"][data-editor="${kind}"]`);
-  if (el && el.innerHTML !== html) el.innerHTML = html;
-}
-function escapeAttr(s) {
-  return String(s ?? "").replace(/"/g, "&quot;");
-}
-function applyTitleLink(qid, url) {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return;
-
-  const clean = stripAllAnchorsKeepText(q.title);
-  const textOnly = stripHtml(clean);
-  const inner = textOnly.length ? clean : "Title";
-
-  q.title = `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
-  nextTick(() => syncEditorDom(qid, "title", q.title));
-}
-function removeTitleLink(qid) {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return;
-  q.title = stripAllAnchorsKeepText(q.title);
-  nextTick(() => syncEditorDom(qid, "title", q.title));
-  showToast("Removed link");
-}
-
-/**
- * ==========================
- *  Images under description
- * ==========================
- */
-function addQuestionImage(qid, src, kind = "url") {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return;
-  if (!Array.isArray(q.images)) q.images = [];
-  q.images.push({ id: uid(), src, kind });
-}
-function removeQuestionImage(qid, imgId) {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return;
-  q.images = (q.images || []).filter((x) => x.id !== imgId);
-}
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result || ""));
-    fr.onerror = reject;
-    fr.readAsDataURL(file);
-  });
-}
-async function onRichDrop(e) {
-  try {
-    const qid = e.currentTarget?.dataset?.qid || activeEditorQid.value;
-    if (!qid) return;
-
-    const files = Array.from(e.dataTransfer?.files || []);
-    const imgFiles = files.filter((f) => f && typeof f.type === "string" && f.type.startsWith("image/"));
-    if (!imgFiles.length) return;
-
-    for (const f of imgFiles) {
-      const dataUrl = await readFileAsDataUrl(f);
-      addQuestionImage(qid, dataUrl, "data");
-    }
-    showToast(`Added ${imgFiles.length} image(s)`);
-  } catch {
-    showToast("Add image failed", "danger");
-  }
-}
-
-/**
- * ==========================
- *  Overlay (Link / Image)
- * ==========================
- */
-const overlay = reactive({ show: false, mode: "link", url: "" });
-const overlayImgError = ref(false);
-const overlayImageInputRef = ref(null);
-
-function openLinkOverlay() {
-  if (activeEditorKind.value !== "title" || !activeEditorQid.value) {
-    showToast("Click Title field first (to add hyperlink)", "danger");
-    return;
-  }
-  const q = questions.value.find((x) => x.id === activeEditorQid.value);
-  overlay.mode = "link";
-  overlay.url = q ? getFirstHref(q.title) : "";
-  overlayImgError.value = false;
-  openOverlayAnim();
-}
-function openImageOverlay() {
-  if (!activeEditorQid.value) {
-    showToast("Click any field in a question first", "danger");
-    return;
-  }
-  overlay.mode = "image";
-  overlay.url = "";
-  overlayImgError.value = false;
-  openOverlayAnim();
-}
-function openOverlayAnim() {
-  overlay.show = true;
-  nextTick(() => {
-    if (!overlayCardRef.value) return;
-    gsap.killTweensOf(overlayCardRef.value);
-    gsap.fromTo(
-      overlayCardRef.value,
-      { y: 14, opacity: 0, scale: 0.98 },
-      { y: 0, opacity: 1, scale: 1, duration: 0.22, ease: "power3.out" }
-    );
-  });
-}
-function closeOverlay() {
-  overlay.show = false;
-  overlay.url = "";
-  overlayImgError.value = false;
-}
-function applyOverlay() {
-  const url = String(overlay.url || "").trim();
-  if (!url) return;
-
-  if (!activeEditorQid.value) {
-    showToast("No active question", "danger");
-    return;
-  }
-
-  if (overlay.mode === "link") {
-    if (activeEditorKind.value !== "title") {
-      showToast("Hyperlink applies to Title only", "danger");
-      return;
-    }
-    applyTitleLink(activeEditorQid.value, url);
-    showToast("Hyperlink added");
-    closeOverlay();
-    return;
-  }
-
-  if (overlayImgError.value) {
-    showToast("Image URL invalid", "danger");
-    return;
-  }
-
-  addQuestionImage(activeEditorQid.value, url, "url");
-  showToast("Image added");
-  closeOverlay();
-}
-function removeActiveTitleLink() {
-  if (activeEditorKind.value !== "title" || !activeEditorQid.value) {
-    showToast("Click Title field first", "danger");
-    return;
-  }
-  removeTitleLink(activeEditorQid.value);
-  closeOverlay();
-}
-function triggerOverlayImagePick() {
-  if (!activeEditorQid.value) {
-    showToast("Click a question field first", "danger");
-    return;
-  }
-  overlayImageInputRef.value?.click?.();
-}
-async function onOverlayImagePick(e) {
-  try {
-    const qid = activeEditorQid.value;
-    if (!qid) {
-      showToast("No active question", "danger");
-      return;
-    }
-
-    const files = Array.from(e.target?.files || []).filter((f) => f?.type?.startsWith?.("image/"));
-    if (!files.length) {
-      if (e.target) e.target.value = "";
-      return;
-    }
-
-    for (const f of files) {
-      const dataUrl = await readFileAsDataUrl(f);
-      addQuestionImage(qid, dataUrl, "data");
-    }
-
-    showToast(`Added ${files.length} image(s)`);
-    closeOverlay();
-    if (e.target) e.target.value = "";
-  } catch {
-    showToast("Upload image failed", "danger");
-  }
-}
-
-/**
- * ==========================
- *  Upload preview (for submission)
- * ==========================
- */
-const uploadInputRefs = ref({});
-function setUploadInputRef(qid, el) {
-  if (!qid) return;
-  if (el) uploadInputRefs.value[qid] = el;
-  else delete uploadInputRefs.value[qid];
-}
-function triggerUploadPick(qid) {
-  const el = uploadInputRefs.value[qid];
-  if (el) el.click();
-}
-function addUploadPreviewFiles(q, fileList) {
-  if (!q) return;
-  if (!Array.isArray(q.uploadPreviewFiles)) q.uploadPreviewFiles = [];
-
-  const files = Array.from(fileList || []);
-  if (!files.length) return;
-
-  const max = Number(q.maxFiles || 1);
-  const existing = (previewFiles[q.id] || []).length;
-  const remain = Math.max(0, max - existing);
-  const toAdd = files.slice(0, remain);
-
-  if (!previewFiles[q.id]) previewFiles[q.id] = [];
-  previewFiles[q.id].push(...toAdd);
-
-  for (const f of toAdd) {
-    q.uploadPreviewFiles.push({ id: uid(), name: f.name, size: f.size, type: f.type, lastModified: f.lastModified });
-  }
-
-  if (files.length > toAdd.length) showToast(`Max files = ${max}. Extra files ignored.`, "danger");
-  else showToast("Added file(s)");
-}
-function onUploadDrop(e, q) {
-  addUploadPreviewFiles(q, e.dataTransfer?.files);
-}
-function onUploadPick(e, q) {
-  addUploadPreviewFiles(q, e.target?.files);
-  if (e.target) e.target.value = "";
-}
-function removeUploadPreviewFile(q, fileId) {
-  const removed = (q.uploadPreviewFiles || []).find((x) => x.id === fileId);
-  q.uploadPreviewFiles = (q.uploadPreviewFiles || []).filter((x) => x.id !== fileId);
-
-  if (removed && Array.isArray(previewFiles[q.id])) {
-    previewFiles[q.id] = previewFiles[q.id].filter((f) => !(f.name === removed.name && f.size === removed.size));
-  }
-}
-
-/**
- * ==========================
- *  Anim
- * ==========================
- */
-async function animateNewQuestionCard(qid) {
-  await nextTick();
-  const card = listRef.value?.querySelector?.(`[data-qid="${qid}"]`);
-  if (!card) return;
-
-  gsap.killTweensOf(card);
-  gsap.fromTo(card, { y: 14, opacity: 0, scale: 0.99 }, { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "power3.out" });
-  gsap.fromTo(card, { boxShadow: "0 0 0 rgba(56,189,248,0)" }, { boxShadow: "0 18px 40px rgba(56,189,248,0.12)", duration: 0.35, yoyo: true, repeat: 1, ease: "power2.out" });
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
-/**
- * ==========================
- *  Actions
- * ==========================
- */
-async function addQuestion(type) {
-  const q = makeQuestion(type);
-  q.sort_order = questions.value.length + 1;
-  questions.value.push(q);
-  showToast("Added question");
-  await animateNewQuestionCard(q.id);
-}
-
-function removeQuestion(id) {
-  if (questions.value.length <= 1) {
-    showToast("Need at least 1 question", "danger");
-    return;
-  }
-  const idx = questions.value.findIndex((q) => q.id === id);
-  if (idx < 0) return;
-
-  const card = listRef.value?.querySelector?.(`[data-qid="${id}"]`);
-  if (card) {
-    gsap.to(card, {
-      y: -8,
-      opacity: 0,
-      duration: 0.18,
-      ease: "power2.in",
-      onComplete: () => {
-        questions.value.splice(idx, 1);
-        questions.value.forEach((qq, i) => (qq.sort_order = i + 1));
-        showToast("Deleted");
-      },
-    });
-  } else {
-    questions.value.splice(idx, 1);
-    questions.value.forEach((qq, i) => (qq.sort_order = i + 1));
-    showToast("Deleted");
-  }
-}
-
-function structuredCloneSafe(obj) {
-  try {
-    return structuredClone(obj);
-  } catch {
-    return JSON.parse(JSON.stringify(obj));
-  }
-}
-
-async function duplicateQuestion(id) {
-  const q = questions.value.find((x) => x.id === id);
-  if (!q) return;
-
-  const copy = { ...structuredCloneSafe(q), id: uid(), uploadPreviewFiles: [] };
-  const idx = questions.value.findIndex((x) => x.id === id);
-  questions.value.splice(idx + 1, 0, copy);
-
-  questions.value.forEach((qq, i) => (qq.sort_order = i + 1));
-
-  showToast("Duplicated");
-  await animateNewQuestionCard(copy.id);
-}
-
-function onTypeChange(q) {
-  delete previewScoreAnswer[q.id];
-  delete previewDateAnswer[q.id];
-
-  q.type = normalizeDraftType(q);
-
-  if (needsOptions(q.type)) {
-    if (!Array.isArray(q.options) || q.options.length === 0) q.options = ["Choice 1", "Choice 2"];
-  } else {
-    q.options = [];
-  }
-
-  if (q.type === "upload") {
-    q.uploadRestrictEnabled = !!q.uploadRestrictEnabled;
-    if (!Array.isArray(q.fileTypes)) q.fileTypes = ["image", "pdf"];
-    if (!q.fileTypes.length) q.fileTypes = ["image", "pdf"];
-    q.maxSizeMB = Number(q.maxSizeMB || 10);
-    q.maxFiles = Number(q.maxFiles || 1);
-    if (!Array.isArray(q.uploadPreviewFiles)) q.uploadPreviewFiles = [];
-  } else {
-    q.uploadPreviewFiles = [];
-  }
-
-  if (q.type === "score") {
-    q.scoreMax = Number(q.scoreMax || 5);
-    q.scoreIcon = q.scoreIcon || "star";
-  }
-
-  if (q.type === "table_option" || q.type === "table_checkbox") {
-    if (!Array.isArray(q.gridRows) || !q.gridRows.length) q.gridRows = ["Row 1", "Row 2"];
-    if (!Array.isArray(q.gridCols) || !q.gridCols.length) q.gridCols = ["Col 1", "Col 2", "Col 3"];
-  } else {
-    q.gridRows = [];
-    q.gridCols = [];
-  }
-
-  if (!Array.isArray(q.images)) q.images = [];
-  if (!q.sort_order) q.sort_order = questions.value.findIndex((x) => x.id === q.id) + 1;
-
-  initPreviewForQuestion(q);
-}
-
-/** options */
-function addOption(q) {
-  if (!needsOptions(q.type)) return;
-  if (!Array.isArray(q.options)) q.options = [];
-  q.options.push(`Choice ${q.options.length + 1}`);
-
-  nextTick(() => {
-    const card = listRef.value?.querySelector?.(`[data-qid="${q.id}"]`);
-    if (!card) return;
-    gsap.fromTo(card, { scale: 1 }, { scale: 1.01, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
-  });
-}
-function removeOption(q, i) {
-  if (!needsOptions(q.type)) return;
-  if (!Array.isArray(q.options)) return;
-  q.options.splice(i, 1);
-  if (q.options.length === 0) q.options = ["Choice 1"];
-}
-function duplicateOption(q, i) {
-  if (!needsOptions(q.type)) return;
-  if (!Array.isArray(q.options)) return;
-  const copy = String(q.options[i] ?? "");
-  q.options.splice(i + 1, 0, copy);
-  showToast("Duplicated item");
-}
-function normalizeOptions(q) {
-  if (!needsOptions(q.type)) return;
-  q.options = (q.options || []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
-  if (q.options.length === 0) q.options = ["Choice 1"];
-  showToast("Cleaned items");
-}
-
-/** file types */
-const openFileTypeFor = ref(null);
-function toggleFileTypeMenu(qid) {
-  openFileTypeFor.value = openFileTypeFor.value === qid ? null : qid;
-}
-function toggleFileType(q, typeKey) {
-  if (!Array.isArray(q.fileTypes)) q.fileTypes = [];
-  const i = q.fileTypes.indexOf(typeKey);
-  if (i >= 0) q.fileTypes.splice(i, 1);
-  else q.fileTypes.push(typeKey);
-}
-
-/** table */
-function addGridRow(q) {
-  if (!Array.isArray(q.gridRows)) q.gridRows = [];
-  q.gridRows.push(`Row ${q.gridRows.length + 1}`);
-}
-function removeGridRow(q, i) {
-  if (!Array.isArray(q.gridRows)) return;
-  q.gridRows.splice(i, 1);
-  if (!q.gridRows.length) q.gridRows = ["Row 1"];
-}
-function addGridCol(q) {
-  if (!Array.isArray(q.gridCols)) q.gridCols = [];
-  q.gridCols.push(`Col ${q.gridCols.length + 1}`);
-}
-function removeGridCol(q, i) {
-  if (!Array.isArray(q.gridCols)) return;
-  q.gridCols.splice(i, 1);
-  if (!q.gridCols.length) q.gridCols = ["Col 1"];
-}
-function normalizeGrid(q) {
-  q.gridRows = (q.gridRows || []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
-  q.gridCols = (q.gridCols || []).map((x) => String(x ?? "")).filter((x) => stripHtml(x).length > 0);
-  if (!q.gridRows.length) q.gridRows = ["Row 1"];
-  if (!q.gridCols.length) q.gridCols = ["Col 1"];
-  showToast("Cleaned table");
-}
-
-function togglePreview() {
-  isPreview.value = !isPreview.value;
-  if (isPreview.value) initPreviewState();
-
-  nextTick(() => {
-    const root = isPreview.value ? previewRef.value : builderRef.value;
-    if (!root) return;
-    gsap.killTweensOf(root);
-    gsap.fromTo(root, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" });
-  });
-}
-
-/**
- * ==========================
- *  ✅ SAVE: send apiPayload ONLY (no updatedAt)
- *  ✅ + Auto save/update Template to /formtemplates storage
- *  ✅ + NEW: show alert overlay (View / Close) on success
- * ==========================
+ * ✅ SAVE
+ * - ยังเซฟเข้า DB + local template store ได้เหมือนเดิม
+ * - ❌ แต่ "ไม่" เก็บ draft ลง localStorage แล้ว (เพื่อไม่ให้เปิดมาเจอค่าเก่า)
  */
 async function saveDraft() {
   try {
     const payload = apiPayload.value;
+    const sourceFormId = ensureSourceFormId();
 
-    const url = formId.value ? `${API_BASE}/api/forms/${formId.value}` : `${API_BASE}/api/forms`;
-    const method = formId.value ? "PUT" : "POST";
-
-    const resp = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const r = await upsertTemplateToDB({
+      sourceFormId,
+      payload,
+      name: String(payload?.meta?.title || "").trim() || "Untitled template",
+      note: null,
+      activetoggle: 0,
     });
 
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.message || "Save failed");
+    templateServerId.value = r.id;
 
-    formId.value = data.id;
+    upsertTemplateFromPayload(payload, sourceFormId, { serverId: r.id });
 
-    // ✅ keep draft locally (store id too)
-    localStorage.setItem("lapnet_create_form_draft", jsonText.value);
+    // ❌ เอาออก: ไม่บันทึก draft เก่าแล้ว
+    // localStorage.setItem(DRAFT_KEY, jsonText.value);
 
-    // ✅ auto save/update template store
-    const okTpl = upsertTemplateFromPayload(payload, formId.value);
-
-    showToast(`Saved to DB (id: ${data.id})${okTpl ? " + Template saved" : ""}`);
-
-    // ✅ NEW: open alert overlay after success
-    openSaveAlert(data.id);
+    showToast(`Saved ✅ templateId=${r.id} sourceFormId=${r.sourceFormId}`);
+    openSaveAlert({ id: r.id, sourceFormId: r.sourceFormId });
 
     if (btnSaveRef.value) {
       gsap.fromTo(btnSaveRef.value, { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
     }
   } catch (e) {
-    showToast(e.message || "Save failed", "danger");
+    showToast(e?.message || "Save failed", "danger");
   }
 }
 
-function resetAll() {
-  form.title = "";
-  form.description = "";
-  form.collectEmail = true;
-  form.allowEditAfterSubmit = false;
-  formId.value = null;
-  questions.value = [makeQuestion("short")];
-  questions.value[0].sort_order = 1;
-  openFileTypeFor.value = null;
-  showToast("Reset");
-}
-
 /**
- * ==========================
- *  Copy / Download JSON
- * ==========================
+ * Copy / Download / Reset
  */
 async function copyJson() {
   try {
     await navigator.clipboard.writeText(jsonText.value);
     showToast("Copied JSON");
-    if (btnCopyRef.value) gsap.fromTo(btnCopyRef.value, { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
   } catch {
     showToast("Copy failed", "danger");
   }
@@ -2389,204 +1979,134 @@ function downloadJson() {
     a.remove();
     URL.revokeObjectURL(url);
     showToast("Downloaded JSON");
-    if (btnDownloadRef.value) gsap.fromTo(btnDownloadRef.value, { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
   } catch {
     showToast("Download failed", "danger");
   }
 }
 
 /**
- * ==========================
- *  ✅ Preview submit (unchanged schema)
- * ==========================
+ * ✅ resetAll: เพิ่ม opts.silent และลบ draft key ทิ้ง
  */
-const isSubmitting = ref(false);
+function resetAll(opts = {}) {
+  const silent = !!opts.silent;
 
-async function ensureFormId() {
-  if (formId.value) return formId.value;
+  form.title = "";
+  form.description = "";
+  form.collectEmail = true;
+  form.allowEditAfterSubmit = false;
 
-  const payload = apiPayload.value;
+  isPreview.value = false;
 
-  const resp = await fetch(`${API_BASE}/api/forms`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  formId.value = null;
+  templateServerId.value = null;
 
-  const data = await resp.json();
-  if (!resp.ok || !data.ok) throw new Error(data.message || "Create form failed");
+  questions.value = [makeQuestion("short")];
+  questions.value[0].sort_order = 1;
 
-  formId.value = data.id;
-  localStorage.setItem("lapnet_create_form_draft", jsonText.value);
+  previewEmail.value = "";
 
-  return formId.value;
-}
-async function submitPreview() {
-  if (isSubmitting.value) return;
+  Object.keys(previewAnswer).forEach((k) => delete previewAnswer[k]);
+  Object.keys(previewScoreAnswer).forEach((k) => delete previewScoreAnswer[k]);
+  Object.keys(previewDateAnswer).forEach((k) => delete previewDateAnswer[k]);
+  Object.keys(previewTableAnswer).forEach((k) => delete previewTableAnswer[k]);
 
-  try {
-    isSubmitting.value = true;
+  // reset editor/menus/modals
+  activeEditorEl.value = null;
+  activeEditorMeta.qid = null;
+  activeEditorMeta.editor = null;
+  activeEditorMeta.idx = null;
+  openFileTypeFor.value = null;
 
-    if (form.collectEmail && !String(previewEmail.value || "").trim()) {
-      showToast("Email is required", "danger");
-      return;
-    }
+  closeOverlay();
+  closeSaveAlert();
 
-    const answers = [];
-    for (const q of questions.value) {
-      let val = null;
+  // ✅ ลบ draft เก่าทิ้ง เพื่อไม่ให้หลงเหลือ
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
 
-      if (q.type === "score") val = Number(previewScoreAnswer[q.id] || 0) || null;
-      else if (q.type === "date") val = String(previewDateAnswer[q.id] || "");
-      else if (q.type === "upload") val = null;
-      else if (q.type === "table_option" || q.type === "table_checkbox") val = previewTableAnswer[q.id] || {};
-      else val = previewAnswer[q.id];
-
-      const hasFiles = Array.isArray(previewFiles[q.id]) && previewFiles[q.id].length > 0;
-
-      if (q.required) {
-        if (q.type === "upload") {
-          if (!hasFiles) {
-            showToast(`Required: ${stripHtml(q.title) || "Upload question"}`, "danger");
-            return;
-          }
-        } else if (q.type === "table_option" || q.type === "table_checkbox") {
-          if (isEmptyTableAnswer(q)) {
-            showToast(`Required: ${stripHtml(q.title) || "Table question"}`, "danger");
-            return;
-          }
-        } else if (isEmptyAnswer(val)) {
-          showToast(`Required: ${stripHtml(q.title) || "Untitled question"}`, "danger");
-          return;
-        }
-      }
-
-      if (q.type === "checkbox" && !Array.isArray(val)) {
-        val = Array.isArray(previewAnswer[q.id]) ? previewAnswer[q.id] : [];
-      }
-
-      if (!isEmptyAnswer(val) || q.required) {
-        answers.push({ questionId: q.id, value: val });
-      }
-    }
-
-    const id = await ensureFormId();
-
-    const fd = new FormData();
-    fd.append(
-      "payload",
-      JSON.stringify({
-        respondentEmail: form.collectEmail ? (previewEmail.value || null) : null,
-        answers,
-      })
-    );
-
-    for (const q of questions.value) {
-      if (q.type !== "upload") continue;
-      const files = previewFiles[q.id] || [];
-      for (const f of files) fd.append(`file_${q.id}`, f);
-    }
-
-    const resp = await fetch(`${API_BASE}/api/forms/${id}/submissions`, {
-      method: "POST",
-      body: fd,
-    });
-
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) throw new Error(data.message || "Submit failed");
-
-    showToast(`Data insert success (submissionId: ${data.submissionId})`);
-
-    previewEmail.value = "";
-    for (const k of Object.keys(previewAnswer)) delete previewAnswer[k];
-    for (const k of Object.keys(previewTableAnswer)) delete previewTableAnswer[k];
-    for (const k of Object.keys(previewScoreAnswer)) delete previewScoreAnswer[k];
-    for (const k of Object.keys(previewDateAnswer)) delete previewDateAnswer[k];
-    for (const k of Object.keys(previewFiles)) delete previewFiles[k];
-    for (const q of questions.value) if (Array.isArray(q.uploadPreviewFiles)) q.uploadPreviewFiles = [];
-  } catch (e) {
-    showToast(e.message || "Submit failed", "danger");
-  } finally {
-    isSubmitting.value = false;
-  }
+  if (!silent) showToast("Reset");
 }
 
 /**
- * ==========================
- *  Load draft from localStorage (restore formId too)
- * ==========================
+ * Toggle preview
+ */
+function initPreviewForQuestion(q) {
+  if (!q?.id) return;
+  if (q.type === "checkbox" && !Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = [];
+  if (q.type === "date" && typeof previewDateAnswer[q.id] !== "string") previewDateAnswer[q.id] = String(previewDateAnswer[q.id] || "");
+  if (q.type === "score" && typeof previewScoreAnswer[q.id] !== "number") previewScoreAnswer[q.id] = Number(previewScoreAnswer[q.id] || 0);
+  if (q.type === "time") {
+    if (Array.isArray(previewAnswer[q.id])) previewAnswer[q.id] = "";
+    if (previewAnswer[q.id] == null) previewAnswer[q.id] = "";
+  }
+  if (q.type === "table_option" || q.type === "table_checkbox") ensureTableState(q.id);
+}
+function initPreviewState() {
+  for (const q of questions.value) initPreviewForQuestion(q);
+}
+function togglePreview() {
+  isPreview.value = !isPreview.value;
+  if (isPreview.value) initPreviewState();
+  nextTick(() => {
+    const root = isPreview.value ? previewRef.value : builderRef.value;
+    if (!root) return;
+    gsap.killTweensOf(root);
+    gsap.fromTo(root, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" });
+  });
+}
+
+/**
+ * Submit preview (ยังไม่มี backend)
+ */
+const isSubmitting = ref(false);
+async function submitPreview() {
+  const missing = [];
+  for (const q of questions.value) {
+    if (!q.required) continue;
+
+    if (q.type === "score") {
+      if (!Number(previewScoreAnswer[q.id] || 0)) missing.push(q);
+      continue;
+    }
+    if (q.type === "date") {
+      if (!String(previewDateAnswer[q.id] || "").trim()) missing.push(q);
+      continue;
+    }
+    if (q.type === "table_option" || q.type === "table_checkbox") {
+      ensureTableState(q.id);
+      const st = previewTableAnswer[q.id];
+      const ok =
+        q.type === "table_option"
+          ? Object.keys(st.option || {}).length > 0
+          : Array.isArray(st.checks) && st.checks.length > 0;
+      if (!ok) missing.push(q);
+      continue;
+    }
+
+    const ans = previewAnswer[q.id];
+    const empty = ans == null || (typeof ans === "string" && !ans.trim()) || (Array.isArray(ans) && ans.length === 0);
+    if (empty) missing.push(q);
+  }
+
+  if (form.collectEmail && !String(previewEmail.value || "").trim()) {
+    showToast("Email is required", "danger");
+    return;
+  }
+
+  if (missing.length) {
+    showToast(`Missing required: ${missing.length} question(s)`, "danger");
+    return;
+  }
+
+  showToast("Submit endpoint ยังไม่มีใน backend (ตอนนี้มีแค่ /api/form-templates/upsert)", "danger");
+}
+
+/**
+ * ✅ mounted: เข้าเพจแล้ว "รีเฟรชทั้งหมด" ทุกครั้ง
+ * - ไม่โหลดค่าเก่าจาก localStorage อีก
+ * - ลบทิ้ง draft key ทันที
  */
 onMounted(async () => {
-  try {
-    const draft = localStorage.getItem("lapnet_create_form_draft");
-    if (draft) {
-      const parsed = JSON.parse(draft);
-
-      if (parsed?.id) formId.value = parsed.id;
-
-      if (parsed?.meta) {
-        form.title = parsed.meta.title || "";
-        form.description = parsed.meta.description || "";
-        form.collectEmail = !!parsed.meta.collectEmail;
-        form.allowEditAfterSubmit = !!parsed.meta.allowEditAfterSubmit;
-      }
-
-      if (Array.isArray(parsed?.questions) && parsed.questions.length) {
-        questions.value = parsed.questions.map((qq, idx) => {
-          const type = normalizeDraftType(qq);
-
-          const q = {
-            id: qq.id || uid(),
-            type,
-
-            title: qq.title || "",
-            description: qq.description || "",
-            required: !!qq.required,
-
-            sort_order: Number(qq.sort_order ?? idx + 1),
-
-            images: Array.isArray(qq.images)
-              ? qq.images.map((x) => ({ id: x.id || uid(), src: x.src, kind: x.kind || "url" }))
-              : [],
-
-            options: Array.isArray(qq.options) ? [...qq.options] : [],
-
-            uploadRestrictEnabled: !!(qq.upload?.restrictEnabled ?? qq.uploadRestrictEnabled ?? false),
-            fileTypes: qq.upload?.fileTypes || qq.fileTypes || [],
-            maxSizeMB: Number(qq.upload?.maxSizeMB ?? qq.maxSizeMB ?? 10),
-            maxFiles: Number(qq.upload?.maxFiles ?? qq.maxFiles ?? 1),
-            uploadPreviewFiles: [],
-
-            scoreMax: Number(qq.score?.max ?? qq.scoreMax ?? 5),
-            scoreIcon: qq.score?.icon ?? qq.scoreIcon ?? "star",
-
-            gridRows: Array.isArray(qq.table?.rows)
-              ? [...qq.table.rows]
-              : Array.isArray(qq.grid?.rows)
-              ? [...qq.grid.rows]
-              : Array.isArray(qq.gridRows)
-              ? [...qq.gridRows]
-              : [],
-
-            gridCols: Array.isArray(qq.table?.cols)
-              ? [...qq.table.cols]
-              : Array.isArray(qq.grid?.cols)
-              ? [...qq.grid.cols]
-              : Array.isArray(qq.gridCols)
-              ? [...qq.gridCols]
-              : [],
-          };
-
-          onTypeChange(q);
-          return q;
-        });
-
-        questions.value.forEach((qq, i) => (qq.sort_order = i + 1));
-      }
-    }
-  } catch {
-    // ignore
-  }
+  resetAll({ silent: true });
 
   await nextTick();
 
@@ -2596,31 +2116,35 @@ onMounted(async () => {
   if (builderRef.value) tl.fromTo(builderRef.value, { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42 }, 0.12);
   if (sideToolsRef.value) tl.fromTo(sideToolsRef.value, { x: 14, opacity: 0 }, { x: 0, opacity: 1, duration: 0.42 }, 0.16);
 
-  const cards = listRef.value?.querySelectorAll?.(".qCard");
-  if (cards?.length) tl.fromTo(cards, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.06 }, 0.2);
+  window.addEventListener("mousedown", onGlobalMouseDown);
+});
 
-  window.addEventListener("click", (e) => {
-    const el = e.target;
-    if (!el?.closest?.(".fileTypePicker")) openFileTypeFor.value = null;
-  });
+function onGlobalMouseDown(e) {
+  if (!openFileTypeFor.value) return;
+  const el = e.target;
+  const menu = document.querySelector(".fileTypeMenu");
+  const btn = document.querySelector(".fileTypePicker .btn");
+  if (menu && menu.contains(el)) return;
+  if (btn && btn.contains(el)) return;
+  openFileTypeFor.value = null;
+}
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlay.show) closeOverlay();
-    // ✅ NEW: ESC closes save alert too
-    if (e.key === "Escape" && saveAlert.show) closeSaveAlert();
-  });
+onBeforeUnmount(() => {
+  window.removeEventListener("mousedown", onGlobalMouseDown);
+  if (toastTimer) clearTimeout(toastTimer);
 });
 </script>
 
-
-
 <style scoped>
+/* (คง style ของคุณไว้ตามเดิม) */
 .createFormPage {
   width: 100%;
   height: 100%;
   padding: 10px 6px;
   color: var(--txt);
 }
+
+/* Toast */
 .toast {
   position: fixed;
   right: 18px;
@@ -2663,6 +2187,7 @@ onMounted(async () => {
   font-weight: 900;
   color: rgba(255, 255, 255, 0.72);
 }
+
 .pageTopbar {
   display: flex;
   align-items: flex-start;
@@ -2675,19 +2200,55 @@ onMounted(async () => {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
   margin-bottom: 12px;
 }
-.titleRow { display: flex; align-items: center; gap: 10px; }
-.pageTitle { margin: 0; font-size: 18px; font-weight: 950; letter-spacing: 0.2px; }
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+}
+
 .pill {
-  font-size: 11px; font-weight: 900; padding: 4px 8px; border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 999px;
   background: rgba(56, 189, 248, 0.12);
   border: 1px solid rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.9);
 }
-.pageSub { margin: 6px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.6); line-height: 1.4; }
-.topRight { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
-.layout { display: grid; grid-template-columns: 1fr 360px; gap: 12px; }
-@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+.pageSub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 12px;
+}
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
 
 .card {
   position: relative;
@@ -2717,14 +2278,32 @@ onMounted(async () => {
   box-shadow: 0 14px 28px rgba(56, 189, 248, 0.1);
   transform: translateY(-1px);
 }
-.btn.ghost { border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); }
-.btn.ghost:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(56, 189, 248, 0.22); }
-.btn.smallBtn { padding: 9px 10px; border-radius: 12px; font-size: 12px; }
-.dangerBtn { border-color: rgba(248, 113, 113, 0.26) !important; }
-.dangerBtn:hover { border-color: rgba(248, 113, 113, 0.42) !important; background: rgba(248, 113, 113, 0.08) !important; }
+.btn.ghost {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.btn.ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(56, 189, 248, 0.22);
+}
+.btn.smallBtn {
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.dangerBtn {
+  border-color: rgba(248, 113, 113, 0.26) !important;
+}
+.dangerBtn:hover {
+  border-color: rgba(248, 113, 113, 0.42) !important;
+  background: rgba(248, 113, 113, 0.08) !important;
+}
 
 .miniBtn {
-  width: 34px; height: 34px; border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.9);
@@ -2733,13 +2312,32 @@ onMounted(async () => {
   place-items: center;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
-.miniBtn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.05); border-color: rgba(56, 189, 248, 0.18); }
-.miniBtn.danger { border-color: rgba(248, 113, 113, 0.18); }
-.miniBtn.danger:hover { border-color: rgba(248, 113, 113, 0.35); background: rgba(248, 113, 113, 0.08); }
+.miniBtn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(56, 189, 248, 0.18);
+}
+.miniBtn.danger {
+  border-color: rgba(248, 113, 113, 0.18);
+}
+.miniBtn.danger:hover {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+}
 
-.field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: 12px; font-weight: 800; color: rgba(255, 255, 255, 0.72); }
-.input, .textarea, .select {
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.72);
+}
+.input,
+.textarea,
+.select {
   width: 100%;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2748,21 +2346,30 @@ onMounted(async () => {
   padding: 10px 12px;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-
   direction: ltr;
   text-align: left;
   unicode-bidi: plaintext;
   writing-mode: horizontal-tb;
 }
-.input:focus, .textarea:focus, .select:focus {
+.input:focus,
+.textarea:focus,
+.select:focus {
   border-color: rgba(56, 189, 248, 0.35);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1);
 }
-.textarea { resize: vertical; }
-.select { appearance: none; }
-.inputModern { background: rgba(8, 12, 28, 0.35); border-color: rgba(255, 255, 255, 0.12); }
+.textarea {
+  resize: vertical;
+}
+.select {
+  appearance: none;
+}
+.inputModern {
+  background: rgba(8, 12, 28, 0.35);
+  border-color: rgba(255, 255, 255, 0.12);
+}
 
-.richInput, .optionInput {
+.richInput,
+.optionInput {
   direction: ltr;
   text-align: left;
   unicode-bidi: plaintext;
@@ -2780,122 +2387,277 @@ onMounted(async () => {
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   line-height: 1.45;
 }
-
-
-.richInput:focus { border-color: rgba(56, 189, 248, 0.35); box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1); }
-.richInput:empty:before { content: attr(data-placeholder); color: rgba(255, 255, 255, 0.45); }
+.richInput:focus {
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1);
+}
+.richInput:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.45);
+}
 
 .titleRich.hasLink,
-.titleRich.hasLink :deep(a) {
+.titleRich :deep(a) {
   color: rgba(248, 113, 113, 0.95) !important;
 }
-.titleRich :deep(a) { text-decoration: underline; }
+.titleRich :deep(a) {
+  text-decoration: underline;
+}
 
 .switchWrap {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.switchWrap.compact { padding: 10px 10px; }
+.switchWrap.compact {
+  padding: 10px 10px;
+}
 .switch {
-  width: 44px; height: 26px; border-radius: 999px;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
-  cursor: pointer; position: relative;
+  cursor: pointer;
+  position: relative;
   transition: background 160ms ease, border-color 160ms ease;
 }
 .switch .knob {
-  position: absolute; top: 50%; left: 4px; transform: translateY(-50%);
-  width: 20px; height: 20px; border-radius: 999px; background: rgba(255, 255, 255, 0.9);
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
   transition: left 160ms ease;
 }
-.switch.on { background: rgba(56, 189, 248, 0.22); border-color: rgba(56, 189, 248, 0.3); }
-.switch.on .knob { left: 20px; }
-.switchText { display: flex; flex-direction: column; line-height: 1.2; }
-.switchTitle { font-weight: 900; font-size: 12px; }
-.switchSub { font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+.switch.on {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.switch.on .knob {
+  left: 20px;
+}
+.switchText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.switchTitle {
+  font-weight: 900;
+  font-size: 12px;
+}
+.switchSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
 
-.metaCard { overflow: hidden; }
-.metaHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.metaCard {
+  overflow: hidden;
+}
+.metaHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
 .metaBadge {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-weight: 900; font-size: 12px;
-  padding: 8px 10px; border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 999px;
   background: rgba(56, 189, 248, 0.1);
   border: 1px solid rgba(56, 189, 248, 0.16);
 }
-.metaActions { display: inline-flex; gap: 8px; }
-.metaGrid { display: grid; gap: 10px; }
-.fieldRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 900px) { .fieldRow { grid-template-columns: 1fr; } }
-
-.builderHeader, .previewHeader {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 4px 8px; margin: 0 6px 8px;
+.metaActions {
+  display: inline-flex;
+  gap: 8px;
 }
-.builderTitle, .previewTitle { display: inline-flex; align-items: center; gap: 10px; font-weight: 950; }
-.builderHint, .previewHint { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.metaGrid {
+  display: grid;
+  gap: 10px;
+}
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
 
-.qList { display: flex; flex-direction: column; gap: 10px; }
-.qCard { overflow: hidden; }
-.qTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.qIndex { display: inline-flex; align-items: center; gap: 10px; }
+.builderHeader,
+.previewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 4px 8px;
+  margin: 0 6px 8px;
+}
+.builderTitle,
+.previewTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+}
+.builderHint,
+.previewHint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.qList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.qCard {
+  overflow: hidden;
+}
+.qTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.qIndex {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 .qBadge {
-  width: 28px; height: 28px; border-radius: 999px;
-  display: grid; place-items: center; font-weight: 950;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
   background: rgba(56, 189, 248, 0.16);
   border: 1px solid rgba(56, 189, 248, 0.18);
 }
 .qTypePill {
-  font-size: 11px; font-weight: 900; padding: 5px 9px; border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 9px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.82);
 }
-.qTools { display: inline-flex; gap: 8px; }
-.qGrid { display: grid; gap: 10px; }
+.qTools {
+  display: inline-flex;
+  gap: 8px;
+}
+.qGrid {
+  display: grid;
+  gap: 10px;
+}
 
 .formatBar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 10px; border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 10px;
 }
 .fmtBtn {
-  width: 34px; height: 34px; border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
-.fmtBtn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.05); border-color: rgba(56, 189, 248, 0.18); }
-.fmtHint { margin-left: auto; font-size: 11px; color: rgba(255, 255, 255, 0.55); font-weight: 800; }
+.fmtBtn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(56, 189, 248, 0.18);
+}
+.fmtHint {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 800;
+}
 
 .options {
-  margin-top: 6px; padding: 10px; border-radius: 16px;
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.optionsHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
-.optionsHead.tight { margin-bottom: 6px; }
-.optionsTitle { display: inline-flex; align-items: center; gap: 10px; font-weight: 950; font-size: 12px; }
-.optionsList { display: flex; flex-direction: column; gap: 8px; }
-.optionRow { display: grid; grid-template-columns: 26px 1fr 34px 34px; gap: 10px; align-items: center; }
-.optionRowTight { grid-template-columns: 26px 1fr 34px; }
+.optionsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+.optionsHead.tight {
+  margin-bottom: 6px;
+}
+.optionsTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+  font-size: 12px;
+}
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.optionRow {
+  display: grid;
+  grid-template-columns: 26px 1fr 34px 34px;
+  gap: 10px;
+  align-items: center;
+}
+.optionRowTight {
+  grid-template-columns: 26px 1fr 34px;
+}
 .optionIcon {
-  width: 26px; height: 26px; border-radius: 12px;
-  display: grid; place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.85);
 }
-.optionInput { width: 100%; }
-.optionsFoot { margin-top: 8px; display: flex; justify-content: flex-end; }
-
+.optionInput {
+  width: 100%;
+}
+.optionsFoot {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
 .tinyBtn {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
@@ -2909,12 +2671,22 @@ onMounted(async () => {
   font-weight: 900;
   font-size: 12px;
 }
-.tinyBtn:hover { border-color: rgba(56, 189, 248, 0.18); background: rgba(255, 255, 255, 0.05); }
-.linkTiny { margin-left: 8px; padding: 6px 10px; }
+.tinyBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+}
+.linkTiny {
+  margin-left: 8px;
+  padding: 6px 10px;
+}
+.hintTiny {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 800;
+  margin-top: 6px;
+}
 
-.hintTiny { font-size: 11px; color: rgba(255, 255, 255, 0.55); font-weight: 800; margin-top: 6px; }
-
-/* ✅ Image preview under description: NO CROP, scale to image */
+/* Image preview under description */
 .imgPreviewWrap {
   margin-top: 10px;
   padding: 10px;
@@ -2942,7 +2714,9 @@ onMounted(async () => {
   gap: 10px;
 }
 @media (max-width: 900px) {
-  .imgGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .imgGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .imgTile {
   position: relative;
@@ -2950,15 +2724,12 @@ onMounted(async () => {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(0, 0, 0, 0.12);
-
-  /* ✅ center image and allow natural height */
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
 }
 .imgTile img {
-  /* ✅ no crop / keep aspect ratio */
   max-width: 100%;
   max-height: 320px;
   width: auto;
@@ -2982,56 +2753,139 @@ onMounted(async () => {
   background: rgba(248, 113, 113, 0.14);
 }
 
-.fileSettings { display: grid; gap: 10px; margin-top: 10px; }
-.fileTypePicker { position: relative; display: grid; gap: 10px; }
+.fileSettings {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.fileTypePicker {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
 .fileTypeMenu {
-  position: absolute; top: 46px; left: 0; right: 0; z-index: 5;
-  border-radius: 16px; padding: 10px;
+  position: absolute;
+  top: 46px;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  border-radius: 16px;
+  padding: 10px;
   background: rgba(8, 12, 28, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.10);
   backdrop-filter: blur(14px);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
 }
-.fileTypeRow { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 12px; color: rgba(255, 255, 255, 0.9); }
-.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.fileTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px; border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
   background: rgba(56, 189, 248, 0.12);
   border: 1px solid rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
-  font-size: 12px; font-weight: 900; cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
 }
-.chip.ghost { cursor: default; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.75); }
-.chip i { font-size: 11px; opacity: 0.8; }
+.chip.ghost {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+}
+.chip i {
+  font-size: 11px;
+  opacity: 0.8;
+}
 
-.scorePreviewRow { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.scorePreviewRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
 .scoreBtn {
-  width: 38px; height: 38px; border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.92);
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
-.scoreBtn:hover { border-color: rgba(56, 189, 248, 0.18); background: rgba(255, 255, 255, 0.05); transform: translateY(-1px); }
-.previewScore .scoreBtn.active { border-color: rgba(56, 189, 248, 0.38); background: rgba(56, 189, 248, 0.10); }
+.scoreBtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+.previewScore .scoreBtn.active {
+  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(56, 189, 248, 0.10);
+}
 
-.gridEditor { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.gridCol { display: grid; gap: 8px; }
-@media (max-width: 900px) { .gridEditor { grid-template-columns: 1fr; } }
+.gridEditor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.gridCol {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .gridEditor {
+    grid-template-columns: 1fr;
+  }
+}
 
-.bottomAdd { display: flex; gap: 10px; padding: 12px 6px 4px; flex-wrap: wrap; }
+.bottomAdd {
+  display: flex;
+  gap: 10px;
+  padding: 12px 6px 4px;
+  flex-wrap: wrap;
+}
 
-.sideTools { position: sticky; top: 14px; align-self: start; display: flex; flex-direction: column; gap: 12px; }
+.sideTools {
+  position: sticky;
+  top: 14px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .toolCard {
-  border-radius: 18px; padding: 12px;
+  border-radius: 18px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
 }
-.toolTitle { display: inline-flex; align-items: center; gap: 10px; font-weight: 950; margin-bottom: 10px; }
+.toolTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+  margin-bottom: 10px;
+}
 .toolBtn {
   width: 100%;
   border-radius: 14px;
@@ -3047,8 +2901,16 @@ onMounted(async () => {
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
   margin-bottom: 8px;
 }
-.toolBtn:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(56, 189, 248, 0.18); transform: translateY(-1px); }
-.toolDivider { height: 1px; background: rgba(255, 255, 255, 0.08); margin: 8px 0; }
+.toolBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+.toolDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 8px 0;
+}
 
 .jsonBox {
   border-radius: 16px;
@@ -3057,66 +2919,166 @@ onMounted(async () => {
   background: rgba(0, 0, 0, 0.18);
 }
 .jsonHead {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
-.jsonTitle { font-weight: 950; font-size: 12px; }
-.jsonMeta { font-size: 11px; color: rgba(255, 255, 255, 0.6); font-weight: 900; }
+.jsonTitle {
+  font-weight: 950;
+  font-size: 12px;
+}
+.jsonMeta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 900;
+}
 .jsonPre {
-  margin: 0; padding: 10px;
-  font-size: 11px; line-height: 1.4;
-  max-height: 360px; overflow: auto;
+  margin: 0;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  max-height: 360px;
+  overflow: auto;
   color: rgba(255, 255, 255, 0.78);
 }
 
-.previewList { display: flex; flex-direction: column; gap: 10px; }
-.previewCard { margin-bottom: 10px; }
-.previewFormTitle { font-size: 18px; font-weight: 950; }
-.previewFormDesc { margin-top: 6px; color: rgba(255, 255, 255, 0.6); font-size: 12px; line-height: 1.5; }
-.previewEmail { margin-top: 12px; }
-.previewQTitle { display: flex; align-items: center; gap: 10px; font-weight: 950; }
-.qText :deep(a) { color: rgba(248, 113, 113, 0.95); }
+.previewList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.previewCard {
+  margin-bottom: 10px;
+}
+.previewFormTitle {
+  font-size: 18px;
+  font-weight: 950;
+}
+.previewFormDesc {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.previewEmail {
+  margin-top: 12px;
+}
+.previewQTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+}
+.qText :deep(a) {
+  color: rgba(248, 113, 113, 0.95);
+}
 .qNum {
-  width: 26px; height: 26px; border-radius: 999px;
-  display: grid; place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
   font-size: 12px;
   background: rgba(56, 189, 248, 0.14);
   border: 1px solid rgba(56, 189, 248, 0.16);
 }
-.req { margin-left: auto; color: rgba(248, 113, 113, 0.95); }
-.previewQDesc { margin-top: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.58); }
-.previewControl { margin-top: 12px; }
-.choiceList { display: flex; flex-direction: column; gap: 8px; }
-.choiceRow { display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255, 255, 255, 0.85); }
-.previewFooter { display: flex; gap: 10px; flex-wrap: wrap; padding: 10px 6px 4px; }
+.req {
+  margin-left: auto;
+  color: rgba(248, 113, 113, 0.95);
+}
+.previewQDesc {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.58);
+}
+.previewControl {
+  margin-top: 12px;
+}
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.choiceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.previewFooter {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 6px 4px;
+}
 
-.previewUpload { display: grid; gap: 10px; }
-.uploadMeta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.previewUpload {
+  display: grid;
+  gap: 10px;
+}
+.uploadMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .filePill {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-weight: 950; font-size: 12px;
-  padding: 6px 10px; border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 950;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
   background: rgba(56, 189, 248, 0.10);
   border: 1px solid rgba(56, 189, 248, 0.16);
 }
-.fileHint { font-size: 11px; color: rgba(255, 255, 255, 0.58); font-weight: 800; }
-
+.fileHint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 800;
+}
 .dropZone {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px; border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px dashed rgba(255, 255, 255, 0.16);
   background: rgba(0, 0, 0, 0.14);
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
-.dropZone:hover { border-color: rgba(56, 189, 248, 0.26); background: rgba(56, 189, 248, 0.06); transform: translateY(-1px); }
-.dzText { display: flex; flex-direction: column; gap: 2px; }
-.dzTitle { font-weight: 950; font-size: 12px; }
-.dzSub { font-size: 11px; color: rgba(255, 255, 255, 0.6); font-weight: 800; }
-.hiddenInput { display: none; }
-
-.uploadList { display: grid; gap: 8px; }
+.dropZone:hover {
+  border-color: rgba(56, 189, 248, 0.26);
+  background: rgba(56, 189, 248, 0.06);
+  transform: translateY(-1px);
+}
+.dzText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dzTitle {
+  font-weight: 950;
+  font-size: 12px;
+}
+.dzSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 800;
+}
+.hiddenInput {
+  display: none;
+}
+.uploadList {
+  display: grid;
+  gap: 8px;
+}
 .uploadItem {
   display: grid;
   grid-template-columns: 18px 1fr 34px;
@@ -3127,28 +3089,61 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
 }
-.uMeta { display: flex; flex-direction: column; gap: 2px; }
-.uName { font-weight: 950; font-size: 12px; }
-.uSub { font-size: 11px; color: rgba(255, 255, 255, 0.6); font-weight: 800; }
+.uMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.uName {
+  font-weight: 950;
+  font-size: 12px;
+}
+.uSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 800;
+}
 
-.previewGrid { display: grid; gap: 10px; }
-.gridMeta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* table preview */
+.previewGrid {
+  display: grid;
+  gap: 10px;
+}
+.gridMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .gridPill {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-weight: 950; font-size: 12px;
-  padding: 6px 10px; border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 950;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
   background: rgba(56, 189, 248, 0.10);
   border: 1px solid rgba(56, 189, 248, 0.16);
 }
-.gridHint { font-size: 11px; color: rgba(255, 255, 255, 0.58); font-weight: 800; }
+.gridHint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 800;
+}
 .gridTableWrap {
   overflow: auto;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.14);
 }
-.gridTable { width: 100%; border-collapse: collapse; min-width: 520px; }
-.gridTable th, .gridTable td {
+.gridTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+.gridTable th,
+.gridTable td {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -3156,11 +3151,22 @@ onMounted(async () => {
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
 }
-.gridTable th:last-child, .gridTable td:last-child { border-right: none; }
-.gridCorner { width: 180px; }
-.gridRowHead { font-weight: 900; color: rgba(255, 255, 255, 0.9); }
-.gridCell { text-align: center; }
+.gridTable th:last-child,
+.gridTable td:last-child {
+  border-right: none;
+}
+.gridCorner {
+  width: 180px;
+}
+.gridRowHead {
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.9);
+}
+.gridCell {
+  text-align: center;
+}
 
+/* overlay */
 .overlay {
   position: fixed;
   inset: 0;
@@ -3195,7 +3201,11 @@ onMounted(async () => {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.92);
 }
-.overlayBody { padding: 12px; display: grid; gap: 12px; }
+.overlayBody {
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
 .overlayInput {
   background: rgba(0, 0, 0, 0.22);
   border-color: rgba(56, 189, 248, 0.20);
@@ -3215,7 +3225,9 @@ onMounted(async () => {
   font-weight: 950;
   font-size: 12px;
 }
-.overlayImgBox { padding: 10px; }
+.overlayImgBox {
+  padding: 10px;
+}
 .overlayImgBox img {
   width: 100%;
   max-height: 260px;
@@ -3242,26 +3254,4 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 10px;
 }
-
-.toast {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 99999;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  background: rgba(8, 12, 28, 0.72);
-  backdrop-filter: blur(12px);
-  color: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(6px);
-}
-.toast.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
-.toast.danger { border-color: rgba(248, 113, 113, 0.28); }
 </style>

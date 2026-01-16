@@ -23,7 +23,7 @@ import Lapnetedit from '../view/lapnet/lapnetedit.vue'
 import Mainvisitors from '../view/visitors/mainvisitors.vue'
 import Createform from '../view/createform/createform.vue'
 import mainnotification from '../view/notification/mainnotification.vue'
-import Formtemplete from '../view/createform/formtemplete.vue'
+import formtemplete from '../view/createform/formtemplete.vue'
 const routes = [
   {
     path: '/',
@@ -35,6 +35,7 @@ const routes = [
     name: '',
     component: Dashboardview,
   },
+  
   {
     path: '/memberinsert',
     name: 'memberinsert',
@@ -146,17 +147,17 @@ const routes = [
     name: 'createform',
     component: Createform,
   },
+    {
+    path: '/form-templates',
+    name: 'formtemplete',
+    component: formtemplete,
+  },
  
     // ######################## createform part ######################
     {
     path: '/notifications',
     name: 'notifications',
     component: mainnotification,
-  },
-    {
-    path: '/formtemplete',
-    name: 'formtemplete',
-    component: Formtemplete,
   },
 
 
