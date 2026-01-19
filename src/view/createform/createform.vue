@@ -19,10 +19,12 @@
           <span>{{ isPreview ? "Back to Builder" : "Preview" }}</span>
         </button>
 
-        <button class="btn" type="button" @click="saveDraft" ref="btnSaveRef">
-          <i class="fa-solid fa-cloud-arrow-up"></i>
-          <span>Save</span>
-        </button>
+   <button class="btn" type="button" @click="saveDraft" ref="btnSaveRef" :disabled="isSaving">
+  <i class="fa-solid fa-cloud-arrow-up"></i>
+  <span>{{ isSaving ? "Saving..." : "Save" }}</span>
+</button>
+
+
 
         <button class="btn ghost" type="button" @click="copyJson" ref="btnCopyRef">
           <i class="fa-solid fa-copy"></i>
@@ -361,13 +363,14 @@
                   <button class="fmtBtn" type="button" title="Italic (Title = whole)" @click="fmtSmart('italic')"><i>I</i></button>
                   <button class="fmtBtn" type="button" title="Underline (Title = whole)" @click="fmtSmart('underline')"><u>U</u></button>
 
-                  <button class="fmtBtn" type="button" title="Add hyperlink to TITLE" @click="openLinkOverlay()">
-                    <i class="fa-solid fa-link"></i>
-                  </button>
+                <!-- ✅ แก้เป็น -->
+<button class="fmtBtn" type="button" title="Add hyperlink to TITLE" @click="openLinkOverlay(q.id)">
+  <i class="fa-solid fa-link"></i>
+</button>
 
-                  <button class="fmtBtn" type="button" title="Insert image (URL or Upload)" @click="openImageOverlay()">
-                    <i class="fa-regular fa-image"></i>
-                  </button>
+<button class="fmtBtn" type="button" title="Insert image (URL or Upload)" @click="openImageOverlay(q.id)">
+  <i class="fa-regular fa-image"></i>
+</button>
 
                   <div class="fmtHint" v-if="!activeEditorEl">
                     Click a text field • Drag & drop IMAGE into any field to preview under description
@@ -976,6 +979,7 @@
   </div>
 </template>
 
+
 <script setup>
 import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -1067,6 +1071,10 @@ function cloneJsonSafe(obj) {
     return JSON.parse(JSON.stringify(obj));
   }
 }
+function toPlainJson(obj) {
+  // ✅ กัน Vue reactive/proxy + ให้เป็น JSON ล้วน ๆ ก่อนส่งเข้า backend
+  return JSON.parse(JSON.stringify(obj));
+}
 function needsOptions(type) {
   return type === "option" || type === "checkbox" || type === "dropdown";
 }
@@ -1093,136 +1101,6 @@ function typeLabel(type) {
 }
 function focusPop() {}
 function blurPop() {}
-
-/**
- * ==========================
- * Overlay (link/image)
- * ==========================
- */
-const overlay = reactive({ show: false, mode: "link", url: "" }); // mode: link|image
-const overlayImgError = ref(false);
-const overlayImageInputRef = ref(null);
-
-function closeOverlay() {
-  overlay.show = false;
-  overlay.url = "";
-  overlayImgError.value = false;
-}
-function openLinkOverlay() {
-  if (!activeEditorMeta.qid) {
-    showToast("Click Title field first", "danger");
-    return;
-  }
-  if (activeEditorMeta.editor !== "title") {
-    showToast("Hyperlink ใช้กับ Title เท่านั้น (คลิก Title ก่อน)", "danger");
-    return;
-  }
-  overlay.mode = "link";
-  overlay.url = currentTitleLink(activeEditorMeta.qid) || "";
-  overlay.show = true;
-}
-function openImageOverlay() {
-  if (!activeEditorMeta.qid) {
-    showToast("Click a question field first", "danger");
-    return;
-  }
-  overlay.mode = "image";
-  overlay.url = "";
-  overlay.show = true;
-}
-function titleHasLink(html) {
-  return /<a\b/i.test(String(html || ""));
-}
-function currentTitleLink(qid) {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return "";
-  const m = String(q.title || "").match(/<a\b[^>]*href=["']([^"']+)["']/i);
-  return m?.[1] || "";
-}
-function removeTitleLink(qid) {
-  const q = questions.value.find((x) => x.id === qid);
-  if (!q) return;
-  q.title = stripAnchorKeepText(q.title);
-  showToast("Removed link");
-}
-function removeActiveTitleLink() {
-  if (!activeEditorMeta.qid) return;
-  removeTitleLink(activeEditorMeta.qid);
-  closeOverlay();
-}
-function stripAnchorKeepText(html) {
-  const s = String(html || "");
-  return s.replace(/<a\b[^>]*>/gi, "").replace(/<\/a>/gi, "");
-}
-function applyOverlay() {
-  if (!activeEditorMeta.qid) {
-    showToast("Select a question first", "danger");
-    return;
-  }
-  const url = String(overlay.url || "").trim();
-  if (!url) return;
-
-  const q = questions.value.find((x) => x.id === activeEditorMeta.qid);
-  if (!q) return;
-
-  if (overlay.mode === "link") {
-    const text = stripHtml(q.title) || "Link";
-    q.title = `<a href="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtmlText(text)}</a>`;
-    showToast("Link applied");
-    closeOverlay();
-    return;
-  }
-
-  if (overlay.mode === "image") {
-    q.images = Array.isArray(q.images) ? q.images : [];
-    q.images.push({ id: uid(), src: url, kind: "url" });
-    showToast("Image added");
-    closeOverlay();
-  }
-}
-function escapeHtmlText(s) {
-  return String(s || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-function escapeHtmlAttr(s) {
-  return escapeHtmlText(s);
-}
-
-function triggerOverlayImagePick() {
-  overlayImageInputRef.value?.click?.();
-}
-async function onOverlayImagePick(e) {
-  const files = Array.from(e?.target?.files || []);
-  e.target.value = "";
-  if (!files.length) return;
-
-  if (!activeEditorMeta.qid) {
-    showToast("Select a question first", "danger");
-    return;
-  }
-  const q = questions.value.find((x) => x.id === activeEditorMeta.qid);
-  if (!q) return;
-
-  for (const f of files) {
-    if (!f.type.startsWith("image/")) continue;
-    const dataUrl = await readFileAsDataURL(f);
-    q.images.push({ id: uid(), src: dataUrl, kind: "upload" });
-  }
-  showToast("Uploaded image(s)");
-  closeOverlay();
-}
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result || ""));
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
 
 /**
  * ==========================
@@ -1260,6 +1138,160 @@ function fmtSmart(cmd) {
 }
 
 /**
+ * ==========================
+ * Overlay (link/image) ✅ FIX: lock target qid
+ * ==========================
+ */
+const overlay = reactive({
+  show: false,
+  mode: "link",      // link|image
+  url: "",
+  targetQid: null,   // ✅ จำว่า overlay นี้ apply ให้คำถามไหน
+});
+const overlayImgError = ref(false);
+const overlayImageInputRef = ref(null);
+
+function closeOverlay() {
+  overlay.show = false;
+  overlay.url = "";
+  overlay.targetQid = null;
+  overlayImgError.value = false;
+}
+
+function openLinkOverlay(qidFromBtn = null) {
+  // ✅ จากปุ่มในการ์ด -> ส่ง q.id มา
+  const qid = qidFromBtn || activeEditorMeta.qid;
+  if (!qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+  overlay.mode = "link";
+  overlay.targetQid = qid;
+  overlay.url = currentTitleLink(qid) || "";
+  overlay.show = true;
+}
+
+function openImageOverlay(qidFromBtn = null) {
+  const qid = qidFromBtn || activeEditorMeta.qid;
+  if (!qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+  overlay.mode = "image";
+  overlay.targetQid = qid;
+  overlay.url = "";
+  overlay.show = true;
+}
+
+function titleHasLink(html) {
+  return /<a\b/i.test(String(html || ""));
+}
+function currentTitleLink(qid) {
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return "";
+  const m = String(q.title || "").match(/<a\b[^>]*href=["']([^"']+)["']/i);
+  return m?.[1] || "";
+}
+function stripAnchorKeepText(html) {
+  const s = String(html || "");
+  return s.replace(/<a\b[^>]*>/gi, "").replace(/<\/a>/gi, "");
+}
+function removeTitleLink(qid) {
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+  q.title = stripAnchorKeepText(q.title);
+  showToast("Removed link");
+}
+function removeActiveTitleLink() {
+  const qid = overlay.targetQid || activeEditorMeta.qid;
+  if (!qid) return;
+  removeTitleLink(qid);
+  closeOverlay();
+}
+
+function escapeHtmlText(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+function escapeHtmlAttr(s) {
+  return escapeHtmlText(s);
+}
+
+function applyOverlay() {
+  const qid = overlay.targetQid || activeEditorMeta.qid;
+  if (!qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+
+  const url = String(overlay.url || "").trim();
+  if (!url) return;
+
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+
+  // ✅ กันกรณี q.images ไม่ใช่ array
+  q.images = Array.isArray(q.images) ? q.images : [];
+
+  if (overlay.mode === "link") {
+    const text = stripHtml(q.title) || "Link";
+    q.title = `<a href="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtmlText(text)}</a>`;
+    showToast("Link applied");
+    closeOverlay();
+    return;
+  }
+
+  if (overlay.mode === "image") {
+    q.images.push({ id: uid(), src: url, kind: "url" });
+    showToast("Image added");
+    closeOverlay();
+  }
+}
+
+function triggerOverlayImagePick() {
+  overlayImageInputRef.value?.click?.();
+}
+
+async function onOverlayImagePick(e) {
+  const files = Array.from(e?.target?.files || []);
+  e.target.value = "";
+  if (!files.length) return;
+
+  const qid = overlay.targetQid || activeEditorMeta.qid;
+  if (!qid) {
+    showToast("Select a question first", "danger");
+    return;
+  }
+
+  const q = questions.value.find((x) => x.id === qid);
+  if (!q) return;
+
+  q.images = Array.isArray(q.images) ? q.images : [];
+
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) continue;
+    const dataUrl = await readFileAsDataURL(f);
+    q.images.push({ id: uid(), src: dataUrl, kind: "upload" });
+  }
+
+  showToast("Uploaded image(s)");
+  closeOverlay();
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+/**
  * drag-drop image into any rich field -> attach to q.images
  */
 async function onRichDrop(e) {
@@ -1269,6 +1301,9 @@ async function onRichDrop(e) {
 
   const q = questions.value.find((x) => x.id === qid);
   if (!q) return;
+
+  // ✅ กันกรณี q.images ไม่ใช่ array
+  q.images = Array.isArray(q.images) ? q.images : [];
 
   const files = Array.from(e.dataTransfer?.files || []);
   if (files.length) {
@@ -1769,7 +1804,7 @@ const apiPayload = computed(() => {
 
 /**
  * ==========================
- * Local template store
+ * Local template store (คงของเดิมไว้)
  * ==========================
  */
 const TPL_KEY = "lapnet_form_templates";
@@ -1852,7 +1887,7 @@ function closeSaveAlert() {
 }
 function goViewTemplates() {
   closeSaveAlert();
-  router.push("/form-templates");
+  router.push("/formtemplates");
 }
 
 /**
@@ -1877,18 +1912,30 @@ function ensureSourceFormId() {
 /**
  * ==========================
  * DB API call: POST /api/form-templates/upsert
+ * ✅ ส่งทั้ง sourceFormId + source_form_id เผื่อ backend ใช้ชื่อคนละแบบ
+ * ✅ payload เป็น object JSON ล้วน
  * ==========================
  */
 async function upsertTemplateToDB({ sourceFormId, payload, name, note, activetoggle = 0 }) {
   const sfid = sourceFormId != null ? String(sourceFormId).trim() : "";
   if (!/^\d+$/.test(sfid)) throw new Error("sourceFormId must be digits string");
 
+  const cleanPayload = toPlainJson(payload);
+
   const body = {
+    // ✅ เผื่อ backend รับ camel
     sourceFormId: sfid,
-    name: String(name || "").trim() || String(payload?.meta?.title || "").trim() || "Untitled template",
+    // ✅ เผื่อ backend รับ snake
+    source_form_id: sfid,
+
+    name: String(name || "").trim() || String(cleanPayload?.meta?.title || "").trim() || "Untitled template",
     note: note == null ? null : String(note),
-    payload,
-    activetoggle,
+
+    // ✅ JSON column
+    payload: cleanPayload,
+
+    // ✅ tinyint(1)
+    activetoggle: Number(activetoggle) ? 1 : 0,
   };
 
   const resp = await fetch(`${TEMPLATE_API}/upsert`, {
@@ -1898,7 +1945,10 @@ async function upsertTemplateToDB({ sourceFormId, payload, name, note, activetog
   });
 
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok || !data.ok) throw new Error(data.message || "Save template failed");
+  if (!resp.ok || !data.ok) {
+    const msg = data?.message || `Save template failed (${resp.status})`;
+    throw new Error(msg);
+  }
 
   return {
     id: data.id != null ? String(data.id) : null,
@@ -1921,14 +1971,19 @@ const jsonText = computed(() => {
 });
 
 /**
- * ✅ SAVE
- * - ยังเซฟเข้า DB + local template store ได้เหมือนเดิม
- * - ❌ แต่ "ไม่" เก็บ draft ลง localStorage แล้ว (เพื่อไม่ให้เปิดมาเจอค่าเก่า)
+ * ✅ SAVE (insert/update เข้า form_templates)
  */
+const isSaving = ref(false);
+
 async function saveDraft() {
+  if (isSaving.value) return;
+  isSaving.value = true;
+
   try {
-    const payload = apiPayload.value;
     const sourceFormId = ensureSourceFormId();
+
+    // ✅ แปลงเป็น JSON ล้วนก่อนส่ง
+    const payload = toPlainJson(apiPayload.value);
 
     const r = await upsertTemplateToDB({
       sourceFormId,
@@ -1940,19 +1995,19 @@ async function saveDraft() {
 
     templateServerId.value = r.id;
 
+    // local store (คงไว้)
     upsertTemplateFromPayload(payload, sourceFormId, { serverId: r.id });
 
-    // ❌ เอาออก: ไม่บันทึก draft เก่าแล้ว
-    // localStorage.setItem(DRAFT_KEY, jsonText.value);
-
-    showToast(`Saved ✅ templateId=${r.id} sourceFormId=${r.sourceFormId}`);
-    openSaveAlert({ id: r.id, sourceFormId: r.sourceFormId });
+    showToast(`Saved ✅ templateId=${r.id} sourceFormId=${sourceFormId}`);
+    openSaveAlert({ id: r.id, sourceFormId });
 
     if (btnSaveRef.value) {
       gsap.fromTo(btnSaveRef.value, { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" });
     }
   } catch (e) {
     showToast(e?.message || "Save failed", "danger");
+  } finally {
+    isSaving.value = false;
   }
 }
 
@@ -2102,8 +2157,6 @@ async function submitPreview() {
 
 /**
  * ✅ mounted: เข้าเพจแล้ว "รีเฟรชทั้งหมด" ทุกครั้ง
- * - ไม่โหลดค่าเก่าจาก localStorage อีก
- * - ลบทิ้ง draft key ทันที
  */
 onMounted(async () => {
   resetAll({ silent: true });
@@ -2134,6 +2187,7 @@ onBeforeUnmount(() => {
   if (toastTimer) clearTimeout(toastTimer);
 });
 </script>
+
 
 <style scoped>
 /* (คง style ของคุณไว้ตามเดิม) */

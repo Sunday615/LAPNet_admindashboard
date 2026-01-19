@@ -958,7 +958,7 @@ function goBoardDirector() {
   router.push("/Board_directorview");
 }
 function goNews() {
-  router.push("/news");
+  router.push("/newsviewer");
 }
 function goJobs() {
   router.push("/jobview");

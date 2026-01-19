@@ -1,11 +1,13 @@
 <template>
-  <div class="app tech">
-    <!-- Ambient glow -->
-    <div class="glow glow-a"></div>
-    <div class="glow glow-b"></div>
+  <div :class="['app', 'tech', { 'is-auth': isAuthPage }]">
+    <!-- Ambient glow (hide on login) -->
+    <template v-if="!isAuthPage">
+      <div class="glow glow-a"></div>
+      <div class="glow glow-b"></div>
+    </template>
 
-    <!-- ✅ GLOBAL SIDEBAR -->
-    <aside ref="sidebarEl" class="sidebar">
+    <!-- ✅ GLOBAL SIDEBAR (hide on login) -->
+    <aside v-if="!isAuthPage" ref="sidebarEl" class="sidebar">
       <router-link to="/" style="text-decoration: none">
         <div class="brand js-reveal">
           <div class="brandMark">
@@ -49,7 +51,7 @@
 
         <div class="navDivider" />
 
-        <!-- ✅ VIEW INFORMATION (NEW DROPDOWN) -->
+        <!-- ✅ VIEW INFORMATION (DROPDOWN) -->
         <div class="navGroup">
           <button
             type="button"
@@ -90,8 +92,8 @@
           </div>
         </div>
 
-        <!-- ✅ DROPDOWN GROUP (INSERT INFORMATION) -->
-        <div class="navGroup">
+        <!-- ✅ INSERT INFORMATION (DROPDOWN) -->
+        <div class="navGroup" v-if="!isViewer">
           <button
             type="button"
             class="navGroupBtn"
@@ -133,7 +135,7 @@
       </nav>
 
       <div class="spacer" />
-
+   
       <button
         class="logout js-reveal"
         type="button"
@@ -144,6 +146,7 @@
         <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
         Log Out
       </button>
+   
     </aside>
 
     <!-- ✅ GLOBAL MAIN -->
@@ -157,13 +160,43 @@
 
 <script setup>
 import { computed, onMounted, ref, watch, nextTick } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
 const sidebarEl = ref(null);
 const topbarEl = ref(null);
 
 const route = useRoute();
+const router = useRouter();
+
+// ✅ If this route is /login -> hide sidebar + hide tech background/glow
+const isAuthPage = computed(() => route.path === "/login");
+
+
+const currentUser = ref(null);
+
+function safeJsonParse(x) {
+  try { return JSON.parse(String(x)); } catch { return null; }
+}
+function normalizeRole(r) {
+  return String(r || "").trim().toLowerCase();
+}
+function readUserFromStorage() {
+  const u1 = localStorage.getItem("user");
+  if (u1) return safeJsonParse(u1);
+  const u2 = sessionStorage.getItem("user");
+  if (u2) return safeJsonParse(u2);
+  return null;
+}
+
+const isViewer = computed(() => normalizeRole(currentUser.value?.role) === "viewer");
+
+// โหลด user ทุกครั้งที่ route เปลี่ยน (หลัง login จะเปลี่ยน route)
+watch(
+  () => route.path,
+  () => { currentUser.value = readUserFromStorage(); },
+  { immediate: true }
+);
 
 const userName = "Arkhan";
 
@@ -175,12 +208,16 @@ const navItems = [
     fa: "fa-solid fa-chart-line",
     children: [
       { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
-
-      // ✅ NEW: Notifications (under Visitor, above Create Form)
       { key: "notifications", label: "ແຈ້ງເຕືອນ", to: "/notifications", fa: "fa-solid fa-bell" },
-
-      // ✅ under Visitor
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
+
+      // ✅ NEW: View Form Templates (under Create Form)
+      {
+        key: "form_templates",
+        label: "ເບິ່ງ Form",
+        to: "/formtemplates",
+        fa: "fa-solid fa-layer-group",
+      },
     ],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
@@ -194,12 +231,12 @@ const navItems = [
 // ✅ split nav
 const mainNavItem = navItems[0];
 const dashboardItems = computed(() => mainNavItem?.children || []);
-const insertItems = navItems.slice(1, 7); // ✅ 6 items under insert
+const insertItems = navItems.slice(1, 7);
 
 // ✅ VIEW INFORMATION items (6)
 const viewItems = [
   { key: "member_view", label: "ເບິ່ງທະນາຄານສະມາຊິກ", to: "/members", fa: "fa-solid fa-building-columns" },
-  { key: "news_view", label: "ເບິ່ງຂ່າວສານ & ກິດຈະກຳ", to: "/news", fa: "fa-solid fa-newspaper" },
+  { key: "news_view", label: "ເບິ່ງຂ່າວສານ & ກິດຈະກຳ", to: "/newsviewer", fa: "fa-solid fa-newspaper" },
   { key: "job_view", label: "ເບິ່ງຮັບສະໝັກພະນັກງານ", to: "/jobview", fa: "fa-solid fa-user-plus" },
   { key: "announcement_view", label: "ເບິ່ງປະກາດແຈ້ງການ", to: "/announcementviewer", fa: "fa-solid fa-bullhorn" },
   { key: "board_director_view", label: "ເບິ່ງສະພາບໍລິຫານ", to: "/board_directorview", fa: "fa-solid fa-users" },
@@ -219,7 +256,22 @@ const viewChevronEl = ref(null);
 const isViewActive = computed(() => viewItems.some((i) => route.path === i.to));
 
 function logout() {
-  console.log("logout");
+  // Clear auth tokens (remember me uses localStorage or sessionStorage)
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  } catch (e) {}
+  try {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+  } catch (e) {}
+
+  // Optional: reset dropdown states
+  isInsertOpen.value = false;
+  isViewOpen.value = false;
+
+  // Go to login
+  router.replace({ path: "/login" });
 }
 
 /* GSAP hovers */
@@ -245,7 +297,6 @@ function openInsertMenu(immediate = false) {
 
   gsap.killTweensOf(menu);
   gsap.killTweensOf(chev);
-
   gsap.set(menu, { display: "block" });
 
   const h = menu.scrollHeight;
@@ -316,7 +367,6 @@ function openViewMenu(immediate = false) {
 
   gsap.killTweensOf(menu);
   gsap.killTweensOf(chev);
-
   gsap.set(menu, { display: "block" });
 
   const h = menu.scrollHeight;
@@ -383,6 +433,9 @@ function ensureViewOpenAfterNavigate() {
 watch(
   () => route.path,
   async () => {
+    // On login page, sidebar is hidden -> no need to run dropdown logic
+    if (isAuthPage.value) return;
+
     if (isInsertActive.value && !isInsertOpen.value) {
       isInsertOpen.value = true;
       await nextTick();
@@ -396,7 +449,13 @@ watch(
   }
 );
 
-onMounted(async () => {
+// ✅ Sidebar init animation (important: when user logs in, sidebar appears after route change)
+const didInitSidebar = ref(false);
+
+async function initSidebarUI() {
+  if (didInitSidebar.value) return;
+  if (!sidebarEl.value) return;
+
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
   gsap.set(".js-reveal", { opacity: 0, y: 12 });
 
@@ -430,6 +489,24 @@ onMounted(async () => {
     const chev = insertChevronEl.value;
     if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
     if (chev) gsap.set(chev, { rotate: 0 });
+  }
+
+  didInitSidebar.value = true;
+}
+
+watch(isAuthPage, async (auth) => {
+  if (auth) {
+    didInitSidebar.value = false;
+    return;
+  }
+  await nextTick();
+  await initSidebarUI();
+});
+
+onMounted(async () => {
+  if (!isAuthPage.value) {
+    await nextTick();
+    await initSidebarUI();
   }
 });
 </script>
@@ -478,6 +555,12 @@ onMounted(async () => {
   position: relative;
 }
 
+/* ✅ Login page mode: no sidebar + let login view control its own background */
+.app.tech.is-auth {
+  grid-template-columns: 1fr;
+  background: transparent;
+}
+
 .app.tech::before {
   content: "";
   position: fixed;
@@ -488,6 +571,10 @@ onMounted(async () => {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 46px 46px;
   mask-image: radial-gradient(circle at 35% 18%, black 0%, transparent 60%);
+}
+
+.app.tech.is-auth::before {
+  display: none;
 }
 
 /* ambient glows */
@@ -824,11 +911,21 @@ onMounted(async () => {
   flex-direction: column;
   gap: 10px;
 }
+
+.app.tech.is-auth .main {
+  padding: 0;
+}
+
 .mainBody {
   flex: 1;
   overflow: auto;
   padding-right: 6px;
 }
+
+.app.tech.is-auth .mainBody {
+  padding-right: 0;
+}
+
 .mainBody::-webkit-scrollbar {
   width: 10px;
 }
@@ -861,6 +958,9 @@ onMounted(async () => {
 @media (max-width: 920px) {
   .main {
     padding: 14px;
+  }
+  .app.tech.is-auth .main {
+    padding: 0;
   }
 }
 </style>

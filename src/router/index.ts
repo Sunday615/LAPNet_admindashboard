@@ -1,175 +1,164 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import Dashboardview from '../view/homepage/main.vue'
-import mainmember from '../view/display/member/mainmember.vue'
-import newsinsert from '../view/display/news/newsinsert.vue'
-import joblist from '../view/jobs/joblist.vue'
-import announcement from '../view/announcement/announcement.vue'
-import Board_director from '../view/board_director/board_director.vue'
-import Lapnet from '../view/lapnet/lapnet.vue'
+import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 
-import memberbankview from '../view/display/member/memberbankview.vue'
+import Dashboardview from "../view/homepage/main.vue";
+import MemberDashboard from "../view/memberdashboard/main.vue";
 
-import Newsview from '../view/display/news/newsview.vue'
-import jobview from '../view/display/job/jobview.vue'
-import announcementviewer from '../view/announcement/announcementviewer.vue'
-import membersedit from '../view/display/member/MembersEdit.vue.vue'
-import newsedit from '../view/display/news/newsedit.vue'
-import announcementedit from '../view/announcement/announcementedit.vue'
-import jobedit from '../view/display/job/jobedit.vue'
-import Board_directorview from '../view/board_director/board_directorview.vue'
-import Board_directoredit from '../view/board_director/board_directoredit.vue'
-import lapnetview from '../view/lapnet/lapnetview.vue'
-import Lapnetedit from '../view/lapnet/lapnetedit.vue'
-import Mainvisitors from '../view/visitors/mainvisitors.vue'
-import Createform from '../view/createform/createform.vue'
-import mainnotification from '../view/notification/mainnotification.vue'
-import formtemplete from '../view/createform/formtemplete.vue'
-const routes = [
+import mainmember from "../view/display/member/mainmember.vue";
+import newsinsert from "../view/display/news/newsinsert.vue";
+import joblist from "../view/jobs/joblist.vue";
+import announcement from "../view/announcement/announcement.vue";
+import Board_director from "../view/board_director/board_director.vue";
+import Lapnet from "../view/lapnet/lapnet.vue";
+import memberbankview from "../view/display/member/memberbankview.vue";
+import newsview from "../view/display/news/newsview.vue";
+import jobview from "../view/display/job/jobview.vue";
+import announcementviewer from "../view/announcement/announcementviewer.vue";
+import membersedit from "../view/display/member/MembersEdit.vue.vue";
+import newsedit from "../view/display/news/newsedit.vue";
+import announcementedit from "../view/announcement/announcementedit.vue";
+import jobedit from "../view/display/job/jobedit.vue";
+import Board_directorview from "../view/board_director/board_directorview.vue";
+import Board_directoredit from "../view/board_director/board_directoredit.vue";
+import lapnetview from "../view/lapnet/lapnetview.vue";
+import Lapnetedit from "../view/lapnet/lapnetedit.vue";
+import Mainvisitors from "../view/visitors/mainvisitors.vue";
+import Createform from "../view/createform/createform.vue";
+import mainnotification from "../view/notification/mainnotification.vue";
+import formtemplete from "../view/createform/formtemplete.vue";
+import Loginform from "../view/login/loginform.vue";
+
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
+
+const ADMIN_HOME = "/dashboard";
+const VIEWER_HOME = "/memberdashboard";
+
+function safeJsonParse(x: any) {
+  try {
+    return JSON.parse(String(x));
+  } catch {
+    return null;
+  }
+}
+
+function getAuthFromStorage() {
+  const tokenL = localStorage.getItem(TOKEN_KEY);
+  const userL = localStorage.getItem(USER_KEY);
+  if (tokenL && userL) return { token: tokenL, user: safeJsonParse(userL) };
+
+  const tokenS = sessionStorage.getItem(TOKEN_KEY);
+  const userS = sessionStorage.getItem(USER_KEY);
+  if (tokenS && userS) return { token: tokenS, user: safeJsonParse(userS) };
+
+  return { token: null, user: null };
+}
+
+function normalizeRole(role: any) {
+  return String(role || "").trim().toLowerCase();
+}
+
+function isViewer(user: any) {
+  return normalizeRole(user?.role) === "viewer";
+}
+
+function homeByRole(user: any) {
+  return isViewer(user) ? VIEWER_HOME : ADMIN_HOME;
+}
+
+function hasRoleAccess(to: any, user: any) {
+  const roles: string[] | undefined = to?.meta?.roles as any;
+  if (!roles || roles.length === 0) return true; // ถ้าไม่ระบุ roles = อนุญาต (เมื่อ login แล้ว)
+  const r = normalizeRole(user?.role);
+  return roles.includes(r);
+}
+
+const routes: RouteRecordRaw[] = [
+  // ✅ smart home redirect ตาม role
   {
-    path: '/',
-    name: 'Dashboardview',
-    component: Dashboardview,
+    path: "/",
+    redirect: () => {
+      const { token, user } = getAuthFromStorage();
+      if (!token || !user) return "/login";
+      return homeByRole(user);
+    },
   },
-    {
-    path: '/dashboard',
-    name: '',
-    component: Dashboardview,
-  },
-  
+
+  // ✅ login
+  { path: "/login", name: "login", component: Loginform, meta: { public: true } },
+
+  // ✅ dashboards
+  { path: "/dashboard", name: "dashboard", component: Dashboardview, meta: { roles: ["admin"] } },
+  { path: "/memberdashboard", name: "memberdashboard", component: MemberDashboard, meta: { roles: ["viewer"] } },
+
+  // -------------------------
+  // ADMIN: insert/edit (admin only)
+  // -------------------------
+  { path: "/memberinsert", name: "memberinsert", component: mainmember, meta: { roles: ["admin"] } },
+  { path: "/newinsert", name: "newinsert", component: newsinsert, meta: { roles: ["admin"] } },
+  { path: "/joblist", name: "joblist", component: joblist, meta: { roles: ["admin"] } },
+  { path: "/announcement", name: "announcement", component: announcement, meta: { roles: ["admin"] } },
+  { path: "/board_director", name: "board_director", component: Board_director, meta: { roles: ["admin"] } },
+  { path: "/lapnet_employee", name: "lapnet", component: Lapnet, meta: { roles: ["admin"] } },
+  { path: "/visitors", name: "visitors", component: Mainvisitors, meta: { roles: ["admin"] } },
+  { path: "/createform", name: "createform", component: Createform, meta: { roles: ["admin"] } },
+  { path: "/notifications", name: "notifications", component: mainnotification, meta: { roles: ["admin"] } },
+
+  // edit pages (admin only)
+  { path: "/membersedit", name: "membersedit", component: membersedit, meta: { roles: ["admin"] } },
+  { path: "/newsedit", name: "newsedit", component: newsedit, meta: { roles: ["admin"] } },
+  { path: "/jobedit", name: "jobedit", component: jobedit, meta: { roles: ["admin"] } },
+  { path: "/announcementedit", name: "announcementedit", component: announcementedit, meta: { roles: ["admin"] } },
+  { path: "/boarddirectoredit", name: "board_directoredit", component: Board_directoredit, meta: { roles: ["admin"] } },
+  { path: "/lapnetedit", name: "lapnetedit", component: Lapnetedit, meta: { roles: ["admin"] } },
+
+  // -------------------------
+  // VIEW PAGES: viewer + admin เข้าได้
+  // -------------------------
+  { path: "/members", name: "members", component: memberbankview, meta: { roles: ["admin", "viewer"] } },
+  { path: "/newsviewer", name: "newsviewer", component: newsview, meta: { roles: ["admin", "viewer"] } },
+  { path: "/jobview", name: "jobview", component: jobview, meta: { roles: ["admin", "viewer"] } },
+  { path: "/announcementviewer", name: "announcementviewer", component: announcementviewer, meta: { roles: ["admin", "viewer"] } },
+  { path: "/board_directorview", name: "board_directorview", component: Board_directorview, meta: { roles: ["admin", "viewer"] } },
+  { path: "/lapnetview", name: "lapnetview", component: lapnetview, meta: { roles: ["admin", "viewer"] } },
+  { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin", "viewer"] } },
+
+  // 404 -> smart home
   {
-    path: '/memberinsert',
-    name: 'memberinsert',
-    component: mainmember,
+    path: "/:pathMatch(.*)*",
+    redirect: () => {
+      const { token, user } = getAuthFromStorage();
+      if (!token || !user) return "/login";
+      return homeByRole(user);
+    },
   },
-  {
-    path: '/members',
-    name: 'members',
-    component: memberbankview,
-  },
-  {
-    path: '/membersedit',
-    name: 'membersedit',
-    component: membersedit,
-  },
-  {
-    path: '/news',
-    name: 'news',
-    component: Newsview,
-  },
- 
-  {
-    path: '/newinsert',
-    name: 'newinsert',
-    component: newsinsert,
-  },
-  {
-    path: '/newsedit',
-    name: 'newsedit',
-    component: newsedit,
-  },
-   {
-    path: '/joblist',
-    name: 'joblist',
-    component: joblist,
-  },
-   {
-    path: '/jobview',
-    name: 'jobview',
-    component: jobview,
-  },
-   {
-    path: '/jobedit',
-    name: 'jobedit',
-    component: jobedit,
-  },
-   {
-    path: '/announcement',
-    name: 'announcement',
-    component: announcement,
-  },
-   {
-    path: '/announcementviewer',
-    name: 'announcementviewer',
-    component: announcementviewer,
-  },
-   {
-    path: '/announcementedit',
-    name: 'announcementedit',
-    component: announcementedit,
-  },
-   {
-    path: '/board_director',
-    name: 'board_director',
-    component: Board_director,
-  },
-   {
-    path: '/board_directorview',
-    name: 'board_directorview',
-    component: Board_directorview,
-  },
-   {
-    path: '/boarddirectoredit',
-    name: 'board_directoredit',
-    component: Board_directoredit,
-  },
-   {
-    path: '/lapnet_employee',
-    name: 'lapnet',
-    component: Lapnet,
-  },
-   {
-    path: '/lapnetview',
-    name: 'lapnetview',
-    component: lapnetview,
-  },
-   {
-    path: '/lapnetedit',
-    name: '/lapnetedit',
-    component: Lapnetedit,
-  },
- 
-
-
-  // ######################## Visitors part ######################
-
-
-  {
-    path: '/visitors',
-    name: 'visitors',
-    component: Mainvisitors,
-  },
-
-
-
-  // ######################## createform part ######################
-    {
-    path: '/createform',
-    name: 'createform',
-    component: Createform,
-  },
-    {
-    path: '/form-templates',
-    name: 'formtemplete',
-    component: formtemplete,
-  },
- 
-    // ######################## createform part ######################
-    {
-    path: '/notifications',
-    name: 'notifications',
-    component: mainnotification,
-  },
-
-
-  
-
- 
-]
-
+];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-})
+});
 
-export default router
+router.beforeEach((to) => {
+  const { token, user } = getAuthFromStorage();
+  const isLoggedIn = !!token && !!user;
+
+  // public route
+  if (to.meta?.public) {
+    if (isLoggedIn) return homeByRole(user);
+    return true;
+  }
+
+  // not logged in -> force login (เก็บ redirect)
+  if (!isLoggedIn) {
+    return { path: "/login", query: { redirect: to.fullPath } };
+  }
+
+  // logged in but role not allowed
+  if (!hasRoleAccess(to, user)) {
+    return homeByRole(user);
+  }
+
+  return true;
+});
+
+export default router;
