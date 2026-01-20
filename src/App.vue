@@ -8,134 +8,159 @@
 
     <!-- ✅ GLOBAL SIDEBAR (hide on login) -->
     <aside v-if="!isAuthPage" ref="sidebarEl" class="sidebar">
-      <router-link to="/" style="text-decoration: none">
+      <!-- ✅ brand link: viewer -> go to viewer home (index 0), admin -> "/" -->
+      <router-link :to="brandHomeTo" style="text-decoration: none">
         <div class="brand js-reveal">
           <div class="brandMark">
             <img src="/logolapnet/fullcircle.png" alt="" style="width: 100%; height: 100%" />
           </div>
           <div class="brandText">
             <div class="brandName">LAPNet</div>
-            <div class="brandSub">Admin Console</div>
+            <div class="brandSub">{{ isViewer ? "Viewer Console" : "Admin Console" }}</div>
           </div>
         </div>
       </router-link>
 
       <nav class="nav js-reveal">
-        <!-- ✅ MAIN (item 1) -->
-        <RouterLink
-          :to="mainNavItem.to"
-          class="navItem"
-          active-class="active"
-          @mouseenter="navHover($event, true)"
-          @mouseleave="navHover($event, false)"
-        >
-          <span class="navIcon"><i :class="mainNavItem.fa"></i></span>
-          <span class="navLabel">{{ mainNavItem.label }}</span>
-          <span class="navPill" />
-        </RouterLink>
-
-        <!-- ✅ DASHBOARD CHILDREN (item 2) -->
-        <RouterLink
-          v-for="item in dashboardItems"
-          :key="item.key"
-          :to="item.to"
-          class="navItem navItem--sub"
-          active-class="active"
-          @mouseenter="subHover($event, true)"
-          @mouseleave="subHover($event, false)"
-        >
-          <span class="navIcon"><i :class="item.fa"></i></span>
-          <span class="navLabel">{{ item.label }}</span>
-          <span class="navPill" />
-        </RouterLink>
-
-        <div class="navDivider" />
-
-        <!-- ✅ VIEW INFORMATION (DROPDOWN) -->
-        <div class="navGroup">
-          <button
-            type="button"
-            class="navGroupBtn"
-            :class="{ active: isViewActive }"
-            @click="toggleView"
+        <!-- =========================
+             ✅ VIEWER SIDEBAR (items 1-6)
+             ========================= -->
+        <template v-if="isViewer">
+          <RouterLink
+            v-for="item in viewerNavItems"
+            :key="item.key"
+            :to="item.to"
+            class="navItem"
+            active-class="active"
             @mouseenter="navHover($event, true)"
             @mouseleave="navHover($event, false)"
-            aria-haspopup="true"
-            :aria-expanded="isViewOpen ? 'true' : 'false'"
           >
-            <span class="navIcon"><i class="fa-solid fa-database"></i></span>
-            <span class="navLabel">ເບິ່ງຂໍ້ມູນ</span>
-
-            <span class="navGroupRight">
-              <span class="navGroupHint">{{ viewItems.length }}</span>
-              <i ref="viewChevronEl" class="fa-solid fa-chevron-down navChevron"></i>
-            </span>
-
+            <span class="navIcon"><i :class="item.fa"></i></span>
+            <span class="navLabel">{{ item.label }}</span>
             <span class="navPill" />
-          </button>
+          </RouterLink>
+        </template>
 
-          <div ref="viewMenuEl" class="subNav">
-            <RouterLink
-              v-for="item in viewItems"
-              :key="item.key"
-              :to="item.to"
-              class="subNavItem"
-              active-class="active"
-              @mouseenter="subHover($event, true)"
-              @mouseleave="subHover($event, false)"
-              @click="ensureViewOpenAfterNavigate"
-            >
-              <span class="subIcon"><i :class="item.fa"></i></span>
-              <span class="subLabel">{{ item.label }}</span>
-              <span class="subPill" />
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- ✅ INSERT INFORMATION (DROPDOWN) -->
-        <div class="navGroup" v-if="!isViewer">
-          <button
-            type="button"
-            class="navGroupBtn"
-            :class="{ active: isInsertActive }"
-            @click="toggleInsert"
+        <!-- =========================
+             ✅ ADMIN SIDEBAR (เดิมของคุณ)
+             ========================= -->
+        <template v-else>
+          <!-- ✅ MAIN (item 1) -->
+          <RouterLink
+            :to="mainNavItem.to"
+            class="navItem"
+            active-class="active"
             @mouseenter="navHover($event, true)"
             @mouseleave="navHover($event, false)"
-            aria-haspopup="true"
-            :aria-expanded="isInsertOpen ? 'true' : 'false'"
           >
-            <span class="navIcon"><i class="fa-solid fa-circle-plus"></i></span>
-            <span class="navLabel">ເພີ່ມຂໍ້ມູນ</span>
-
-            <span class="navGroupRight">
-              <span class="navGroupHint">{{ insertItems.length }}</span>
-              <i ref="insertChevronEl" class="fa-solid fa-chevron-down navChevron"></i>
-            </span>
-
+            <span class="navIcon"><i :class="mainNavItem.fa"></i></span>
+            <span class="navLabel">{{ mainNavItem.label }}</span>
             <span class="navPill" />
-          </button>
+          </RouterLink>
 
-          <div ref="insertMenuEl" class="subNav">
-            <RouterLink
-              v-for="item in insertItems"
-              :key="item.key"
-              :to="item.to"
-              class="subNavItem"
-              active-class="active"
-              @mouseenter="subHover($event, true)"
-              @mouseleave="subHover($event, false)"
-              @click="ensureOpenAfterNavigate"
+          <!-- ✅ DASHBOARD CHILDREN (item 2) -->
+          <RouterLink
+            v-for="item in dashboardItems"
+            :key="item.key"
+            :to="item.to"
+            class="navItem navItem--sub"
+            active-class="active"
+            @mouseenter="subHover($event, true)"
+            @mouseleave="subHover($event, false)"
+          >
+            <span class="navIcon"><i :class="item.fa"></i></span>
+            <span class="navLabel">{{ item.label }}</span>
+            <span class="navPill" />
+          </RouterLink>
+
+          <div class="navDivider" />
+
+          <!-- ✅ VIEW INFORMATION (DROPDOWN) -->
+          <div class="navGroup">
+            <button
+              type="button"
+              class="navGroupBtn"
+              :class="{ active: isViewActive }"
+              @click="toggleView"
+              @mouseenter="navHover($event, true)"
+              @mouseleave="navHover($event, false)"
+              aria-haspopup="true"
+              :aria-expanded="isViewOpen ? 'true' : 'false'"
             >
-              <span class="subIcon"><i :class="item.fa"></i></span>
-              <span class="subLabel">{{ item.label }}</span>
-              <span class="subPill" />
-            </RouterLink>
+              <span class="navIcon"><i class="fa-solid fa-database"></i></span>
+              <span class="navLabel">ເບິ່ງຂໍ້ມູນ</span>
+
+              <span class="navGroupRight">
+                <span class="navGroupHint">{{ viewItems.length }}</span>
+                <i ref="viewChevronEl" class="fa-solid fa-chevron-down navChevron"></i>
+              </span>
+
+              <span class="navPill" />
+            </button>
+
+            <div ref="viewMenuEl" class="subNav">
+              <RouterLink
+                v-for="item in viewItems"
+                :key="item.key"
+                :to="item.to"
+                class="subNavItem"
+                active-class="active"
+                @mouseenter="subHover($event, true)"
+                @mouseleave="subHover($event, false)"
+                @click="ensureViewOpenAfterNavigate"
+              >
+                <span class="subIcon"><i :class="item.fa"></i></span>
+                <span class="subLabel">{{ item.label }}</span>
+                <span class="subPill" />
+              </RouterLink>
+            </div>
           </div>
-        </div>
+
+          <!-- ✅ INSERT INFORMATION (DROPDOWN) -->
+          <div class="navGroup">
+            <button
+              type="button"
+              class="navGroupBtn"
+              :class="{ active: isInsertActive }"
+              @click="toggleInsert"
+              @mouseenter="navHover($event, true)"
+              @mouseleave="navHover($event, false)"
+              aria-haspopup="true"
+              :aria-expanded="isInsertOpen ? 'true' : 'false'"
+            >
+              <span class="navIcon"><i class="fa-solid fa-circle-plus"></i></span>
+              <span class="navLabel">ເພີ່ມຂໍ້ມູນ</span>
+
+              <span class="navGroupRight">
+                <span class="navGroupHint">{{ insertItems.length }}</span>
+                <i ref="insertChevronEl" class="fa-solid fa-chevron-down navChevron"></i>
+              </span>
+
+              <span class="navPill" />
+            </button>
+
+            <div ref="insertMenuEl" class="subNav">
+              <RouterLink
+                v-for="item in insertItems"
+                :key="item.key"
+                :to="item.to"
+                class="subNavItem"
+                active-class="active"
+                @mouseenter="subHover($event, true)"
+                @mouseleave="subHover($event, false)"
+                @click="ensureOpenAfterNavigate"
+              >
+                <span class="subIcon"><i :class="item.fa"></i></span>
+                <span class="subLabel">{{ item.label }}</span>
+                <span class="subPill" />
+              </RouterLink>
+            </div>
+          </div>
+        </template>
       </nav>
 
       <div class="spacer" />
-   
+
       <button
         class="logout js-reveal"
         type="button"
@@ -146,7 +171,6 @@
         <span class="navIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
         Log Out
       </button>
-   
     </aside>
 
     <!-- ✅ GLOBAL MAIN -->
@@ -172,11 +196,17 @@ const router = useRouter();
 // ✅ If this route is /login -> hide sidebar + hide tech background/glow
 const isAuthPage = computed(() => route.path === "/login");
 
-
+// ---------------------
+// ✅ role
+// ---------------------
 const currentUser = ref(null);
 
 function safeJsonParse(x) {
-  try { return JSON.parse(String(x)); } catch { return null; }
+  try {
+    return JSON.parse(String(x));
+  } catch {
+    return null;
+  }
 }
 function normalizeRole(r) {
   return String(r || "").trim().toLowerCase();
@@ -194,12 +224,57 @@ const isViewer = computed(() => normalizeRole(currentUser.value?.role) === "view
 // โหลด user ทุกครั้งที่ route เปลี่ยน (หลัง login จะเปลี่ยน route)
 watch(
   () => route.path,
-  () => { currentUser.value = readUserFromStorage(); },
+  () => {
+    currentUser.value = readUserFromStorage();
+  },
   { immediate: true }
 );
 
-const userName = "Arkhan";
+// ✅ viewer sidebar items 1-6 (แยก path ชัดเจนเป็น /v/..)
+const viewerNavItems = [
+  { key: "v_main", label: "ພາຍລວມ", to: "/v/view_document", fa: "fa-solid fa-chart-line" },
+  { key: "v_news", label: "ເອກະສານ", to: "/v/documentviewer", fa: "fa-solid fa-file" },
+  { key: "v_jobs", label: "ແຈ້ງການເຖິງສະມາຊິກ", to: "/v/announcement_member", fa: "fa-solid fa-bullhorn" },
+  { key: "v_ann", label: "ຟອມແບບສອບຖາມ", to: "/v/formmemberview", fa: "fa-solid fa-list-check" },
+  { key: "v_board", label: "ຂໍ້ຄວາມ", to: "/v/chat", fa: "fa-solid fa-message" },
+  // { key: "v_lapnet", label: "ພະນັກງານ LAPNet", to: "/v/lapnet", fa: "fa-solid fa-circle-user" },
 
+
+];
+
+
+
+
+const viewerDefaultTo = computed(() => viewerNavItems[0]?.to || "/v/view_member");
+const brandHomeTo = computed(() => (isViewer.value ? viewerDefaultTo.value : "/"));
+
+// ✅ IMPORTANT FIX:
+// viewer login แล้ว route ไม่ใช่ /v/... -> redirect ไป item index 0 เพื่อให้ sidebar active ทันที
+watch(
+  [isViewer, isAuthPage, () => route.path],
+  async () => {
+    if (isAuthPage.value) return;
+
+    // viewer: force to viewer space
+    if (isViewer.value) {
+      if (!String(route.path || "").startsWith("/v/")) {
+        // replace เพื่อไม่ให้กด back แล้ววนกลับมาหน้าเดิม
+        router.replace(viewerDefaultTo.value);
+      }
+      return;
+    }
+
+    // (optional but safe) admin: ถ้าเผลออยู่ /v/... ให้กลับ dashboard
+    if (!isViewer.value && String(route.path || "").startsWith("/v/")) {
+      router.replace("/dashboard");
+    }
+  },
+  { immediate: true }
+);
+
+// ---------------------
+// ✅ admin nav (เดิม)
+// ---------------------
 const navItems = [
   {
     key: "dashboard",
@@ -210,14 +285,10 @@ const navItems = [
       { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
       { key: "notifications", label: "ແຈ້ງເຕືອນ", to: "/notifications", fa: "fa-solid fa-bell" },
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
+        { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
+    
 
-      // ✅ NEW: View Form Templates (under Create Form)
-      {
-        key: "form_templates",
-        label: "ເບິ່ງ Form",
-        to: "/formtemplates",
-        fa: "fa-solid fa-layer-group",
-      },
+ 
     ],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
@@ -226,6 +297,8 @@ const navItems = [
   { key: "announcement", label: "ປະກາດແຈ້ງການ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
   { key: "board_director", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-users" },
   { key: "lapnet_employee", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-circle-user" },
+ 
+     
 ];
 
 // ✅ split nav
@@ -233,7 +306,7 @@ const mainNavItem = navItems[0];
 const dashboardItems = computed(() => mainNavItem?.children || []);
 const insertItems = navItems.slice(1, 7);
 
-// ✅ VIEW INFORMATION items (6)
+// ✅ ADMIN-only view dropdown items (ใช้ path admin เท่านั้น)
 const viewItems = [
   { key: "member_view", label: "ເບິ່ງທະນາຄານສະມາຊິກ", to: "/members", fa: "fa-solid fa-building-columns" },
   { key: "news_view", label: "ເບິ່ງຂ່າວສານ & ກິດຈະກຳ", to: "/newsviewer", fa: "fa-solid fa-newspaper" },
@@ -241,22 +314,22 @@ const viewItems = [
   { key: "announcement_view", label: "ເບິ່ງປະກາດແຈ້ງການ", to: "/announcementviewer", fa: "fa-solid fa-bullhorn" },
   { key: "board_director_view", label: "ເບິ່ງສະພາບໍລິຫານ", to: "/board_directorview", fa: "fa-solid fa-users" },
   { key: "lapnet_employee_view", label: "ເບິ່ງພະນັກງານ LAPNet", to: "/lapnetview", fa: "fa-solid fa-circle-user" },
+    { key: "form_templates", label: "ເບິ່ງ Form", to: "/formtemplates", fa: "fa-solid fa-layer-group" },
 ];
 
 // ✅ dropdown state (INSERT)
 const isInsertOpen = ref(false);
 const insertMenuEl = ref(null);
 const insertChevronEl = ref(null);
-const isInsertActive = computed(() => insertItems.some((i) => route.path === i.to));
+const isInsertActive = computed(() => !isViewer.value && insertItems.some((i) => route.path === i.to));
 
 // ✅ dropdown state (VIEW)
 const isViewOpen = ref(false);
 const viewMenuEl = ref(null);
 const viewChevronEl = ref(null);
-const isViewActive = computed(() => viewItems.some((i) => route.path === i.to));
+const isViewActive = computed(() => !isViewer.value && viewItems.some((i) => route.path === i.to));
 
 function logout() {
-  // Clear auth tokens (remember me uses localStorage or sessionStorage)
   try {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -266,11 +339,9 @@ function logout() {
     sessionStorage.removeItem("user");
   } catch (e) {}
 
-  // Optional: reset dropdown states
   isInsertOpen.value = false;
   isViewOpen.value = false;
 
-  // Go to login
   router.replace({ path: "/login" });
 }
 
@@ -429,12 +500,12 @@ function ensureViewOpenAfterNavigate() {
   }
 }
 
-// ✅ auto-open if user is on a dropdown route
+// ✅ auto-open dropdown routes (admin only)
 watch(
   () => route.path,
   async () => {
-    // On login page, sidebar is hidden -> no need to run dropdown logic
     if (isAuthPage.value) return;
+    if (isViewer.value) return;
 
     if (isInsertActive.value && !isInsertOpen.value) {
       isInsertOpen.value = true;
@@ -449,7 +520,7 @@ watch(
   }
 );
 
-// ✅ Sidebar init animation (important: when user logs in, sidebar appears after route change)
+// ✅ Sidebar init animation
 const didInitSidebar = ref(false);
 
 async function initSidebarUI() {
@@ -469,26 +540,27 @@ async function initSidebarUI() {
 
   await nextTick();
 
-  // VIEW menu initial
-  if (isViewActive.value) {
-    isViewOpen.value = true;
-    openViewMenu(true);
-  } else {
-    const menu = viewMenuEl.value;
-    const chev = viewChevronEl.value;
-    if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
-    if (chev) gsap.set(chev, { rotate: 0 });
-  }
+  // admin only: init dropdown UI
+  if (!isViewer.value) {
+    if (isViewActive.value) {
+      isViewOpen.value = true;
+      openViewMenu(true);
+    } else {
+      const menu = viewMenuEl.value;
+      const chev = viewChevronEl.value;
+      if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
+      if (chev) gsap.set(chev, { rotate: 0 });
+    }
 
-  // INSERT menu initial
-  if (isInsertActive.value) {
-    isInsertOpen.value = true;
-    openInsertMenu(true);
-  } else {
-    const menu = insertMenuEl.value;
-    const chev = insertChevronEl.value;
-    if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
-    if (chev) gsap.set(chev, { rotate: 0 });
+    if (isInsertActive.value) {
+      isInsertOpen.value = true;
+      openInsertMenu(true);
+    } else {
+      const menu = insertMenuEl.value;
+      const chev = insertChevronEl.value;
+      if (menu) gsap.set(menu, { display: "none", height: 0, opacity: 0 });
+      if (chev) gsap.set(chev, { rotate: 0 });
+    }
   }
 
   didInitSidebar.value = true;
@@ -672,7 +744,7 @@ onMounted(async () => {
   margin-top: 6px;
 }
 
-/* ✅ unified main row style (items 1/2/3) */
+/* ✅ unified main row style */
 .navItem,
 .navGroupBtn {
   text-decoration: none;
@@ -692,7 +764,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-/* ✅ dashboard child — same height/size, just a subtle “nested” look */
+/* dashboard child */
 .navItem--sub {
   background: rgba(255, 255, 255, 0.022);
   border-color: rgba(255, 255, 255, 0.055);
@@ -760,7 +832,7 @@ onMounted(async () => {
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
 }
 
-/* ✅ tidy divider */
+/* divider */
 .navDivider {
   height: 1px;
   margin: 6px 6px 2px;
@@ -775,7 +847,7 @@ onMounted(async () => {
   opacity: 0.65;
 }
 
-/* ✅ Dropdown group */
+/* dropdown group */
 .navGroup {
   display: flex;
   flex-direction: column;
@@ -806,7 +878,6 @@ onMounted(async () => {
   transform-origin: center;
 }
 
-/* submenu container (GSAP controls display/height/opacity) */
 .subNav {
   display: none;
   height: 0px;

@@ -1415,6 +1415,11 @@ function stripHtmlText(s) {
     return String(s ?? '').replace(/<[^>]*>/g, '').trim();
   }
 }
+function asPlainText(s) {
+  // ใช้สำหรับ dropdown option ที่อาจมี <a> หรือ HTML
+  return stripHtmlText(s);
+}
+
 
 function hasAnchor(s) {
   return /<a\b[^>]*href\s*=\s*['"][^'"]+['"][^>]*>/i.test(String(s ?? ''));
@@ -2169,6 +2174,10 @@ function removeOptionInModal(qq, oi) {
   if (!qq.options.length) qq.options = ["Choice 1"];
 }
 
+function ensureImagesArr(qq) {
+  qq.images = Array.isArray(qq.images) ? qq.images : [];
+  return qq.images;
+}
 
 function addImageUrl(qq) {
   if (!qq?.id) return;

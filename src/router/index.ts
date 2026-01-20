@@ -9,23 +9,35 @@ import joblist from "../view/jobs/joblist.vue";
 import announcement from "../view/announcement/announcement.vue";
 import Board_director from "../view/board_director/board_director.vue";
 import Lapnet from "../view/lapnet/lapnet.vue";
+
 import memberbankview from "../view/display/member/memberbankview.vue";
 import newsview from "../view/display/news/newsview.vue";
 import jobview from "../view/display/job/jobview.vue";
 import announcementviewer from "../view/announcement/announcementviewer.vue";
+import Board_directorview from "../view/board_director/board_directorview.vue";
+import lapnetview from "../view/lapnet/lapnetview.vue";
+
 import membersedit from "../view/display/member/MembersEdit.vue.vue";
 import newsedit from "../view/display/news/newsedit.vue";
 import announcementedit from "../view/announcement/announcementedit.vue";
 import jobedit from "../view/display/job/jobedit.vue";
-import Board_directorview from "../view/board_director/board_directorview.vue";
 import Board_directoredit from "../view/board_director/board_directoredit.vue";
-import lapnetview from "../view/lapnet/lapnetview.vue";
 import Lapnetedit from "../view/lapnet/lapnetedit.vue";
+
 import Mainvisitors from "../view/visitors/mainvisitors.vue";
 import Createform from "../view/createform/createform.vue";
 import mainnotification from "../view/notification/mainnotification.vue";
 import formtemplete from "../view/createform/formtemplete.vue";
 import Loginform from "../view/login/loginform.vue";
+import documentviewer from "../view/memberdashboard/memberview/documentviewer.vue";
+import main from "../view/memberdashboard/main.vue";
+import announcement_memberbank from "../view/memberdashboard/memberview/announcement_memberbank.vue";
+import formmemberview from "../view/memberdashboard/memberview/formmemberview.vue";
+
+import chat from "../view/memberdashboard/memberview/chat.vue";
+
+import announcementtomember from "../view/announcementtomember/announcementtomember.vue";
+
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -67,7 +79,7 @@ function homeByRole(user: any) {
 
 function hasRoleAccess(to: any, user: any) {
   const roles: string[] | undefined = to?.meta?.roles as any;
-  if (!roles || roles.length === 0) return true; // ถ้าไม่ระบุ roles = อนุญาต (เมื่อ login แล้ว)
+  if (!roles || roles.length === 0) return true;
   const r = normalizeRole(user?.role);
   return roles.includes(r);
 }
@@ -102,6 +114,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/visitors", name: "visitors", component: Mainvisitors, meta: { roles: ["admin"] } },
   { path: "/createform", name: "createform", component: Createform, meta: { roles: ["admin"] } },
   { path: "/notifications", name: "notifications", component: mainnotification, meta: { roles: ["admin"] } },
+  { path: "/announcementtomember", name: "announcementtomember", component: announcementtomember, meta: { roles: ["admin"] } },
 
   // edit pages (admin only)
   { path: "/membersedit", name: "membersedit", component: membersedit, meta: { roles: ["admin"] } },
@@ -112,15 +125,27 @@ const routes: RouteRecordRaw[] = [
   { path: "/lapnetedit", name: "lapnetedit", component: Lapnetedit, meta: { roles: ["admin"] } },
 
   // -------------------------
-  // VIEW PAGES: viewer + admin เข้าได้
+  // ADMIN VIEW PAGES (admin only) - viewer ห้ามเข้า path เดียวกัน
   // -------------------------
-  { path: "/members", name: "members", component: memberbankview, meta: { roles: ["admin", "viewer"] } },
-  { path: "/newsviewer", name: "newsviewer", component: newsview, meta: { roles: ["admin", "viewer"] } },
-  { path: "/jobview", name: "jobview", component: jobview, meta: { roles: ["admin", "viewer"] } },
-  { path: "/announcementviewer", name: "announcementviewer", component: announcementviewer, meta: { roles: ["admin", "viewer"] } },
-  { path: "/board_directorview", name: "board_directorview", component: Board_directorview, meta: { roles: ["admin", "viewer"] } },
-  { path: "/lapnetview", name: "lapnetview", component: lapnetview, meta: { roles: ["admin", "viewer"] } },
-  { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin", "viewer"] } },
+  { path: "/members", name: "members", component: memberbankview, meta: { roles: ["admin"] } },
+  { path: "/newsviewer", name: "newsviewer", component: newsview, meta: { roles: ["admin"] } },
+  { path: "/jobview", name: "jobview", component: jobview, meta: { roles: ["admin"] } },
+  { path: "/announcementviewer", name: "announcementviewer", component: announcementviewer, meta: { roles: ["admin"] } },
+  { path: "/board_directorview", name: "board_directorview", component: Board_directorview, meta: { roles: ["admin"] } },
+  { path: "/lapnetview", name: "lapnetview", component: lapnetview, meta: { roles: ["admin"] } },
+
+  // (ถ้าจะให้ viewer ดู formtemplates ด้วย ให้ทำ viewer path แยกอีกอัน)
+  { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
+
+  // -------------------------
+  // VIEWER VIEW PAGES (viewer only) - path แยกชัดเจน /v/...
+  // -------------------------
+  { path: "/v/view_document", name: "v_view_member", component: main, meta: { roles: ["viewer"] } },
+  { path: "/v/documentviewer", name: "v_documentviewer", component: documentviewer, meta: { roles: ["viewer"] } },
+  { path: "/v/announcement_member", name: "v_jobs", component: announcement_memberbank, meta: { roles: ["viewer"] } },
+  { path: "/v/formmemberview", name: "formmemberview", component: formmemberview, meta: { roles: ["viewer"] } },
+  { path: "/v/chat", name: "chat", component: chat, meta: { roles: ["viewer"] } },
+  { path: "/v/lapnet", name: "v_lapnet", component: lapnetview, meta: { roles: ["viewer"] } },
 
   // 404 -> smart home
   {
@@ -148,12 +173,12 @@ router.beforeEach((to) => {
     return true;
   }
 
-  // not logged in -> force login (เก็บ redirect)
+  // not logged in -> force login
   if (!isLoggedIn) {
     return { path: "/login", query: { redirect: to.fullPath } };
   }
 
-  // logged in but role not allowed
+  // role not allowed -> send to home by role
   if (!hasRoleAccess(to, user)) {
     return homeByRole(user);
   }
