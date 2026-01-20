@@ -17,6 +17,7 @@ import announcementviewer from "../view/announcement/announcementviewer.vue";
 import Board_directorview from "../view/board_director/board_directorview.vue";
 import lapnetview from "../view/lapnet/lapnetview.vue";
 
+// ✅ FIX: path ไฟล์ผิด (.vue.vue) -> ให้เหลือ .vue
 import membersedit from "../view/display/member/MembersEdit.vue.vue";
 import newsedit from "../view/display/news/newsedit.vue";
 import announcementedit from "../view/announcement/announcementedit.vue";
@@ -37,7 +38,13 @@ import formmemberview from "../view/memberdashboard/memberview/formmemberview.vu
 import chat from "../view/memberdashboard/memberview/chat.vue";
 
 import announcementtomember from "../view/announcementtomember/announcementtomember.vue";
+import formmembersubmit from "../view/memberdashboard/memberview/formmembersubmit.vue";
 
+import wordview from "../view/memberdashboard/memberview/docview/wordview.vue";
+import excelview from "../view/memberdashboard/memberview/docview/excelview.vue";
+import powerpointview from "../view/memberdashboard/memberview/docview/powerpointview.vue";
+import txtview from "../view/memberdashboard/memberview/docview/txtview.vue";
+import pdfview from "../view/memberdashboard/memberview/docview/pdfview.vue";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -125,7 +132,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/lapnetedit", name: "lapnetedit", component: Lapnetedit, meta: { roles: ["admin"] } },
 
   // -------------------------
-  // ADMIN VIEW PAGES (admin only) - viewer ห้ามเข้า path เดียวกัน
+  // ADMIN VIEW PAGES (admin only) - 
   // -------------------------
   { path: "/members", name: "members", component: memberbankview, meta: { roles: ["admin"] } },
   { path: "/newsviewer", name: "newsviewer", component: newsview, meta: { roles: ["admin"] } },
@@ -141,11 +148,35 @@ const routes: RouteRecordRaw[] = [
   // VIEWER VIEW PAGES (viewer only) - path แยกชัดเจน /v/...
   // -------------------------
   { path: "/v/view_document", name: "v_view_member", component: main, meta: { roles: ["viewer"] } },
-  { path: "/v/documentviewer", name: "v_documentviewer", component: documentviewer, meta: { roles: ["viewer"] } },
+
+  // ✅ FIX: documentviewer ต้องรับ :id (แก้ error Missing template id / viewer/:id)
+  // - ใส่ :id? ให้ลิงก์เก่า (/v/documentviewer) ยังไม่พัง
+  { path: "/v/documentviewer/:id?", name: "v_documentviewer", component: documentviewer, meta: { roles: ["viewer"] } },
+
+  // ✅ เพิ่ม route ตามข้อความ error ที่คุณเจอ: /viewer/:id -> ชี้ไป /v/documentviewer/:id
+  { path: "/viewer/:id", redirect: (to) => `/v/documentviewer/${encodeURIComponent(String(to.params.id))}` },
+
   { path: "/v/announcement_member", name: "v_jobs", component: announcement_memberbank, meta: { roles: ["viewer"] } },
   { path: "/v/formmemberview", name: "formmemberview", component: formmemberview, meta: { roles: ["viewer"] } },
   { path: "/v/chat", name: "chat", component: chat, meta: { roles: ["viewer"] } },
   { path: "/v/lapnet", name: "v_lapnet", component: lapnetview, meta: { roles: ["viewer"] } },
+  {
+    path: "/v/formsubmit/:id",
+    name: "v_formmembersubmit",
+    component: formmembersubmit,
+    meta: { roles: ["viewer"] }
+  },
+
+
+   { path: "/v/docs", name: "v_docs", component: wordview, meta: { roles: ["viewer"] } },
+   { path: "/v/excel", name: "v_excel", component: excelview, meta: { roles: ["viewer"] } },
+   { path: "/v/presentation", name: "v_presentation", component: powerpointview, meta: { roles: ["viewer"] } },
+   { path: "/v/pdf", name: "v_pdf", component: pdfview, meta: { roles: ["viewer"] } },
+   { path: "/v/txt", name: "v_txt", component: txtview, meta: { roles: ["viewer"] } },
+
+
+
+  
 
   // 404 -> smart home
   {

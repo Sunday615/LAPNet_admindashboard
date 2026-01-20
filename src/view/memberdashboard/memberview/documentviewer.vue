@@ -8,8 +8,38 @@
         <input v-model.trim="q" type="text" placeholder="Search Files" />
       </div>
 
-      <!-- ✅ Profile dropdown -->
-      
+      <!-- ✅ Profile dropdown (your existing refs/logic) -->
+      <div ref="profileWrapRef" class="profileWrap">
+        <button ref="profileBtnRef" class="userBtn" type="button" @click="toggleProfile">
+          <span class="userName">{{ userName }}</span>
+
+          <div class="avatar" aria-hidden="true">
+            <img v-if="userAvatar" :src="userAvatar" alt="" />
+            <div v-else class="avatarPh"></div>
+          </div>
+
+          <i ref="profileChevronRef" class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+        </button>
+
+        <div ref="profileMenuRef" class="profileMenu" role="menu" aria-label="Profile menu">
+          <button class="menuItem" type="button" @click="goNotifications">
+            <span class="miIcon"><i class="fa-solid fa-bell"></i></span>
+            <span class="miLabel">Notifications</span>
+          </button>
+
+          <button class="menuItem" type="button" @click="goChatbox">
+            <span class="miIcon"><i class="fa-solid fa-comments"></i></span>
+            <span class="miLabel">Chatbox</span>
+          </button>
+
+          <div class="menuDivider"></div>
+
+          <button class="menuItem danger" type="button" @click="logout">
+            <span class="miIcon"><i class="fa-solid fa-right-from-bracket"></i></span>
+            <span class="miLabel">Logout</span>
+          </button>
+        </div>
+      </div>
     </header>
 
     <div class="layout">
@@ -20,12 +50,15 @@
           <div class="sectionTitle">Document Type</div>
 
           <div class="docTypes">
+            <!-- ✅ Add router navigation on click -->
             <button
               v-for="(t, i) in docTypes"
               :key="t.key"
               class="docTypeTile"
               type="button"
               :ref="(el) => setRef(docTypeTileRefs, el, i)"
+              @click="goDocType(t)"
+              :title="t.to ? `Open ${t.label}` : 'Route not set'"
             >
               <div class="docIcon">
                 <img v-if="t.icon" :src="t.icon" alt="" />
@@ -253,13 +286,11 @@ function closeProfile() {
 
 function goNotifications() {
   closeProfile();
-  // ปรับ path ได้ตามโปรเจคคุณ
   router.push("/notifications").catch(() => {});
 }
 
 function goChatbox() {
   closeProfile();
-  // ปรับ path ได้ตามโปรเจคคุณ (ถ้ายังไม่มี route จะไม่พัง)
   router.push("/chatbox").catch(() => {});
 }
 
@@ -292,13 +323,32 @@ function onEsc(e) {
   if (e.key === "Escape") closeProfile();
 }
 
-// data
+// ---------------------
+// ✅ DocTypes navigation
+// ---------------------
+function goDocType(t) {
+  // close profile if open
+  closeProfile();
+
+  const to = t?.to;
+  if (!to) return;
+
+  // allow string or route object
+  if (typeof to === "string") {
+    router.push(to).catch(() => {});
+    return;
+  }
+
+  router.push(to).catch(() => {});
+}
+
+// data (✅ add route for each doc type)
 const docTypes = ref([
-  { key: "docs", label: "Docs", icon: "/document_icon/word.png" },
-  { key: "excel", label: "Excel", icon: "/document_icon/logo.png" },
-  { key: "ppt", label: "Presentation", icon: "/document_icon/powerpoint.png" },
-  { key: "pdf", label: "PDF", icon: "/document_icon/pdf.png" },
-  { key: "txt", label: "TXT", icon: "/document_icon/txt.png" },
+  { key: "docs", label: "Docs", icon: "/document_icon/word.png", to: "/v/docs" },
+  { key: "excel", label: "Excel", icon: "/document_icon/logo.png", to: "/v/excel" },
+  { key: "ppt", label: "Presentation", icon: "/document_icon/powerpoint.png", to: "/v/presentation" },
+  { key: "pdf", label: "PDF", icon: "/document_icon/pdf.png", to: "/v/pdf" },
+  { key: "txt", label: "TXT", icon: "/document_icon/txt.png", to: "/v/txt" },
 ]);
 
 const externalStorages = ref([
@@ -433,12 +483,11 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
-/* ✅ profile dropdown */
+/* profile dropdown */
 .profileWrap {
   position: relative;
   display: inline-flex;
   align-items: center;
-
 }
 
 .userBtn {
@@ -510,7 +559,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  
   padding: 10px 10px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
@@ -650,7 +698,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* variants เพื่อให้เหมือนรูป */
+/* variants */
 .storageCard.v1 {
   background: linear-gradient(90deg, rgba(50, 86, 160, 0.75), rgba(10, 54, 90, 0.55));
 }
