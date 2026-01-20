@@ -284,7 +284,7 @@ const navItems = [
     fa: "fa-solid fa-chart-line",
     children: [
       { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
-      { key: "notifications", label: "ແຈ້ງເຕືອນ", to: "/notifications", fa: "fa-solid fa-bell" },
+      { key: "notifications", label: "ຂໍ້ຄວາມ", to: "/notifications", fa: "fa-solid fa-message" },
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
         { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
     
