@@ -2152,7 +2152,7 @@ async function submitPreview() {
     return;
   }
 
-  showToast("Submit endpoint ยังไม่มีใน backend (ตอนนี้มีแค่ /api/form-templates/upsert)", "danger");
+  showToast("Submit endpoint not yet backend (have /api/form-templates/upsert)", "danger");
 }
 
 /**

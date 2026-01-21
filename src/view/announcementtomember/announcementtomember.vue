@@ -29,13 +29,7 @@
               <span class="label">Title <b class="req">*</b></span>
               <div class="inputWrap">
                 <i class="fa-solid fa-heading"></i>
-                <input
-                  v-model.trim="title"
-                  type="text"
-                  placeholder="Announcement title..."
-                  maxlength="140"
-                  required
-                />
+                <input v-model.trim="title" type="text" placeholder="Announcement title..." maxlength="140" required />
               </div>
               <div class="miniHint">{{ title.length }}/140</div>
             </label>
@@ -76,13 +70,7 @@
 
           <label class="field">
             <span class="label">Paragraph <b class="req">*</b></span>
-            <textarea
-              v-model.trim="body"
-              class="textarea"
-              rows="7"
-              placeholder="Write your announcement..."
-              required
-            />
+            <textarea v-model.trim="body" class="textarea" rows="7" placeholder="Write your announcement..." required />
             <div class="miniHint">{{ body.length }} characters</div>
           </label>
         </section>
@@ -102,14 +90,7 @@
             @dragleave="onDragLeave"
             @drop.prevent="onDrop"
           >
-            <input
-              ref="fileInputRef"
-              class="fileInput"
-              type="file"
-              multiple
-              :accept="accept"
-              @change="onFilePick"
-            />
+            <input ref="fileInputRef" class="fileInput" type="file" multiple :accept="accept" @change="onFilePick" />
 
             <div class="dzInner" @click="openFilePicker" role="button" tabindex="0">
               <div class="dzIcon">
@@ -178,7 +159,7 @@
               >
                 <img
                   class="chipLogo"
-                  :src="(memberById(id)?.bankLogo || defaultBankLogo)"
+                  :src="memberById(id)?.bankLogo || defaultBankLogo"
                   :alt="memberById(id)?.name || 'Bank logo'"
                   @error="onBankLogoError"
                 />
@@ -205,6 +186,7 @@
           </button>
         </div>
 
+        <!-- Keep inline messages as fallback -->
         <p v-if="errorMsg" class="msg err">
           <i class="fa-solid fa-triangle-exclamation"></i> {{ errorMsg }}
         </p>
@@ -214,9 +196,37 @@
       </form>
     </div>
 
-    <!-- Member overlay (GSAP)
-         Fix: the overlay will not block clicks when closed (pointer-events: none)
-    -->
+    <!-- ✅ Modern Toast Alert -->
+    <div class="toastHost" aria-live="polite" aria-relevant="additions text">
+      <div
+        v-if="toast.open"
+        ref="toastRef"
+        class="toast"
+        :class="toast.type"
+        role="status"
+        :style="{ '--dur': toast.duration + 'ms' }"
+      >
+        <div class="toastIcon" aria-hidden="true">
+          <i
+            class="fa-solid"
+            :class="toast.type === 'success' ? 'fa-circle-check' : toast.type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info'"
+          ></i>
+        </div>
+
+        <div class="toastBody">
+          <div class="toastTitle">{{ toast.title }}</div>
+          <div class="toastMsg">{{ toast.message }}</div>
+        </div>
+
+        <button class="toastClose" type="button" @click="hideToast()" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="toastBar" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <!-- Member overlay (GSAP) -->
     <div
       ref="memberOverlayRef"
       class="overlay"
@@ -259,18 +269,17 @@
           <label v-for="m in filteredMembers" :key="m.id" class="mItem">
             <input type="checkbox" :checked="isMemberSelected(m.id)" @change="toggleMember(m.id)" />
 
-            <img
-              class="bankLogo"
-              :src="m.bankLogo || defaultBankLogo"
-              :alt="m.name"
-              @error="onBankLogoError"
-            />
+            <img class="bankLogo" :src="m.bankLogo || defaultBankLogo" :alt="m.name" @error="onBankLogoError" />
 
             <span class="mName">{{ m.name }}</span>
             <span class="mId">{{ m.id }}</span>
           </label>
 
-          <div class="empty" v-if="!filteredMembers.length">No members found.</div>
+          <div class="empty" v-if="!filteredMembers.length">
+            <span v-if="membersLoading">Loading members...</span>
+            <span v-else-if="membersError">Failed to load members: {{ membersError }}</span>
+            <span v-else>No members found.</span>
+          </div>
         </div>
 
         <div class="sheetFoot">
@@ -285,9 +294,23 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import gsap from "gsap";
+
+/* -----------------------------
+  API base
+  ✅ Make submit "real" by calling the backend port (or use VITE_API_BASE).
+  - If you use Vite proxy, set VITE_API_BASE="" and it will use relative URLs.
+----------------------------- */
+const API_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").replace(/\/+$/, "");
+const API = (p) => (API_BASE ? `${API_BASE}${p}` : p);
+
+/* -----------------------------
+  Announcements endpoints
+  ✅ Try both common mount paths
+----------------------------- */
+const ANNOUNCEMENTS_ENDPOINTS = [API("/api/announcements"), API("/api/membersbank/announcements")];
 
 /* -----------------------------
   Form state
@@ -310,18 +333,65 @@ const errorMsg = ref("");
 const successMsg = ref("");
 
 /* -----------------------------
+  ✅ Modern toast (success / error)
+----------------------------- */
+const toastRef = ref(null);
+const toast = reactive({
+  open: false,
+  type: "success", // success | error | info
+  title: "",
+  message: "",
+  duration: 4200,
+});
+let toastTimer = null;
+
+function showToast(type, title, message, duration = 4200) {
+  clearTimeout(toastTimer);
+
+  toast.type = type || "info";
+  toast.title = title || (type === "success" ? "Success" : type === "error" ? "Error" : "Notice");
+  toast.message = (message || "").toString();
+  toast.duration = Number(duration) || 4200;
+  toast.open = true;
+
+  nextTick(() => {
+    const el = toastRef.value;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.fromTo(el, { autoAlpha: 0, y: -10, x: 10, scale: 0.98 }, { autoAlpha: 1, y: 0, x: 0, scale: 1, duration: 0.22, ease: "power3.out" });
+  });
+
+  toastTimer = setTimeout(() => hideToast(), toast.duration);
+}
+
+function hideToast(immediate = false) {
+  clearTimeout(toastTimer);
+  const el = toastRef.value;
+
+  if (immediate || !el) {
+    toast.open = false;
+    return;
+  }
+
+  gsap.killTweensOf(el);
+  gsap.to(el, {
+    autoAlpha: 0,
+    y: -8,
+    x: 10,
+    scale: 0.985,
+    duration: 0.18,
+    ease: "power2.in",
+    onComplete: () => {
+      toast.open = false;
+    },
+  });
+}
+
+/* -----------------------------
   MemberBank (fetch from API)
-  http://localhost:3000/api/members
-
-  Mapping:
-  - BanknameLA  -> m.name
-  - Bankcode    -> m.id
-  - image       -> m.bankLogo
-
-  (Fallback) If the API fails, we show local placeholder banks.
 ----------------------------- */
 const defaultBankLogo = "/bank-logos/default.png";
-const MEMBERS_API_URL = "http://localhost:3000/api/members";
+const MEMBERS_ENDPOINTS = [API("/api/members"), "http://localhost:3000/api/members"]; // fallback if API_BASE empty but no proxy
 
 function buildFallbackMembers() {
   return Array.from({ length: 21 }, (_, i) => {
@@ -336,6 +406,8 @@ function buildFallbackMembers() {
 }
 
 const members = ref(buildFallbackMembers());
+const usingFallbackMembers = ref(true);
+
 const membersLoading = ref(false);
 const membersError = ref("");
 
@@ -350,15 +422,18 @@ function pickArrayFromApi(json) {
 function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
-
-  // already absolute
   if (/^(https?:|data:|blob:)/i.test(s)) return s;
-
-  // If API returns a relative path, make it absolute against localhost:3000
   if (s.startsWith("/")) return `http://localhost:3000${s}`;
+  return `http://localhost:3000/${s.replace(/^\/+/, "")}`;
+}
 
-  // Otherwise treat it as a path without leading slashes
-  return `http://localhost:3000/${s.replace(/^\/+/,'')}`;
+async function fetchJsonTry(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || `Fetch failed (${res.status})`);
+  }
+  return res.json();
 }
 
 async function fetchMembers() {
@@ -366,23 +441,30 @@ async function fetchMembers() {
   membersError.value = "";
 
   try {
-    const res = await fetch(MEMBERS_API_URL);
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || `Fetch members failed (${res.status})`);
-    }
+    let json = null;
+    let lastErr = null;
 
-    const json = await res.json().catch(() => null);
+    for (const url of MEMBERS_ENDPOINTS) {
+      try {
+        json = await fetchJsonTry(url);
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!json) throw lastErr || new Error("Fetch members failed.");
+
     const raw = pickArrayFromApi(json);
 
     const mapped = raw
       .map((r) => {
         const id = (r?.Bankcode ?? r?.BankCode ?? r?.bankcode ?? r?.code ?? r?.id ?? "").toString().trim();
         const name = (r?.BanknameLA ?? r?.BankNameLA ?? r?.banknameLA ?? r?.name ?? "").toString().trim();
-        const bankLogo = resolveBankLogo(r?.image ?? r?.Image ?? r?.bankLogo ?? r?.logo ?? "");
+        const bankLogo = resolveBankLogo(r?.image ?? r?.Image ?? r?.bankLogo ?? r?.logo ?? r?.bank_logo ?? "");
 
-        // Prefer ordering by API's idmember so idmember=1 is always first
-        const orderRaw = r?.idmember ?? r?.IdMember ?? r?.IDMEMBER ?? r?.memberId ?? r?.MemberId ?? r?.idMember ?? null;
+        const orderRaw =
+          r?.idmember ?? r?.IdMember ?? r?.IDMEMBER ?? r?.memberId ?? r?.MemberId ?? r?.idMember ?? null;
         const orderNum = Number(orderRaw);
         const order = Number.isFinite(orderNum) ? orderNum : null;
 
@@ -390,34 +472,31 @@ async function fetchMembers() {
       })
       .filter((m) => m.id && m.name);
 
-    if (mapped.length) {
-      // ✅ Sort by idmember (ascending). Fallback: numeric id, then name.
-      mapped.sort((a, b) => {
-        const ao = a.order ?? Number.POSITIVE_INFINITY;
-        const bo = b.order ?? Number.POSITIVE_INFINITY;
-        if (ao !== bo) return ao - bo;
+    if (!mapped.length) throw new Error("Members API returned no usable rows.");
 
-        const aNum = Number(a.id);
-        const bNum = Number(b.id);
-        const aHasNum = Number.isFinite(aNum) && !Number.isNaN(aNum);
-        const bHasNum = Number.isFinite(bNum) && !Number.isNaN(bNum);
-        if (aHasNum && bHasNum && aNum !== bNum) return aNum - bNum;
+    mapped.sort((a, b) => {
+      const ao = a.order ?? Number.POSITIVE_INFINITY;
+      const bo = b.order ?? Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
 
-        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      });
+      const aNum = Number(a.id);
+      const bNum = Number(b.id);
+      const aHasNum = Number.isFinite(aNum) && !Number.isNaN(aNum);
+      const bHasNum = Number.isFinite(bNum) && !Number.isNaN(bNum);
+      if (aHasNum && bHasNum && aNum !== bNum) return aNum - bNum;
 
-      // remove helper `order` before exposing to UI
-      members.value = mapped.map(({ order, ...rest }) => rest);
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
 
-      // keep selections valid if list changes
-      const set = new Set(mapped.map((m) => m.id));
-      selectedMemberIds.value = selectedMemberIds.value.filter((id) => set.has(id));
-    } else {
-      throw new Error("Members API returned no usable rows.");
-    }
+    usingFallbackMembers.value = false;
+    members.value = mapped.map(({ order, ...rest }) => rest);
+
+    const set = new Set(members.value.map((m) => m.id));
+    selectedMemberIds.value = selectedMemberIds.value.filter((id) => set.has(id));
   } catch (err) {
+    usingFallbackMembers.value = true;
+    members.value = buildFallbackMembers();
     membersError.value = (err?.message || "Fetch members failed.").toString();
-    // fallback stays in place
   } finally {
     membersLoading.value = false;
   }
@@ -437,7 +516,6 @@ function memberById(id) {
 }
 
 function onBankLogoError(e) {
-  // fallback if a logo file is missing
   const img = e?.target;
   if (img && img.src !== defaultBankLogo) img.src = defaultBankLogo;
 }
@@ -463,9 +541,13 @@ function memberLabelById(id) {
   return m ? `${m.name} (${m.id})` : id;
 }
 
+const isAllSelected = computed(() => {
+  return members.value.length > 0 && selectedMemberIds.value.length === members.value.length;
+});
+
 const membersLabel = computed(() => {
   if (!selectedMemberIds.value.length) return "Select members (required)";
-  if (selectedMemberIds.value.length === members.value.length) return "All members selected";
+  if (isAllSelected.value) return "All members selected";
   return `${selectedMemberIds.value.length} members selected`;
 });
 
@@ -473,19 +555,25 @@ const membersLabel = computed(() => {
   Validation
 ----------------------------- */
 const canSubmit = computed(() => {
-  return title.value.trim().length > 0 && body.value.trim().length > 0 && selectedMemberIds.value.length > 0 && !loading.value;
+  const basic =
+    title.value.trim().length > 0 &&
+    body.value.trim().length > 0 &&
+    selectedMemberIds.value.length > 0 &&
+    !loading.value;
+
+  if (!basic) return false;
+
+  // If using fallback list (API failed), only allow submit when "Select all" (target_all=1)
+  if (usingFallbackMembers.value && !isAllSelected.value) return false;
+
+  return true;
 });
 
 /* -----------------------------
   Tags helpers
 ----------------------------- */
 function normalizeTag(t) {
-  return t
-    .trim()
-    .replace(/^#/, "")
-    .replace(/\s+/g, "_")
-    .replace(/[^\w\-]/g, "")
-    .slice(0, 28);
+  return t.trim().replace(/^#/, "").replace(/\s+/g, "_").replace(/[^\w\-]/g, "").slice(0, 28);
 }
 function addTagsFromDraft() {
   const raw = tagDraft.value || "";
@@ -551,6 +639,7 @@ function addFiles(list) {
   const remain = Math.max(0, maxFiles - current.length);
   if (remain <= 0) {
     errorMsg.value = `You can upload up to ${maxFiles} files.`;
+    showToast("error", "Upload limit", errorMsg.value, 5200);
     return;
   }
 
@@ -560,6 +649,7 @@ function addFiles(list) {
   for (const f of list.slice(0, remain)) {
     if (f.size > maxBytes) {
       errorMsg.value = `File too large: ${f.name} (max ${maxFileMB}MB)`;
+      showToast("error", "File too large", errorMsg.value, 5200);
       continue;
     }
 
@@ -617,37 +707,137 @@ function fileIconClass(f) {
 
 /* -----------------------------
   Submit (multipart/form-data)
-  Adjust the endpoint to match your backend.
 ----------------------------- */
+function buildFormData(fileFieldName = "attachments") {
+  const fd = new FormData();
+
+  const cleanTitle = title.value.trim();
+  const cleanBody = body.value.trim();
+
+  fd.append("title", cleanTitle);
+
+  fd.append("body", cleanBody);
+  fd.append("paragraph", cleanBody);
+  fd.append("detail", cleanBody);
+
+  fd.append("tags", JSON.stringify(tags.value || []));
+
+  const ids = selectedMemberIds.value.slice();
+  const all = isAllSelected.value;
+
+  fd.append("target_all", all ? "1" : "0");
+
+  const idsPayload = all ? [] : ids;
+  fd.append("memberIds", JSON.stringify(idsPayload));
+  fd.append("member_ids", JSON.stringify(idsPayload));
+
+  fd.append("status", "published");
+  fd.append("collect_email", "0");
+
+  for (const f of files.value) fd.append(fileFieldName, f);
+
+  return fd;
+}
+
+async function readErrorMessage(res) {
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (ct.includes("application/json")) {
+    const j = await res.json().catch(() => null);
+    if (!j) return `Request failed (${res.status})`;
+
+    if (j?.message && Array.isArray(j?.missing) && j.missing.length) {
+      return `${j.message}: ${j.missing.join(", ")}`;
+    }
+    if (j?.message) return String(j.message);
+    return `Request failed (${res.status})`;
+  }
+
+  const txt = await res.text().catch(() => "");
+  if (!txt) return `Request failed (${res.status})`;
+
+  try {
+    const j = JSON.parse(txt);
+    if (j?.message && Array.isArray(j?.missing) && j.missing.length) return `${j.message}: ${j.missing.join(", ")}`;
+    if (j?.message) return String(j.message);
+  } catch {}
+
+  return txt;
+}
+
+function looksLikeUnexpectedField(msg) {
+  const s = (msg || "").toString().toLowerCase();
+  return s.includes("unexpected field") || s.includes("limit_unexpected_file") || s.includes("multererror");
+}
+
 async function submit() {
   errorMsg.value = "";
   successMsg.value = "";
 
   if (!canSubmit.value) {
+    if (usingFallbackMembers.value && !isAllSelected.value) {
+      errorMsg.value =
+        "Members API failed, and your selected IDs may not exist in DB. Please fix /api/members, or click “Select all” to submit as target_all.";
+      showToast("error", "Cannot submit", errorMsg.value, 6500);
+      return;
+    }
     errorMsg.value = "Please fill in Title, Paragraph, and select at least 1 member.";
+    showToast("error", "Missing fields", errorMsg.value, 5200);
     return;
   }
 
   loading.value = true;
 
   try {
-    const fd = new FormData();
-    fd.append("title", title.value.trim());
-    fd.append("body", body.value.trim());
-    fd.append("tags", JSON.stringify(tags.value));
-    fd.append("memberIds", JSON.stringify(selectedMemberIds.value));
-    for (const f of files.value) fd.append("files", f);
+    let lastErr = null;
 
-    const res = await fetch("/api/announcements", { method: "POST", body: fd });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || `Request failed (${res.status})`);
+    for (const url of ANNOUNCEMENTS_ENDPOINTS) {
+      for (const fileField of ["attachments", "files"]) {
+        try {
+          const fd = buildFormData(fileField);
+          const res = await fetch(url, { method: "POST", body: fd });
+
+          if (!res.ok) {
+            const msg = await readErrorMessage(res);
+
+            if (res.status === 404) {
+              lastErr = new Error(`Not found: ${url}`);
+              break;
+            }
+
+            if (res.status === 400 && looksLikeUnexpectedField(msg) && fileField === "attachments") {
+              lastErr = new Error(msg);
+              continue;
+            }
+
+            throw new Error(msg);
+          }
+
+          let data = null;
+          try {
+            data = await res.json();
+          } catch {}
+
+          const msg = data?.id
+            ? `Announcement created successfully! (ID: ${data.id})`
+            : "Announcement created successfully!";
+
+          successMsg.value = msg;
+
+          // ✅ Modern success alert
+          showToast("success", "Saved successfully", msg, 4200);
+
+          resetAll(false);
+          return;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
     }
 
-    successMsg.value = "Announcement created successfully!";
-    resetAll(false);
+    throw lastErr || new Error("Create announcement failed.");
   } catch (err) {
     errorMsg.value = (err?.message || "Create announcement failed.").toString();
+    showToast("error", "Save failed", errorMsg.value, 6500);
   } finally {
     loading.value = false;
   }
@@ -696,7 +886,6 @@ function setBodyLock(lock) {
   document.body.style.overflow = lock ? "hidden" : "";
 }
 
-// immediate=true: closes instantly without animation (prevents route-change click blocking)
 function closeMemberOverlay(immediate = false) {
   const overlay = memberOverlayRef.value;
   const sheet = memberSheetRef.value;
@@ -715,7 +904,6 @@ function closeMemberOverlay(immediate = false) {
     return;
   }
 
-  // Prevent an invisible overlay from blocking clicks
   gsap.set(overlay, { pointerEvents: "none" });
 
   memberTl = gsap.timeline({
@@ -742,7 +930,6 @@ async function openMemberOverlay() {
   gsap.killTweensOf([overlay, sheet]);
   memberTl?.kill();
 
-  // Only allow pointer events when open
   gsap.set(overlay, { display: "flex", autoAlpha: 0, pointerEvents: "auto" });
   gsap.set(sheet, { autoAlpha: 0, y: 24, scale: 0.98 });
 
@@ -757,19 +944,19 @@ async function openMemberOverlay() {
   });
 }
 
-// Always close the overlay instantly before leaving the route
 onBeforeRouteLeave(() => {
   closeMemberOverlay(true);
+  hideToast(true);
 });
 
 function onKeydown(e) {
   if (e.key === "Escape") {
     if (memberOverlayOpen.value) closeMemberOverlay();
+    if (toast.open) hideToast();
   }
 }
 
 onMounted(() => {
-  // fetch MemberBank list from API
   fetchMembers();
 
   ctx = gsap.context(() => {
@@ -790,8 +977,8 @@ onMounted(() => {
       delay: 0.08,
     });
 
-    // Overlay starts hidden and non-interactive
-    if (memberOverlayRef.value) gsap.set(memberOverlayRef.value, { display: "none", autoAlpha: 0, pointerEvents: "none" });
+    if (memberOverlayRef.value)
+      gsap.set(memberOverlayRef.value, { display: "none", autoAlpha: 0, pointerEvents: "none" });
   });
 
   document.addEventListener("keydown", onKeydown);
@@ -804,20 +991,23 @@ onBeforeUnmount(() => {
     if (f?._previewUrl) URL.revokeObjectURL(f._previewUrl);
   }
 
-  // Safety: ensure overlay cannot block clicks after unmount
   closeMemberOverlay(true);
+  hideToast(true);
 
   ctx?.revert();
 });
 
-// Small GSAP pop when adding files
 watch(
   () => files.value.length,
   async () => {
     await nextTick();
     const rows = document.querySelectorAll(".fileRow");
     if (!rows?.length) return;
-    gsap.fromTo(rows[rows.length - 1], { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.22, ease: "power2.out" });
+    gsap.fromTo(
+      rows[rows.length - 1],
+      { autoAlpha: 0, y: 10 },
+      { autoAlpha: 1, y: 0, duration: 0.22, ease: "power2.out" }
+    );
   }
 );
 </script>
@@ -1280,6 +1470,124 @@ watch(
   color: rgba(210, 255, 235, 0.95);
 }
 
+/* ===== ✅ Toast (Modern Alert) ===== */
+.toastHost {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.toast {
+  pointer-events: auto;
+  width: min(420px, calc(100vw - 28px));
+  display: grid;
+  grid-template-columns: 46px 1fr 38px;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(10, 20, 45, 0.88), rgba(8, 16, 38, 0.82));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+.toast::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 18px;
+  padding: 1px;
+  background: radial-gradient(circle at 20% 20%, rgba(90, 180, 255, 0.22), rgba(0, 0, 0, 0));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.toastIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(90, 180, 255, 0.12);
+  color: rgba(240, 250, 255, 0.95);
+}
+.toast.success .toastIcon {
+  background: rgba(80, 255, 180, 0.12);
+}
+.toast.error .toastIcon {
+  background: rgba(255, 90, 90, 0.12);
+}
+.toastBody {
+  min-width: 0;
+}
+.toastTitle {
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(245, 252, 255, 0.98);
+  letter-spacing: 0.2px;
+}
+.toastMsg {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(210, 235, 255, 0.75);
+  line-height: 1.35;
+  word-break: break-word;
+}
+.toastClose {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(240, 250, 255, 0.9);
+  cursor: pointer;
+}
+.toastClose:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.toastBar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+.toastBar::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(1);
+  background: rgba(90, 180, 255, 0.75);
+  animation: toastBar var(--dur) linear forwards;
+}
+.toast.success .toastBar::after {
+  background: rgba(80, 255, 180, 0.8);
+}
+.toast.error .toastBar::after {
+  background: rgba(255, 90, 90, 0.8);
+}
+@keyframes toastBar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 /* ===== Overlay ===== */
 .overlay {
   position: fixed;
@@ -1292,7 +1600,6 @@ watch(
   background: rgba(0, 0, 0, 0.52);
   backdrop-filter: blur(10px);
 
-  /* Fix: do not block clicks when closed */
   pointer-events: none;
 }
 .overlay.isOpen {
@@ -1479,6 +1786,10 @@ watch(
   }
   .bulk {
     justify-content: flex-end;
+  }
+  .toastHost {
+    left: 14px;
+    right: 14px;
   }
 }
 </style>

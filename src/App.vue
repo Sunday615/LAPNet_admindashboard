@@ -287,6 +287,7 @@ const navItems = [
       { key: "notifications", label: "ຂໍ້ຄວາມ", to: "/notifications", fa: "fa-solid fa-message" },
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
         { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
+        { key: "usersmanage", label: "ຈັດການຜູ້ໃຊ້ງານ", to: "/usersmanage", fa: "fa-solid fa-key" },
     
 
  
@@ -298,7 +299,7 @@ const navItems = [
   { key: "announcement", label: "ປະກາດແຈ້ງການ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
   { key: "board_director", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-users" },
   { key: "lapnet_employee", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-circle-user" },
- 
+
      
 ];
 

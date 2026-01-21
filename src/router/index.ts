@@ -45,6 +45,7 @@ import excelview from "../view/memberdashboard/memberview/docview/excelview.vue"
 import powerpointview from "../view/memberdashboard/memberview/docview/powerpointview.vue";
 import txtview from "../view/memberdashboard/memberview/docview/txtview.vue";
 import pdfview from "../view/memberdashboard/memberview/docview/pdfview.vue";
+import usersmanage from "../view/usermanage/usersmanage.vue";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -140,6 +141,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/announcementviewer", name: "announcementviewer", component: announcementviewer, meta: { roles: ["admin"] } },
   { path: "/board_directorview", name: "board_directorview", component: Board_directorview, meta: { roles: ["admin"] } },
   { path: "/lapnetview", name: "lapnetview", component: lapnetview, meta: { roles: ["admin"] } },
+  { path: "/usersmanage", name: "usersmanage", component: usersmanage, meta: { roles: ["admin"] } },
 
   // (ถ้าจะให้ viewer ดู formtemplates ด้วย ให้ทำ viewer path แยกอีกอัน)
   { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
