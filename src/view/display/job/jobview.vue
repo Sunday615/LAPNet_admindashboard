@@ -92,7 +92,7 @@
             <b>{{ rows.length }}</b>
           </div>
 
-          <router-link to="/newinsert">
+          <router-link to="/joblist">
             <div class="metaPill" id="add_news">
               <i class="fa-solid fa-plus"></i>
               <span>ເພີ່ມຮັບສະໝັກພະນັກງານ</span>

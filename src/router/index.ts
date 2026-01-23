@@ -50,6 +50,8 @@ import documentupload from "../view/uploaddocument/documentupload.vue";
 
 import viewsubmitform from "../view/createform/viewsubmitform.vue";
 
+import viewannouncementtomember from "../view/announcementtomember/viewannouncementtomember.vue";
+
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
@@ -150,6 +152,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
   { path: "/adddocument", name: "adddocument", component: documentupload, meta: { roles: ["admin"] } },
   { path: "/viewsubmitform", name: "viewsubmitform", component: viewsubmitform, meta: { roles: ["admin"] } },
+  { path: "/viewannouncementtomember", name: "viewannouncementtomember", component: viewannouncementtomember, meta: { roles: ["admin"] } },
 
   // -------------------------
   // VIEWER VIEW PAGES (viewer only) - path แยกชัดเจน /v/...

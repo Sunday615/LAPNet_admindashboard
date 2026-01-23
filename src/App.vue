@@ -336,7 +336,10 @@ const viewItems = [
   { key: "board_director_view", label: "ເບິ່ງສະພາບໍລິຫານ", to: "/board_directorview", fa: "fa-solid fa-users" },
   { key: "lapnet_employee_view", label: "ເບິ່ງພະນັກງານ LAPNet", to: "/lapnetview", fa: "fa-solid fa-circle-user" },
   { key: "form_templates", label: "ເບິ່ງ Form Templates", to: "/formtemplates", fa: "fa-solid fa-layer-group" },
-  { key: "viewsubmitform", label: "ເບິ່ງ Form Submit", to: "/viewsubmitform", fa: "fa-solid fa-layer-group" },
+  { key: "viewsubmitform", label: "ເບິ່ງ Form Submit", to: "/viewsubmitform", fa: "fa-solid fa-list-check" },
+  { key: "viewannouncementtomember", label: "ເບິ່ງແຈ້ງການເຖິງສະມາຊິກ", to: "/viewannouncementtomember", fa: "fa-solid fa-bullhorn" },
+
+
 ];
 
 // ✅ dropdown state (INSERT)
