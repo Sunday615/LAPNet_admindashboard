@@ -1,985 +1,909 @@
-<!-- src/views/AnnouncementViewer.vue -->
 <template>
-  <div class="page tech">
-    <div class="glow glow-a"></div>
-    <div class="glow glow-b"></div>
+    <section class="viewer">
+        <!-- Header -->
+        <header class="head card">
+            <div class="headLeft">
+                <div class="kicker">Viewer</div>
+                <h2 class="title">Announcements</h2>
+                <p class="sub">Important notices and updates</p>
+            </div>
 
-    <main class="layout">
-      <section class="content">
-        <!-- Topbar -->
-        <header ref="topbarRef" class="topbar js-reveal">
-          <div class="topLeft">
-            <div class="titleRow">
-              <div class="titleIcon"><i class="fa-solid fa-bell"></i></div>
-              <div class="titleText">
-                <div class="pageTitle">Announcements</div>
-                <div class="pageSub">
-                  Viewer notifications • Unread <b>{{ unreadCount }}</b> / {{ items.length }}
+            <div class="headRight">
+                <div class="controls">
+                    <div class="field">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input v-model.trim="query" class="input" type="search" placeholder="Search…"
+                            aria-label="Search announcements" />
+                    </div>
+
+                    <label class="chip" title="Show unread only">
+                        <input v-model="unreadOnly" type="checkbox" />
+                        Unread only
+                    </label>
+
+                    <button class="btn" @click="markAllAsRead" :disabled="!announcements.length">
+                        <i class="fa-solid fa-check-double"></i>
+                        Mark all read
+                    </button>
+
+                    <button class="btn primary" @click="refresh" :disabled="loading">
+                        <i class="fa-solid fa-rotate"></i>
+                        {{ loading ? "Loading…" : "Refresh" }}
+                    </button>
                 </div>
-              </div>
+
+                <div class="metaRow">
+                    <span class="metaPill">
+                        <i class="fa-solid fa-bullhorn"></i>
+                        {{ announcements.length }} items
+                    </span>
+                    <span class="metaPill" v-if="unreadCount > 0">
+                        <i class="fa-solid fa-circle"></i>
+                        {{ unreadCount }} unread
+                    </span>
+                </div>
             </div>
-          </div>
-
-          <div class="topRight">
-            <div class="searchWrap">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input
-                v-model.trim="q"
-                type="text"
-                placeholder="Search title / content / tags..."
-                @keydown.enter.prevent
-              />
-            </div>
-
-            <button class="btn ghost" type="button" @click="load" :disabled="loading">
-              <i class="fa-solid" :class="loading ? 'fa-spinner fa-spin' : 'fa-rotate'"></i>
-              <span>{{ loading ? "Loading" : "Refresh" }}</span>
-            </button>
-
-            <button class="btn" type="button" @click="markAllRead" :disabled="items.length === 0 || unreadCount === 0">
-              <i class="fa-solid fa-check-double"></i>
-              <span>Mark all read</span>
-            </button>
-          </div>
         </header>
 
-        <!-- Body -->
-        <section class="body">
-          <!-- Status -->
-          <div v-if="error" class="state stateErr">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <div class="txt">
-              <div class="t">Fetch failed</div>
-              <div class="s">{{ error }}</div>
+        <!-- Error -->
+        <div v-if="error" class="error card">
+            <div class="errorTop">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <strong>Failed to load announcements</strong>
             </div>
-            <button class="btn" type="button" @click="load">
-              <i class="fa-solid fa-rotate"></i><span>Try again</span>
+            <div class="errorMsg">{{ error }}</div>
+            <button class="btn primary" @click="refresh">
+                <i class="fa-solid fa-rotate"></i>
+                Try again
             </button>
-          </div>
+        </div>
 
-          <div v-else-if="loading && items.length === 0" class="state">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            <div class="txt">
-              <div class="t">Loading announcements…</div>
-              <div class="s">Fetching from API</div>
+        <!-- List -->
+        <div v-else class="list">
+            <div v-if="loading" class="skeleton">
+                <div class="sk" v-for="i in 6" :key="i"></div>
             </div>
-          </div>
 
-          <div v-else-if="filtered.length === 0" class="state">
-            <i class="fa-regular fa-bell-slash"></i>
-            <div class="txt">
-              <div class="t">No announcements</div>
-              <div class="s">Try refresh or clear your search.</div>
-            </div>
-          </div>
+            <template v-else>
+                <article v-for="item in filteredAnnouncements" :key="item.id" class="row card"
+                    :class="{ unread: !isRead(item.id) }" role="button" tabindex="0" @click="open(item)"
+                    @keydown.enter.prevent="open(item)" @keydown.space.prevent="open(item)">
+                    <div class="rowLeft">
+                        <div class="rowTop">
+                            <h3 class="rowTitle">{{ item.title }}</h3>
+                            <span v-if="!isRead(item.id)" class="dot" title="Unread"></span>
 
-          <!-- List -->
-          <div v-else class="grid">
-            <article
-              v-for="(it, idx) in filtered"
-              :key="getId(it) || idx"
-              class="card annCard js-card"
-              :class="{ unread: !isRead(getId(it)) }"
-              @click="openItem(it)"
-              @mouseenter="cardHover(idx, true)"
-              @mouseleave="cardHover(idx, false)"
-              ref="cardRefs"
-            >
-              <div class="cardTop">
-                <div class="left">
-                  <span
-                    class="dot"
-                    :class="{ on: !isRead(getId(it)) }"
-                    :title="!isRead(getId(it)) ? 'Unread' : 'Read'"
-                    aria-hidden="true"
-                  ></span>
+                            <span v-if="item.preview.type !== 'none'" class="badge">
+                                <i
+                                    :class="item.preview.type === 'image' ? 'fa-regular fa-image' : 'fa-regular fa-file-pdf'"></i>
+                                {{ item.preview.type === "image" ? "Image" : "PDF" }}
+                            </span>
+                        </div>
 
-                  <div class="meta">
-                    <div class="title">
-                      {{ getTitle(it) }}
+                        <p class="rowSummary">
+                            {{ item.summary }}
+                        </p>
+
+                        <div class="rowMeta">
+                            <span class="meta">
+                                <i class="fa-regular fa-clock"></i>
+                                {{ formatDate(item.date) }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="sub">
-                      <span class="date">
-                        <i class="fa-regular fa-clock"></i>
-                        {{ formatDate(getCreatedAt(it)) }}
-                      </span>
-                      <span v-if="hasAttachment(it)" class="pill">
-                        <i class="fa-regular fa-image"></i> Attachment
-                      </span>
+
+                    <div class="rowRight">
+                        <button class="linkBtn" @click.stop="open(item)">
+                            Open <i class="fa-solid fa-arrow-right"></i>
+                        </button>
                     </div>
-                  </div>
+                </article>
+
+                <div v-if="filteredAnnouncements.length === 0" class="empty card">
+                    <i class="fa-regular fa-folder-open"></i>
+                    <div>
+                        <div class="emptyTitle">No announcements found</div>
+                        <div class="emptySub">Try clearing search or switching filter.</div>
+                    </div>
                 </div>
-
-                <div class="right">
-                  <button class="miniBtn" type="button" @click.stop="openItem(it)">
-                    <i class="fa-solid fa-chevron-right"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="preview">
-                {{ getPreview(it) }}
-              </div>
-
-              <div v-if="getTags(it).length" class="tags">
-                <span v-for="t in getTags(it)" :key="t" class="tag">{{ t }}</span>
-              </div>
-            </article>
-          </div>
-        </section>
-      </section>
-    </main>
-
-    <!-- Detail Modal -->
-    <div v-if="selected" class="modalWrap" @click.self="closeItem">
-      <div ref="modalRef" class="modal">
-        <div class="modalHead">
-          <div class="mhLeft">
-            <div class="mhTitle">
-              <span class="dot sm" :class="{ on: !isRead(getId(selected)) }" aria-hidden="true"></span>
-              {{ getTitle(selected) }}
-            </div>
-            <div class="mhSub">
-              <i class="fa-regular fa-clock"></i>
-              {{ formatDate(getCreatedAt(selected), true) }}
-            </div>
-          </div>
-
-          <div class="mhRight">
-            <button class="btn ghost" type="button" @click="toggleRead(selected)">
-              <i class="fa-solid" :class="isRead(getId(selected)) ? 'fa-envelope-open' : 'fa-envelope'"></i>
-              <span>{{ isRead(getId(selected)) ? "Mark unread" : "Mark read" }}</span>
-            </button>
-
-            <button class="btn" type="button" @click="closeItem">
-              <i class="fa-solid fa-xmark"></i><span>Close</span>
-            </button>
-          </div>
+            </template>
         </div>
 
-        <div class="modalBody">
-          <div class="contentText">
-            {{ getContent(selected) }}
-          </div>
+        <!-- Overlay / Modal -->
+        <teleport to="body">
+            <transition name="fade">
+                <div v-if="selected" class="overlay" @click.self="close" role="dialog" aria-modal="true">
 
-          <div v-if="getTags(selected).length" class="tags big">
-            <span v-for="t in getTags(selected)" :key="t" class="tag">{{ t }}</span>
-          </div>
+                    <div class="modal card">
+                        <header class="modalHead">
+                            <div class="modalHeadLeft">
+                                <div class="modalKicker">Announcement</div>
+                                <h3 class="modalTitle">{{ selected.title }}</h3>
+                                <div class="modalMeta">
+                                    <span class="meta">
+                                        <i class="fa-regular fa-clock"></i>
+                                        {{ formatDate(selected.date) }}
+                                    </span>
+                                    <span v-if="selected.preview.type !== 'none'" class="badge">
+                                        <i :class="selected.preview.type === 'image'
+                                            ? 'fa-regular fa-image'
+                                            : 'fa-regular fa-file-pdf'"></i>
+                                        {{ selected.preview.type === "image" ? "Image" : "PDF" }}
+                                    </span>
+                                </div>
+                            </div>
 
-          <!-- Attachments -->
-          <div v-if="attachments(selected).length" class="attach">
-            <div class="attachTitle"><i class="fa-regular fa-paperclip"></i> Attachments</div>
-            <div class="attachGrid">
-              <a
-                v-for="(u, i) in attachments(selected)"
-                :key="u + i"
-                class="attachItem"
-                :href="u"
-                target="_blank"
-                rel="noreferrer"
-                @click.stop
-              >
-                <div class="thumb" v-if="isImageUrl(u)">
-                  <img :src="u" alt="" loading="lazy" />
+                            <div class="modalHeadRight">
+                                <button class="btn" @click="markSelectedAsRead">
+                                    <i class="fa-solid fa-check"></i>
+                                    Mark as read
+                                </button>
+                                <button class="btn danger" @click="close" aria-label="Close">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </header>
+
+                        <div class="modalBody">
+                            <section class="content cardInner">
+                                <div class="sectionTitle">
+                                    <i class="fa-regular fa-file-lines"></i>
+                                    Key information
+                                </div>
+                                <p class="contentText">
+                                    {{ selected.content || selected.summary }}
+                                </p>
+                            </section>
+
+                            <section v-if="selected.preview.type !== 'none'" class="preview cardInner">
+                                <div class="sectionTitle">
+                                    <i class="fa-solid fa-eye"></i>
+                                    Preview
+                                </div>
+
+                                <img v-if="selected.preview.type === 'image'" class="img" :src="selected.preview.url"
+                                    :alt="selected.title" loading="lazy" />
+
+                                <iframe v-else class="pdf" :src="pdfEmbedUrl(selected.preview.url)"
+                                    title="PDF preview"></iframe>
+
+                                <div class="previewActions">
+                                    <a class="btn primary" :href="selected.preview.url" target="_blank" rel="noopener">
+                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                        Open in new tab
+                                    </a>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
                 </div>
-                <div class="file" v-else>
-                  <i class="fa-regular fa-file-lines"></i>
-                </div>
-                <div class="fn">{{ fileName(u) }}</div>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div class="modalFoot">
-          <button class="btn ghost" type="button" @click="prevItem">
-            <i class="fa-solid fa-arrow-left"></i><span>Prev</span>
-          </button>
-          <button class="btn ghost" type="button" @click="nextItem">
-            <span>Next</span><i class="fa-solid fa-arrow-right"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+            </transition>
+        </teleport>
+    </section>
 </template>
 
-<script>
-import { gsap } from "gsap";
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-export default {
-  name: "AnnouncementViewer",
-  data() {
+const API_URL = "http://localhost:3000/api/announcements";
+
+// ---- Per-user storage key (uses localStorage/sessionStorage "user" if available)
+function safeJsonParse(x) {
+    try {
+        return JSON.parse(String(x));
+    } catch {
+        return null;
+    }
+}
+function readUserFromStorage() {
+    const u1 = localStorage.getItem("user");
+    if (u1) return safeJsonParse(u1);
+    const u2 = sessionStorage.getItem("user");
+    if (u2) return safeJsonParse(u2);
+    return null;
+}
+function getUserKey() {
+    const u = readUserFromStorage();
+    return String(u?.id || u?.user_id || u?.username || u?.email || "anon");
+}
+function getStorageKey() {
+    return `announcement_read_ids_v1_${getUserKey()}`;
+}
+
+// ---- state
+const loading = ref(false);
+const error = ref("");
+const raw = ref([]);
+
+const query = ref("");
+const unreadOnly = ref(false);
+
+const selected = ref(null);
+
+// ---- read set
+const readSet = ref(loadReadSet());
+
+function loadReadSet() {
+    try {
+        const raw = localStorage.getItem(getStorageKey());
+        const arr = raw ? JSON.parse(raw) : [];
+        return new Set(arr.map(String));
+    } catch {
+        return new Set();
+    }
+}
+function persistReadSet(set) {
+    localStorage.setItem(getStorageKey(), JSON.stringify([...set]));
+}
+function isRead(id) {
+    return readSet.value.has(String(id));
+}
+function markRead(id) {
+    const next = new Set(readSet.value);
+    next.add(String(id));
+    readSet.value = next;
+    persistReadSet(next);
+}
+function markAllAsRead() {
+    const next = new Set(readSet.value);
+    for (const a of announcements.value) next.add(String(a.id));
+    readSet.value = next;
+    persistReadSet(next);
+}
+function markSelectedAsRead() {
+    if (!selected.value) return;
+    markRead(selected.value.id);
+}
+
+// ---- helpers
+function formatDate(value) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+function truncateText(text, max = 160) {
+    const t = (text || "").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    return t.length > max ? t.slice(0, max - 1) + "…" : t;
+}
+function getExt(url = "") {
+    const clean = String(url).split("?")[0].toLowerCase();
+    const parts = clean.split(".");
+    return parts.length > 1 ? parts.pop() : "";
+}
+function detectPreviewTypeFromUrl(url) {
+    const ext = getExt(url);
+    const img = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp"]);
+    if (img.has(ext)) return "image";
+    if (ext === "pdf") return "pdf";
+    return "none";
+}
+function pdfEmbedUrl(url) {
+    const hasHash = String(url).includes("#");
+    return hasHash ? url : `${url}#toolbar=0&navpanes=0&scrollbar=1`;
+}
+function resolveAssetUrl(url) {
+    if (!url) return "";
+    const s = String(url);
+    if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:"))
+        return s;
+
+    // if API is localhost:3000, make relative URLs absolute to that origin
+    const origin = new URL(API_URL).origin;
+
+    // "uploads/.." -> "/uploads/.."
+    if (!s.startsWith("/")) return `${origin}/${s}`;
+    return `${origin}${s}`;
+}
+
+// ---- normalize preview (supports many shapes)
+function pickPreview(item) {
+    const candidates = [];
+
+    const directUrls = [
+        item.image_url,
+        item.imageUrl,
+        item.pdf_url,
+        item.pdfUrl,
+        item.file_url,
+        item.fileUrl,
+        item.url,
+        item.path,
+    ].filter(Boolean);
+
+    for (const u of directUrls) {
+        const abs = resolveAssetUrl(u);
+        candidates.push({ url: abs, type: detectPreviewTypeFromUrl(abs) });
+    }
+
+    const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+    for (const a of attachments) {
+        const u = a.url || a.file_url || a.path;
+        if (!u) continue;
+
+        const abs = resolveAssetUrl(u);
+        const mime = String(a.mime_type || a.mimeType || "").toLowerCase();
+        let type = "none";
+        if (mime.startsWith("image/")) type = "image";
+        else if (mime === "application/pdf") type = "pdf";
+        else type = detectPreviewTypeFromUrl(abs);
+
+        candidates.push({ url: abs, type });
+    }
+
+    // Prefer image, then pdf
+    const image = candidates.find((c) => c.type === "image");
+    if (image) return image;
+
+    const pdf = candidates.find((c) => c.type === "pdf");
+    if (pdf) return pdf;
+
+    return { type: "none", url: "" };
+}
+
+function normalize(item) {
+    const id = item.id ?? item.announcement_id ?? item._id ?? crypto.randomUUID();
+
+    const title = item.title ?? item.subject ?? item.name ?? "Untitled announcement";
+    const content = item.content ?? item.description ?? item.body ?? item.detail ?? "";
+    const date = item.created_at ?? item.createdAt ?? item.date ?? item.updated_at ?? item.updatedAt ?? "";
+
     return {
-      API_URL: "http://localhost:3000/api/announcements",
-      items: [],
-      loading: false,
-      error: "",
-      q: "",
-      selected: null,
-
-      // read state
-      readSet: new Set(),
-
-      // refs list (v-for)
-      cardRefs: [],
-
-      // abort
-      aborter: null,
+        id: String(id),
+        title: String(title),
+        content: String(content || ""),
+        summary: truncateText(content || item.summary || item.short || "", 160) || "—",
+        date,
+        preview: pickPreview(item),
+        _raw: item,
     };
-  },
-  computed: {
-    filtered() {
-      const s = (this.q || "").toLowerCase();
-      if (!s) return this.items;
+}
 
-      return this.items.filter((it) => {
-        const title = (this.getTitle(it) || "").toLowerCase();
-        const content = (this.getContent(it) || "").toLowerCase();
-        const tags = this.getTags(it).join(" ").toLowerCase();
-        return title.includes(s) || content.includes(s) || tags.includes(s);
-      });
-    },
-    unreadCount() {
-      let c = 0;
-      for (const it of this.items) {
-        const id = this.getId(it);
-        if (id && !this.readSet.has(String(id))) c++;
-      }
-      return c;
-    },
-    storageKey() {
-      // ใช้ username ถ้ามี เพื่อแยกการอ่านของแต่ละคน
-      const u = localStorage.getItem("username") || localStorage.getItem("userName") || "viewer";
-      return `ann_read_ids__${u}`;
-    },
-  },
-  mounted() {
-    this.restoreReads();
-    this.animateShell();
-    this.load();
-  },
-  beforeUnmount() {
-    if (this.aborter) this.aborter.abort();
-  },
-  methods: {
-    // -----------------------
-    // Fetch
-    // -----------------------
-    async load() {
-      if (this.loading) return;
-      this.loading = true;
-      this.error = "";
+const announcements = computed(() => raw.value.map(normalize));
 
-      try {
-        if (this.aborter) this.aborter.abort();
-        this.aborter = new AbortController();
+const unreadCount = computed(() => announcements.value.filter((a) => !isRead(a.id)).length);
 
-        const token = localStorage.getItem("token");
-        const res = await fetch(this.API_URL, {
-          method: "GET",
-          signal: this.aborter.signal,
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+const filteredAnnouncements = computed(() => {
+    const q = query.value.toLowerCase();
 
-        if (!res.ok) {
-          const txt = await res.text().catch(() => "");
-          throw new Error(`${res.status} ${res.statusText}${txt ? ` • ${txt}` : ""}`);
-        }
+    let list = announcements.value;
 
-        const json = await res.json().catch(() => ({}));
-        const arr = Array.isArray(json) ? json : json.data || json.items || json.rows || [];
+    if (unreadOnly.value) {
+        list = list.filter((a) => !isRead(a.id));
+    }
 
-        // sort newest first if possible
-        const sorted = [...arr].sort((a, b) => {
-          const ta = new Date(this.getCreatedAt(a) || 0).getTime();
-          const tb = new Date(this.getCreatedAt(b) || 0).getTime();
-          return tb - ta;
-        });
+    if (q) {
+        list = list.filter((a) => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q));
+    }
 
-        this.items = sorted;
+    // Unread first, then newest
+    return [...list].sort((a, b) => {
+        const ar = isRead(a.id) ? 1 : 0;
+        const br = isRead(b.id) ? 1 : 0;
+        if (ar !== br) return ar - br;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+});
 
-        // re-collect refs next tick then animate list
-        await this.$nextTick();
-        this.animateList();
-      } catch (e) {
-        if (e?.name === "AbortError") return;
-        this.error = e?.message || "Unknown error";
-      } finally {
-        this.loading = false;
-      }
-    },
+// ---- fetch
+let aborter = null;
 
-    // -----------------------
-    // Read state (localStorage)
-    // -----------------------
-    restoreReads() {
-      try {
-        const raw = localStorage.getItem(this.storageKey);
-        const ids = raw ? JSON.parse(raw) : [];
-        this.readSet = new Set((ids || []).map((x) => String(x)));
-      } catch {
-        this.readSet = new Set();
-      }
-    },
-    persistReads() {
-      try {
-        localStorage.setItem(this.storageKey, JSON.stringify([...this.readSet]));
-      } catch {
-        // ignore
-      }
-    },
-    isRead(id) {
-      if (!id) return false;
-      return this.readSet.has(String(id));
-    },
-    markRead(id) {
-      if (!id) return;
-      this.readSet.add(String(id));
-      this.persistReads();
-    },
-    markUnread(id) {
-      if (!id) return;
-      this.readSet.delete(String(id));
-      this.persistReads();
-    },
-    toggleRead(item) {
-      const id = this.getId(item);
-      if (!id) return;
-      if (this.isRead(id)) this.markUnread(id);
-      else this.markRead(id);
-    },
-    markAllRead() {
-      for (const it of this.items) {
-        const id = this.getId(it);
-        if (id) this.readSet.add(String(id));
-      }
-      this.persistReads();
-      // small feedback animation
-      gsap.fromTo(
-        this.$refs.topbarRef,
-        { scale: 1 },
-        { scale: 1.01, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out" }
-      );
-    },
+async function refresh() {
+    loading.value = true;
+    error.value = "";
 
-    // -----------------------
-    // Open/Close detail
-    // -----------------------
-    openItem(it) {
-      this.selected = it;
+    try {
+        if (aborter) aborter.abort();
+        aborter = new AbortController();
 
-      // mark as read on open
-      const id = this.getId(it);
-      this.markRead(id);
+        const res = await fetch(API_URL, { signal: aborter.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      this.$nextTick(() => {
-        if (this.$refs.modalRef) {
-          gsap.fromTo(
-            this.$refs.modalRef,
-            { y: 18, opacity: 0, scale: 0.99 },
-            { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "power3.out" }
-          );
-        }
-      });
-    },
-    closeItem() {
-      const el = this.$refs.modalRef;
-      if (!el) {
-        this.selected = null;
-        return;
-      }
-      gsap.to(el, {
-        y: 10,
-        opacity: 0,
-        duration: 0.18,
-        ease: "power2.in",
-        onComplete: () => (this.selected = null),
-      });
-    },
-    nextItem() {
-      if (!this.selected) return;
-      const id = this.getId(this.selected);
-      const idx = this.items.findIndex((x) => String(this.getId(x)) === String(id));
-      const next = this.items[idx + 1] || this.items[0];
-      if (next) this.openItem(next);
-    },
-    prevItem() {
-      if (!this.selected) return;
-      const id = this.getId(this.selected);
-      const idx = this.items.findIndex((x) => String(this.getId(x)) === String(id));
-      const prev = this.items[idx - 1] || this.items[this.items.length - 1];
-      if (prev) this.openItem(prev);
-    },
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
 
-    // -----------------------
-    // Helpers: data shape safe
-    // -----------------------
-    getId(it) {
-      return it?.id ?? it?.announcement_id ?? it?.announcementId ?? it?.AnnID ?? it?.AnnId;
-    },
-    getTitle(it) {
-      return it?.title ?? it?.ann_title ?? it?.announcement_title ?? it?.subject ?? "Untitled";
-    },
-    getContent(it) {
-      return it?.paragraph ?? it?.content ?? it?.body ?? it?.description ?? "";
-    },
-    getCreatedAt(it) {
-      return it?.created_at ?? it?.createdAt ?? it?.date ?? it?.created ?? it?.updated_at ?? it?.updatedAt ?? "";
-    },
-    getTags(it) {
-      const t = it?.tags ?? it?.tag ?? it?.labels ?? it?.Categories;
-      if (!t) return [];
-      if (Array.isArray(t)) return t.map(String).filter(Boolean);
-      if (typeof t === "string") {
-        // allow comma separated
-        return t
-          .split(",")
-          .map((x) => x.trim())
-          .filter(Boolean);
-      }
-      return [];
-    },
-    getPreview(it) {
-      const txt = this.getContent(it) || "";
-      const clean = String(txt).replace(/\s+/g, " ").trim();
-      return clean.length > 160 ? clean.slice(0, 160) + "…" : clean;
-    },
+        raw.value = list;
+        // reload read set (in case user changed)
+        readSet.value = loadReadSet();
+    } catch (e) {
+        if (e?.name !== "AbortError") error.value = e?.message || String(e);
+    } finally {
+        loading.value = false;
+    }
+}
 
-    attachments(it) {
-      // support: file_url | image_url | files[] | attachments[]
-      const a = it?.attachments ?? it?.files ?? it?.file_urls ?? it?.fileUrl ?? it?.file_url ?? it?.image ?? it?.image_url;
-      const out = [];
+// ---- modal
+function open(item) {
+    selected.value = item;
+    markRead(item.id); // mark read on open (common UX)
+    lockScroll(true);
+}
+function close() {
+    selected.value = null;
+    lockScroll(false);
+}
+function onKeydown(e) {
+    if (e.key === "Escape" && selected.value) close();
+}
+function lockScroll(lock) {
+    document.documentElement.style.overflow = lock ? "hidden" : "";
+    document.body.style.overflow = lock ? "hidden" : "";
+}
 
-      const pushUrl = (u) => {
-        if (!u) return;
-        const url = this.normalizeUrl(String(u));
-        if (url) out.push(url);
-      };
+watch(selected, (v) => {
+    if (!v) lockScroll(false);
+});
 
-      if (Array.isArray(a)) {
-        for (const x of a) {
-          if (typeof x === "string") pushUrl(x);
-          else if (x?.url) pushUrl(x.url);
-          else if (x?.path) pushUrl(x.path);
-          else if (x?.file_url) pushUrl(x.file_url);
-        }
-      } else if (typeof a === "string") {
-        pushUrl(a);
-      } else if (a?.url) {
-        pushUrl(a.url);
-      } else if (a?.path) {
-        pushUrl(a.path);
-      }
+onMounted(() => {
+    refresh();
+    window.addEventListener("keydown", onKeydown);
+});
 
-      // de-dup
-      return [...new Set(out)];
-    },
-    hasAttachment(it) {
-      return this.attachments(it).length > 0;
-    },
-    normalizeUrl(u) {
-      // if already absolute -> return
-      if (/^https?:\/\//i.test(u)) return u;
-
-      // if relative like "/uploads/..." keep relative (works if same host serves static)
-      if (u.startsWith("/")) return u;
-
-      // fallback: treat as relative path
-      return "/" + u;
-    },
-    isImageUrl(u) {
-      return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(u.split("?")[0]);
-    },
-    fileName(u) {
-      try {
-        const noQ = u.split("?")[0];
-        const parts = noQ.split("/");
-        return parts[parts.length - 1] || "file";
-      } catch {
-        return "file";
-      }
-    },
-    formatDate(v, withTime = false) {
-      if (!v) return "—";
-      const d = new Date(v);
-      if (isNaN(d.getTime())) return String(v);
-      const opt = withTime
-        ? { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" }
-        : { year: "numeric", month: "short", day: "2-digit" };
-      return d.toLocaleString(undefined, opt);
-    },
-
-    // -----------------------
-    // GSAP animations
-    // -----------------------
-    animateShell() {
-      const top = this.$refs.topbarRef;
-      if (!top) return;
-
-      gsap.fromTo(
-        top,
-        { y: -12, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.35, ease: "power3.out" }
-      );
-
-      gsap.fromTo(
-        ".glow-a",
-        { opacity: 0.35 },
-        { opacity: 0.75, duration: 2.4, yoyo: true, repeat: -1, ease: "sine.inOut" }
-      );
-      gsap.fromTo(
-        ".glow-b",
-        { opacity: 0.25 },
-        { opacity: 0.6, duration: 3.1, yoyo: true, repeat: -1, ease: "sine.inOut" }
-      );
-    },
-    animateList() {
-      const cards = this.$refs.cardRefs;
-      if (!cards || !cards.length) return;
-
-      gsap.fromTo(
-        cards,
-        { y: 14, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.32, ease: "power3.out", stagger: 0.05 }
-      );
-
-      // pulse unread dots gently
-      const dots = Array.from(document.querySelectorAll(".annCard.unread .dot.on"));
-      if (dots.length) {
-        gsap.fromTo(dots, { scale: 1 }, { scale: 1.12, duration: 0.55, yoyo: true, repeat: -1, ease: "sine.inOut" });
-      }
-    },
-    cardHover(idx, on) {
-      const cards = this.$refs.cardRefs || [];
-      const el = cards[idx];
-      if (!el) return;
-      gsap.to(el, { y: on ? -2 : 0, duration: 0.16, ease: "power2.out" });
-    },
-  },
-};
+onBeforeUnmount(() => {
+    if (aborter) aborter.abort();
+    window.removeEventListener("keydown", onKeydown);
+    lockScroll(false);
+});
 </script>
 
 <style scoped>
-/* ===== Tech base ===== */
-.page.tech {
-  min-height: 100vh;
-  background: radial-gradient(1200px 600px at 20% 10%, rgba(60, 160, 255, 0.18), transparent 60%),
-    radial-gradient(900px 520px at 85% 30%, rgba(120, 80, 255, 0.14), transparent 55%),
-    linear-gradient(180deg, #060914, #050712);
-  position: relative;
-  overflow: hidden;
-  color: #e9f1ff;
+/* Uses your global theme vars from .app.tech:
+   --panel --panel2 --stroke --txt --muted --glass --glass2 --blueA --blueB etc.
+*/
+
+.viewer {
+    display: grid;
+    gap: 14px;
 }
 
-.glow {
-  position: absolute;
-  width: 720px;
-  height: 720px;
-  filter: blur(70px);
-  border-radius: 999px;
-  pointer-events: none;
-  opacity: 0.55;
-}
-.glow-a {
-  left: -220px;
-  top: -240px;
-  background: radial-gradient(circle at 30% 30%, rgba(40, 170, 255, 0.55), transparent 60%);
-}
-.glow-b {
-  right: -260px;
-  bottom: -260px;
-  background: radial-gradient(circle at 30% 30%, rgba(160, 110, 255, 0.5), transparent 60%);
+/* Shared card look (glass) */
+.card {
+    background: var(--panel, rgba(255, 255, 255, 0.045));
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    border-radius: 18px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
 }
 
-.layout {
-  width: min(1200px, calc(100% - 40px));
-  margin: 0 auto;
-  padding: 22px 0 36px;
-  position: relative;
-  z-index: 2;
+.cardInner {
+    background: var(--panel2, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    border-radius: 16px;
+    padding: 14px;
 }
 
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.head {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
 }
 
-/* ===== Topbar ===== */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(10, 14, 28, 0.65);
-  backdrop-filter: blur(10px);
-  border-radius: 18px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+@media (min-width: 980px) {
+    .head {
+        grid-template-columns: 1fr 1.2fr;
+        align-items: end;
+    }
 }
 
-.titleRow {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.titleIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.pageTitle {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
-.pageSub {
-  font-size: 12.5px;
-  color: rgba(233, 241, 255, 0.72);
-  margin-top: 2px;
+.kicker {
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    font-size: 12px;
 }
 
-.topRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.title {
+    margin: 4px 0 0;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--txt, rgba(255, 255, 255, 0.92));
 }
 
-.searchWrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  min-width: 280px;
+.sub {
+    margin: 6px 0 0;
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+    font-size: 13px;
 }
-.searchWrap i {
-  opacity: 0.75;
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start;
 }
-.searchWrap input {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #e9f1ff;
-  font-size: 13px;
+
+.field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--glass, rgba(255, 255, 255, 0.035));
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+}
+
+.field i {
+    opacity: 0.9;
+}
+
+.input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--txt, rgba(255, 255, 255, 0.92));
+    width: 220px;
+    max-width: 56vw;
+}
+
+.input::placeholder {
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 999px;
+    background: var(--glass, rgba(255, 255, 255, 0.035));
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 800;
+    font-size: 13px;
+    user-select: none;
+    cursor: pointer;
+}
+
+.chip input {
+    accent-color: rgba(56, 189, 248, 0.9);
 }
 
 .btn {
-  border: none;
-  cursor: pointer;
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 13px;
-  color: #071125;
-  background: linear-gradient(135deg, rgba(60, 160, 255, 0.95), rgba(135, 110, 255, 0.9));
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    background: var(--glass, rgba(255, 255, 255, 0.035));
+    color: rgba(255, 255, 255, 0.86);
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
 }
+
+.btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.22);
+    box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
+}
+
 .btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.btn.ghost {
-  color: rgba(233, 241, 255, 0.9);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: none;
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
-/* ===== Body ===== */
-.body {
-  padding: 2px 2px;
+.btn.primary {
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
+    border-color: rgba(56, 189, 248, 0.2);
 }
 
-.state {
-  padding: 18px;
-  border-radius: 18px;
-  background: rgba(10, 14, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.state i {
-  font-size: 18px;
-  opacity: 0.85;
-}
-.state .txt .t {
-  font-weight: 800;
-}
-.state .txt .s {
-  margin-top: 2px;
-  font-size: 12.5px;
-  color: rgba(233, 241, 255, 0.72);
-}
-.stateErr {
-  border-color: rgba(255, 80, 100, 0.25);
+.btn.danger {
+    border-color: rgba(248, 113, 113, 0.22);
+    background: rgba(248, 113, 113, 0.08);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.metaRow {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-/* ===== Cards ===== */
-.card {
-  border-radius: 18px;
-  background: rgba(10, 14, 28, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
-  overflow: hidden;
-}
-.annCard {
-  padding: 14px 14px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-.annCard:hover {
-  border-color: rgba(80, 170, 255, 0.3);
-}
-.annCard.unread {
-  border-color: rgba(255, 80, 100, 0.22);
+.metaPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.82);
 }
 
-.cardTop {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+.list {
+    display: grid;
+    gap: 12px;
 }
-.left {
-  display: flex;
-  gap: 10px;
-  min-width: 0;
+
+.row {
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.row:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.22);
+    box-shadow: 0 18px 44px rgba(56, 189, 248, 0.08);
+}
+
+.row.unread {
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.12), rgba(255, 255, 255, 0.03));
+    border-color: rgba(56, 189, 248, 0.22);
+}
+
+.rowLeft {
+    min-width: 0;
+}
+
+.rowTop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.rowTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.95);
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 0 0 0 rgba(255, 80, 100, 0);
-  margin-top: 4px;
-  flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.95);
+    box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
 }
-.dot.on {
-  background: rgba(255, 70, 95, 0.95);
-  box-shadow: 0 0 0 6px rgba(255, 70, 95, 0.12);
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    background: rgba(56, 189, 248, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 900;
+    font-size: 12px;
 }
-.dot.sm {
-  width: 9px;
-  height: 9px;
+
+.rowSummary {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 78ch;
+}
+
+.rowMeta {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .meta {
-  min-width: 0;
-}
-.title {
-  font-weight: 900;
-  font-size: 14px;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sub {
-  margin-top: 6px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: rgba(233, 241, 255, 0.75);
-}
-.date i {
-  margin-right: 6px;
-  opacity: 0.8;
-}
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+    font-size: 12px;
+    font-weight: 800;
 }
 
-.preview {
-  margin-top: 10px;
-  font-size: 13px;
-  color: rgba(233, 241, 255, 0.78);
-  line-height: 1.45;
+.rowRight {
+    display: flex;
+    align-items: center;
 }
 
-.tags {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.tags.big {
-  margin-top: 14px;
-}
-.tag {
-  font-size: 12px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(60, 160, 255, 0.12);
-  border: 1px solid rgba(60, 160, 255, 0.2);
-  color: rgba(233, 241, 255, 0.92);
+.linkBtn {
+    border: none;
+    background: transparent;
+    color: rgba(56, 189, 248, 0.95);
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 6px;
 }
 
-.miniBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(233, 241, 255, 0.9);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
+.empty {
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.75);
 }
 
-/* ===== Modal ===== */
-.modalWrap {
+.emptyTitle {
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.emptySub {
+    margin-top: 3px;
+    color: var(--muted, rgba(255, 255, 255, 0.55));
+    font-size: 13px;
+}
+
+.error {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+    border-color: rgba(248, 113, 113, 0.22);
+    background: rgba(248, 113, 113, 0.06);
+}
+
+.errorTop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 900;
+}
+
+.errorMsg {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+}
+
+/* Skeleton */
+.skeleton {
+    display: grid;
+    gap: 12px;
+}
+
+.sk {
+    height: 92px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+    background-size: 200% 200%;
+    border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
+    animation: shimmer 1.15s ease infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Modal */
+.overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.58);
   display: grid;
   place-items: center;
-  z-index: 50;
   padding: 18px;
 }
+
 .modal {
-  width: min(980px, 100%);
-  border-radius: 20px;
-  background: rgba(10, 14, 28, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  width: min(1020px, 96vw);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+
+  /* nicer scrolling + prevent “scroll leaking” to page */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
+
 .modalHead {
-  padding: 14px 14px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    background: rgba(8, 12, 28, 0.78);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(14px);
 }
-.mhTitle {
-  font-size: 16px;
-  font-weight: 950;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+
+.modalKicker {
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--muted, rgba(255, 255, 255, 0.55));
 }
-.mhSub {
-  margin-top: 6px;
-  font-size: 12.5px;
-  color: rgba(233, 241, 255, 0.72);
+
+.modalTitle {
+    margin: 6px 0 0;
+    font-size: 18px;
+    font-weight: 950;
+    color: rgba(255, 255, 255, 0.95);
 }
-.mhRight {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+
+.modalMeta {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.modalHeadRight {
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 .modalBody {
-  padding: 14px;
+    padding: 14px;
+    display: grid;
+    gap: 14px;
 }
+
+.sectionTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 950;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.92);
+}
+
 .contentText {
-  white-space: pre-wrap;
-  line-height: 1.6;
-  font-size: 13.5px;
-  color: rgba(233, 241, 255, 0.86);
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.82);
 }
 
-.attach {
-  margin-top: 16px;
-}
-.attachTitle {
-  font-weight: 900;
-  font-size: 13px;
-  margin-bottom: 10px;
-  color: rgba(233, 241, 255, 0.9);
-}
-.attachGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-.attachItem {
-  text-decoration: none;
-  color: rgba(233, 241, 255, 0.9);
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.thumb {
-  height: 110px;
-  background: rgba(0, 0, 0, 0.15);
-}
-.thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.file {
-  height: 110px;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  opacity: 0.9;
-}
-.fn {
-  padding: 10px 10px 12px;
-  font-size: 12px;
-  opacity: 0.85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.img {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-.modalFoot {
-  padding: 12px 14px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.pdf {
+    width: 100%;
+    height: min(70vh, 760px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(0, 0, 0, 0.25);
 }
 
-/* ===== Responsive ===== */
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  .searchWrap {
-    min-width: 220px;
-  }
-  .attachGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.previewActions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Transition */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 160ms ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
 </style>

@@ -30,13 +30,19 @@
             v-for="item in viewerNavItems"
             :key="item.key"
             :to="item.to"
-            class="navItem"
+            :class="['navItem', { 'is-new': isViewerNew(item) }]"
             active-class="active"
             @mouseenter="navHover($event, true)"
             @mouseleave="navHover($event, false)"
           >
             <span class="navIcon"><i :class="item.fa"></i></span>
             <span class="navLabel">{{ item.label }}</span>
+
+            <!-- ✅ NEW: viewer badge (only on announcement_member nav) -->
+            <span v-if="item.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount > 0" class="navBadge">
+              {{ viewerAnnNewCount > 99 ? "99+" : viewerAnnNewCount }}
+            </span>
+
             <span class="navPill" />
           </RouterLink>
         </template>
@@ -179,11 +185,35 @@
         <RouterView />
       </section>
     </main>
+
+    <!-- ✅ NEW: viewer toast notification (viewer only) -->
+    <transition name="toast">
+      <div v-if="isViewer && toast.show && !isAuthPage" class="toast">
+        <div class="toastLeft">
+          <div class="toastTitle">
+            <i class="fa-solid fa-bell"></i>
+            New announcements
+          </div>
+          <div class="toastSub">
+            {{ toast.text }}
+          </div>
+        </div>
+
+        <div class="toastRight">
+          <button class="toastBtn" type="button" @click="goToViewerAnnouncements">
+            View
+          </button>
+          <button class="toastBtn ghost" type="button" @click="hideToast" aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch, nextTick } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
@@ -232,19 +262,12 @@ watch(
 
 // ✅ viewer sidebar items 1-6 (แยก path ชัดเจนเป็น /v/..)
 const viewerNavItems = [
-  { key: "v_main", label: "ພາຍລວມ", to: "/v/view_document", fa: "fa-solid fa-chart-line" },
+  { key: "v_main", label: "ພາບລວມ", to: "/v/view_document", fa: "fa-solid fa-chart-line" },
   { key: "v_news", label: "ເອກະສານ", to: "/v/documentviewer", fa: "fa-solid fa-file" },
   { key: "v_jobs", label: "ແຈ້ງການເຖິງສະມາຊິກ", to: "/v/announcement_member", fa: "fa-solid fa-bullhorn" },
   { key: "v_ann", label: "ຟອມແບບສອບຖາມ", to: "/v/formmemberview", fa: "fa-solid fa-list-check" },
   { key: "v_board", label: "ຂໍ້ຄວາມ", to: "/v/chat", fa: "fa-solid fa-message" },
-  
-  // { key: "v_lapnet", label: "ພະນັກງານ LAPNet", to: "/v/lapnet", fa: "fa-solid fa-circle-user" },
-
-
 ];
-
-
-
 
 const viewerDefaultTo = computed(() => viewerNavItems[0]?.to || "/v/view_member");
 const brandHomeTo = computed(() => (isViewer.value ? viewerDefaultTo.value : "/"));
@@ -286,12 +309,9 @@ const navItems = [
       { key: "visitor", label: "Visitor", to: "/visitors", fa: "fa-solid fa-eye" },
       { key: "notifications", label: "ຂໍ້ຄວາມ", to: "/notifications", fa: "fa-solid fa-message" },
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
-        { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
-        { key: "adddocument", label: "ເພີ່ມເອກະສານ", to: "/adddocument", fa: "fa-solid fa-file" },
-        { key: "usersmanage", label: "ຈັດການຜູ້ໃຊ້ງານ", to: "/usersmanage", fa: "fa-solid fa-key" },
-    
-
- 
+      { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
+      { key: "adddocument", label: "ເພີ່ມເອກະສານ", to: "/adddocument", fa: "fa-solid fa-file" },
+      { key: "usersmanage", label: "ຈັດການຜູ້ໃຊ້ງານ", to: "/usersmanage", fa: "fa-solid fa-key" },
     ],
   },
   { key: "member", label: "ເພີ່ມທະນາຄານສະມາຊິກ", to: "/memberinsert", fa: "fa-solid fa-building-columns" },
@@ -300,8 +320,6 @@ const navItems = [
   { key: "announcement", label: "ປະກາດແຈ້ງການ", to: "/announcement", fa: "fa-solid fa-bullhorn" },
   { key: "board_director", label: "ເພີ່ມສະພາບໍລິຫານ", to: "/board_director", fa: "fa-solid fa-users" },
   { key: "lapnet_employee", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-circle-user" },
-
-     
 ];
 
 // ✅ split nav
@@ -317,7 +335,8 @@ const viewItems = [
   { key: "announcement_view", label: "ເບິ່ງປະກາດແຈ້ງການ", to: "/announcementviewer", fa: "fa-solid fa-bullhorn" },
   { key: "board_director_view", label: "ເບິ່ງສະພາບໍລິຫານ", to: "/board_directorview", fa: "fa-solid fa-users" },
   { key: "lapnet_employee_view", label: "ເບິ່ງພະນັກງານ LAPNet", to: "/lapnetview", fa: "fa-solid fa-circle-user" },
-    { key: "form_templates", label: "ເບິ່ງ Form", to: "/formtemplates", fa: "fa-solid fa-layer-group" },
+  { key: "form_templates", label: "ເບິ່ງ Form Templates", to: "/formtemplates", fa: "fa-solid fa-layer-group" },
+  { key: "viewsubmitform", label: "ເບິ່ງ Form Submit", to: "/viewsubmitform", fa: "fa-solid fa-layer-group" },
 ];
 
 // ✅ dropdown state (INSERT)
@@ -344,6 +363,12 @@ function logout() {
 
   isInsertOpen.value = false;
   isViewOpen.value = false;
+
+  // ✅ viewer notify reset
+  stopViewerAnnPoll();
+  viewerAnnNewCount.value = 0;
+  viewerAnnLatestAt.value = 0;
+  hideToast();
 
   router.replace({ path: "/login" });
 }
@@ -584,6 +609,185 @@ onMounted(async () => {
     await initSidebarUI();
   }
 });
+
+/* =========================================================
+   ✅ NEW: Viewer notification (poll announcements and badge)
+   ========================================================= */
+
+const ANN_API_URL = "http://localhost:3000/api/announcements";
+
+// the nav item you want to mark in sidebar
+const VIEWER_ANN_ITEM_KEY = "v_jobs";
+const VIEWER_ANN_ROUTE = "/v/announcement_member";
+
+const viewerAnnNewCount = ref(0);
+const viewerAnnLatestAt = ref(0);
+
+let viewerAnnTimer = null;
+let viewerAnnAbort = null;
+
+const toast = ref({ show: false, text: "" });
+let toastTimer = null;
+
+function getViewerIdentityKey() {
+  const u = readUserFromStorage();
+  return String(u?.id || u?.user_id || u?.username || u?.email || "anon");
+}
+
+function viewerAnnSeenStorageKey() {
+  return `viewer_last_seen_announcements_v1_${getViewerIdentityKey()}`;
+}
+
+function loadViewerSeen() {
+  const key = viewerAnnSeenStorageKey();
+  const raw = localStorage.getItem(key);
+  if (raw == null) return null; // uninitialized
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function saveViewerSeen(ts) {
+  const key = viewerAnnSeenStorageKey();
+  localStorage.setItem(key, String(ts || 0));
+}
+
+function toTime(x) {
+  const d = new Date(x);
+  const n = d.getTime();
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getAnnTime(item) {
+  return (
+    toTime(item?.created_at) ||
+    toTime(item?.createdAt) ||
+    toTime(item?.date) ||
+    toTime(item?.updated_at) ||
+    toTime(item?.updatedAt) ||
+    0
+  );
+}
+
+async function checkViewerAnnouncements() {
+  if (isAuthPage.value) return;
+  if (!isViewer.value) return;
+
+  try {
+    if (viewerAnnAbort) viewerAnnAbort.abort();
+    viewerAnnAbort = new AbortController();
+
+    const res = await fetch(ANN_API_URL, { signal: viewerAnnAbort.signal });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+
+    let latest = 0;
+    for (const it of list) {
+      const t = getAnnTime(it);
+      if (t > latest) latest = t;
+    }
+    viewerAnnLatestAt.value = latest;
+
+    const seen = loadViewerSeen();
+
+    // If first time (no key), initialize to latest and show no badge
+    if (seen == null) {
+      saveViewerSeen(latest);
+      viewerAnnNewCount.value = 0;
+      return;
+    }
+
+    // Count new
+    const newCount = list.reduce((acc, it) => acc + (getAnnTime(it) > seen ? 1 : 0), 0);
+
+    const prev = viewerAnnNewCount.value;
+    viewerAnnNewCount.value = newCount;
+
+    // Toast only when new increases and not currently on announcement page
+    if (newCount > prev && route.path !== VIEWER_ANN_ROUTE) {
+      showToast(`${newCount} new item${newCount > 1 ? "s" : ""} added`);
+    }
+  } catch (e) {
+    if (e?.name === "AbortError") return;
+    // ignore network errors silently (optional)
+  }
+}
+
+function startViewerAnnPoll() {
+  stopViewerAnnPoll();
+  checkViewerAnnouncements();
+  viewerAnnTimer = setInterval(checkViewerAnnouncements, 45000); // 45s
+  window.addEventListener("focus", checkViewerAnnouncements);
+}
+
+function stopViewerAnnPoll() {
+  if (viewerAnnTimer) {
+    clearInterval(viewerAnnTimer);
+    viewerAnnTimer = null;
+  }
+  window.removeEventListener("focus", checkViewerAnnouncements);
+  if (viewerAnnAbort) {
+    viewerAnnAbort.abort();
+    viewerAnnAbort = null;
+  }
+}
+
+function markViewerAnnouncementsSeen() {
+  // mark seen to latest time (clears badge)
+  const latest = viewerAnnLatestAt.value || Date.now();
+  saveViewerSeen(latest);
+  viewerAnnNewCount.value = 0;
+  hideToast();
+}
+
+function isViewerNew(item) {
+  return item?.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount.value > 0;
+}
+
+// when viewer enters announcement page -> clear badge
+watch(
+  () => route.path,
+  (p) => {
+    if (!isViewer.value) return;
+    if (p === VIEWER_ANN_ROUTE) {
+      markViewerAnnouncementsSeen();
+    }
+  }
+);
+
+// start/stop poll based on role/page
+watch(
+  [isViewer, isAuthPage, () => route.path],
+  () => {
+    if (isViewer.value && !isAuthPage.value) startViewerAnnPoll();
+    else stopViewerAnnPoll();
+  },
+  { immediate: true }
+);
+
+// Toast helpers
+function showToast(text) {
+  toast.value = { show: true, text };
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.value.show = false;
+  }, 5500);
+}
+function hideToast() {
+  toast.value.show = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = null;
+}
+function goToViewerAnnouncements() {
+  router.push(VIEWER_ANN_ROUTE);
+  hideToast();
+}
+
+onBeforeUnmount(() => {
+  stopViewerAnnPoll();
+  hideToast();
+});
 </script>
 
 <style scoped>
@@ -765,6 +969,28 @@ onMounted(async () => {
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease,
     transform 180ms ease;
   cursor: pointer;
+}
+
+/* ✅ NEW: viewer "has new" highlight (only adds tiny glow) */
+.navItem.is-new {
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.08);
+}
+
+/* ✅ NEW: badge count on viewer nav item */
+.navBadge {
+  position: absolute;
+  right: 28px; /* keep space for navPill on far right */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(56, 189, 248, 0.10);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
 }
 
 /* dashboard child */
@@ -1008,6 +1234,77 @@ onMounted(async () => {
   border-radius: 999px;
 }
 
+/* ✅ NEW: Toast notification */
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 12px 12px;
+  border-radius: 16px;
+  background: rgba(8, 12, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  max-width: min(420px, 92vw);
+}
+
+.toastLeft {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.toastTitle {
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.toastSub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toastRight {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.toastBtn {
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
+.toastBtn.ghost {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.80);
+}
+
+/* toast animation */
+.toast-enter-active,
+.toast-leave-active {
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
 /* responsive */
 @media (max-width: 1100px) {
   .app.tech {
@@ -1026,6 +1323,11 @@ onMounted(async () => {
   }
   .navDivider {
     margin: 6px 2px 2px;
+  }
+
+  /* badge still visible in compact mode */
+  .navBadge {
+    right: 26px;
   }
 }
 

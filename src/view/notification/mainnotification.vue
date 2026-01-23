@@ -1,16 +1,4 @@
-<!-- AdminNotifications.vue
-  ✅ หน้า "ແຈ້ງເຕືອນ" สำหรับ Admin Dashboard (ใช้งานกับตาราง notifications + /api/notifications)
-  - ดึงรายการจาก DB: notifications (จาก trigger ที่คุณสร้างไว้)
-  - ฟีเจอร์:
-    - ค้นหา (q)
-    - filter entity / action
-    - unread only
-    - mark read / mark all read
-    - delete
-    - กด "Open" เพื่อไปหน้า linkpath (ถ้ามี)
-  - ใช้ GSAP สำหรับ animation
-  - ใช้ Global theme จาก App.vue (CSS vars)
--->
+
 <template>
   <section class="page" ref="pageEl">
     <!-- Header -->

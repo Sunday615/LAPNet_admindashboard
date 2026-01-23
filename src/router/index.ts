@@ -48,6 +48,8 @@ import pdfview from "../view/memberdashboard/memberview/docview/pdfview.vue";
 import usersmanage from "../view/usermanage/usersmanage.vue";
 import documentupload from "../view/uploaddocument/documentupload.vue";
 
+import viewsubmitform from "../view/createform/viewsubmitform.vue";
+
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
@@ -147,6 +149,7 @@ const routes: RouteRecordRaw[] = [
   // (ถ้าจะให้ viewer ดู formtemplates ด้วย ให้ทำ viewer path แยกอีกอัน)
   { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
   { path: "/adddocument", name: "adddocument", component: documentupload, meta: { roles: ["admin"] } },
+  { path: "/viewsubmitform", name: "viewsubmitform", component: viewsubmitform, meta: { roles: ["admin"] } },
 
   // -------------------------
   // VIEWER VIEW PAGES (viewer only) - path แยกชัดเจน /v/...
