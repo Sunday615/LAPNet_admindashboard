@@ -287,6 +287,7 @@ const navItems = [
       { key: "notifications", label: "ຂໍ້ຄວາມ", to: "/notifications", fa: "fa-solid fa-message" },
       { key: "create_form", label: "ສ້າງ Form", to: "/createform", fa: "fa-solid fa-pen-to-square" },
         { key: "announcementtomember", label: "ສ້າງແຈ້ງການເຖິງສະມາຊິກ", to: "/announcementtomember", fa: "fa-solid fa-bullhorn" },
+        { key: "adddocument", label: "ເພີ່ມເອກະສານ", to: "/adddocument", fa: "fa-solid fa-file" },
         { key: "usersmanage", label: "ຈັດການຜູ້ໃຊ້ງານ", to: "/usersmanage", fa: "fa-solid fa-key" },
     
 

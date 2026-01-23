@@ -46,6 +46,7 @@ import powerpointview from "../view/memberdashboard/memberview/docview/powerpoin
 import txtview from "../view/memberdashboard/memberview/docview/txtview.vue";
 import pdfview from "../view/memberdashboard/memberview/docview/pdfview.vue";
 import usersmanage from "../view/usermanage/usersmanage.vue";
+import documentupload from "../view/uploaddocument/documentupload.vue";
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
@@ -145,6 +146,7 @@ const routes: RouteRecordRaw[] = [
 
   // (ถ้าจะให้ viewer ดู formtemplates ด้วย ให้ทำ viewer path แยกอีกอัน)
   { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
+  { path: "/adddocument", name: "adddocument", component: documentupload, meta: { roles: ["admin"] } },
 
   // -------------------------
   // VIEWER VIEW PAGES (viewer only) - path แยกชัดเจน /v/...

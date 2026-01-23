@@ -117,6 +117,33 @@
               </label>
             </div>
 
+            <!-- ✅ NEW: Fintech toggle (tinyint 1/0) -->
+            <div class="label">
+              <div class="labelTopRow">
+                <span>Fintech (tinyint)</span>
+
+                <div class="labelActions">
+                  <button
+                    type="button"
+                    class="fintechToggle"
+                    :class="{ on: fintechOn }"
+                    @click="toggleFintech"
+                    @mouseenter="btnHover($event, true)"
+                    @mouseleave="btnHover($event, false)"
+                    :title="fintechOn ? 'Fintech = 1 (ON)' : 'Fintech = 0 (OFF)'"
+                    aria-label="Toggle fintech"
+                  >
+                    <span class="fintechKnob"></span>
+                    <span class="fintechVal">{{ fintechOn ? "1" : "0" }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="fintechHint">
+                {{ fintechOn ? "Enabled → will save fintech = 1" : "Disabled → will save fintech = 0" }}
+              </div>
+            </div>
+
             <!-- ✅ ATM -->
             <div class="label">
               <div class="labelTopRow">
@@ -595,10 +622,18 @@ const form = reactive({
   gradA: "#38bdf8",
   gradB: "#6366f1",
 
+  // ✅ NEW: fintech tinyint(1) toggle value
+  fintech: 0,
+
   CardATM: { items: [] },
   Mbbanking: { items: [] },
   Crossborder: { items: [] },
 });
+
+const fintechOn = computed(() => Number(form.fintech) === 1);
+function toggleFintech() {
+  form.fintech = fintechOn.value ? 0 : 1;
+}
 
 const allSelectedProducts = computed(() => {
   const a = Array.isArray(form.CardATM?.items) ? form.CardATM.items : [];
@@ -795,6 +830,9 @@ function resetForm() {
   form.Mbbanking.items = [];
   form.Crossborder.items = [];
 
+  // ✅ NEW: reset fintech to OFF
+  form.fintech = 0;
+
   clearImage();
   form.gradA = "#38bdf8";
   form.gradB = "#6366f1";
@@ -826,6 +864,9 @@ async function onSubmit() {
     fd.append("gradA", form.gradA);
     fd.append("gradB", form.gradB);
 
+    // ✅ NEW: send fintech tinyint(1/0)
+    fd.append("fintech", String(fintechOn.value ? 1 : 0));
+
     fd.append("CardATM", JSON.stringify({ items: form.CardATM.items || [] }));
     fd.append("Mbbanking", JSON.stringify({ items: form.Mbbanking.items || [] }));
     fd.append("Crossborder", JSON.stringify({ items: form.Crossborder.items || [] }));
@@ -851,6 +892,7 @@ async function onSubmit() {
     });
 
     console.log("INSERT OK:", data);
+    console.log("SENT fintech:", fintechOn.value ? 1 : 0);
     console.log("SENT FLAGS (memberFlags):", memberFlags.value);
     console.log("SENT FLAGS (productFlags):", productFlags.value);
 
@@ -1204,6 +1246,61 @@ onBeforeUnmount(() => {
   margin-top: 8px;
   font-size: 12px;
   color: var(--danger);
+}
+
+/* =========================
+   ✅ NEW: FINTECH TOGGLE
+   ========================= */
+.fintechToggle {
+  position: relative;
+  width: 78px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 10px;
+  font-weight: 950;
+  overflow: hidden;
+}
+.fintechKnob {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  transition: left 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.fintechVal {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+.fintechToggle.on {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.12));
+  box-shadow: 0 16px 34px rgba(56, 189, 248, 0.12);
+}
+.fintechToggle.on .fintechKnob {
+  left: 46px;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.fintechHint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 800;
 }
 
 /* =========================

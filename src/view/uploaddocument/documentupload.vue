@@ -1,5 +1,4 @@
 <!-- DocumentViewer.vue (Document Management) -->
-<!-- DocumentViewer.vue (Viewer Mode: Read-only) -->
 <template>
   <div class="docViewer">
     <!-- Top bar -->
@@ -15,11 +14,16 @@
             <i class="fa-solid" :class="loading ? 'fa-spinner fa-spin' : 'fa-rotate'"></i>
             <span>Refresh</span>
           </button>
+
+          <button class="btn primary" type="button" @click="openUpload()">
+            <i class="fa-solid fa-file-circle-plus"></i>
+            <span>Add Document</span>
+          </button>
         </div>
       </div>
 
       <!-- ✅ Profile dropdown -->
-      <!-- (keep your existing profile dropdown here if you want) -->
+     
     </header>
 
     <!-- ✅ Modern Toast Alert -->
@@ -71,7 +75,7 @@
           </div>
         </div>
 
-        <!-- ✅ Document Viewer Table (Read-only) -->
+        <!-- ✅ Document Management Table -->
         <div ref="docsCardRef" class="card section docsCard">
           <div class="docsTop">
             <div class="docsTitle">
@@ -83,6 +87,16 @@
             </div>
 
             <div class="docsTools">
+              <div class="chip" title="Selected rows">
+                <i class="fa-solid fa-check-double"></i>
+                <span>{{ selectedIds.size }}</span>
+              </div>
+
+              <button class="btn danger ghost" type="button" @click="bulkDeleteAsk()" :disabled="selectedIds.size === 0 || loading">
+                <i class="fa-solid fa-trash"></i>
+                <span>Delete Selected</span>
+              </button>
+
               <div class="select">
                 <i class="fa-solid fa-arrow-down-a-z"></i>
                 <select v-model="sortKey">
@@ -121,6 +135,17 @@
             <table class="table">
               <thead>
                 <tr>
+                  <th class="colCheck">
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        :checked="isAllPageSelected"
+                        :indeterminate.prop="isSomePageSelected && !isAllPageSelected"
+                        @change="toggleSelectAllPage($event)"
+                      />
+                      <span></span>
+                    </label>
+                  </th>
                   <th class="colName">Name</th>
                   <th class="colType">Type</th>
                   <th class="colTags">Tags</th>
@@ -133,20 +158,27 @@
 
               <tbody>
                 <tr v-if="loading">
-                  <td colspan="7" class="empty">
+                  <td colspan="8" class="empty">
                     <i class="fa-solid fa-spinner fa-spin"></i>
                     Loading documents...
                   </td>
                 </tr>
 
                 <tr v-else-if="pagedDocs.length === 0">
-                  <td colspan="7" class="empty">
+                  <td colspan="8" class="empty">
                     <i class="fa-regular fa-folder-open"></i>
                     No documents found
                   </td>
                 </tr>
 
                 <tr v-else v-for="(doc, i) in pagedDocs" :key="doc.id" class="row" :ref="(el) => setRef(rowRefs, el, i)">
+                  <td class="colCheck">
+                    <label class="check">
+                      <input type="checkbox" :checked="selectedIds.has(doc.id)" @change="toggleSelect(doc.id, $event)" />
+                      <span></span>
+                    </label>
+                  </td>
+
                   <td class="colName">
                     <div class="nameCell">
                       <div class="fileDot" :class="typeDot(doc.type)"></div>
@@ -193,6 +225,12 @@
                       <button class="iconBtn" type="button" title="Download" @click="downloadDocument(doc)">
                         <i class="fa-solid fa-download"></i>
                       </button>
+                      <button class="iconBtn" type="button" title="Edit" @click="openEdit(doc)">
+                        <i class="fa-regular fa-pen-to-square"></i>
+                      </button>
+                      <button class="iconBtn danger" type="button" title="Delete" @click="deleteAsk(doc)">
+                        <i class="fa-regular fa-trash-can"></i>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -220,7 +258,152 @@
       </section>
     </div>
 
-    <!-- ✅ Confirm Modal (kept only for Esc safety; not used in viewer mode) -->
+    <!-- =========================
+         Upload Modal
+         ========================= -->
+    <div v-if="uploadOpen" class="modalOverlay" @mousedown.self="closeUpload()">
+      <div class="modal" ref="uploadModalRef">
+        <div class="modalHead">
+          <div class="modalTitle">
+            <i class="fa-solid fa-file-circle-plus"></i>
+            <span>Add Document</span>
+          </div>
+          <button class="iconBtn" type="button" @click="closeUpload()" title="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modalBody">
+          <div class="dropzone" :class="{ dragging: isDragging }" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
+            <div class="dzIcon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div class="dzText">
+              <div class="dzTitle">Drop file here</div>
+              <div class="dzSub">or click to choose file</div>
+            </div>
+            <input class="fileInput" type="file" @change="onPickFile" />
+          </div>
+
+          <div class="grid2">
+            <label class="field">
+              <span class="label">Title</span>
+              <input v-model.trim="uploadForm.title" type="text" placeholder="e.g. Q1 Financial Report" />
+            </label>
+
+            <label class="field">
+              <span class="label">Type</span>
+              <select v-model="uploadForm.type">
+                <option value="docs">DOCS</option>
+                <option value="excel">EXCEL</option>
+                <option value="ppt">PRESENTATION</option>
+                <option value="pdf">PDF</option>
+                <option value="txt">TXT</option>
+              </select>
+            </label>
+
+            <label class="field span2">
+              <span class="label">Tags (comma separated)</span>
+              <input v-model.trim="uploadForm.tagsText" type="text" placeholder="finance, q1, report" />
+            </label>
+
+            <label class="field span2">
+              <span class="label">Description</span>
+              <textarea v-model.trim="uploadForm.description" rows="3" placeholder="Optional description..."></textarea>
+            </label>
+          </div>
+
+          <div v-if="uploadFile" class="pickedFile">
+            <i class="fa-regular fa-file"></i>
+            <span class="pfName">{{ uploadFile.name }}</span>
+            <span class="pfSize">{{ formatBytes(uploadFile.size) }}</span>
+            <button class="iconBtn danger" type="button" title="Remove file" @click="clearPickedFile">
+              <i class="fa-regular fa-trash-can"></i>
+            </button>
+          </div>
+
+          <div v-if="uploadError" class="notice danger">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>{{ uploadError }}</span>
+          </div>
+
+          <div class="modalFoot">
+            <button class="btn ghost" type="button" @click="closeUpload()" :disabled="uploading">Cancel</button>
+            <button class="btn primary" type="button" @click="submitUpload()" :disabled="uploading || !uploadFile">
+              <i class="fa-solid" :class="uploading ? 'fa-spinner fa-spin' : 'fa-upload'"></i>
+              <span>{{ uploading ? "Uploading..." : "Upload" }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================
+         Edit Modal
+         ========================= -->
+    <div v-if="editOpen" class="modalOverlay" @mousedown.self="closeEdit()">
+      <div class="modal" ref="editModalRef">
+        <div class="modalHead">
+          <div class="modalTitle">
+            <i class="fa-regular fa-pen-to-square"></i>
+            <span>Edit Document</span>
+          </div>
+          <button class="iconBtn" type="button" @click="closeEdit()" title="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modalBody">
+          <div class="grid2">
+            <label class="field span2">
+              <span class="label">Name</span>
+              <input v-model.trim="editForm.name" type="text" placeholder="Document name" />
+            </label>
+
+            <label class="field">
+              <span class="label">Type</span>
+              <select v-model="editForm.type">
+                <option value="docs">DOCS</option>
+                <option value="excel">EXCEL</option>
+                <option value="ppt">PRESENTATION</option>
+                <option value="pdf">PDF</option>
+                <option value="txt">TXT</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="label">Owner</span>
+              <input v-model.trim="editForm.owner" type="text" placeholder="Owner name" />
+            </label>
+
+            <label class="field span2">
+              <span class="label">Tags (comma separated)</span>
+              <input v-model.trim="editForm.tagsText" type="text" placeholder="finance, q1, report" />
+            </label>
+
+            <label class="field span2">
+              <span class="label">Description</span>
+              <textarea v-model.trim="editForm.description" rows="3" placeholder="Optional description..."></textarea>
+            </label>
+          </div>
+
+          <div v-if="editError" class="notice danger">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>{{ editError }}</span>
+          </div>
+
+          <div class="modalFoot">
+            <button class="btn ghost" type="button" @click="closeEdit()" :disabled="savingEdit">Cancel</button>
+            <button class="btn primary" type="button" @click="saveEdit()" :disabled="savingEdit || !editDocId">
+              <i class="fa-solid" :class="savingEdit ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+              <span>{{ savingEdit ? "Saving..." : "Save" }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================
+         Confirm Modal
+         ========================= -->
     <div v-if="confirmState.open" class="modalOverlay" @mousedown.self="confirmNo()">
       <div class="modal small" ref="confirmModalRef">
         <div class="modalHead">
@@ -240,7 +423,7 @@
             <button class="btn ghost" type="button" @click="confirmNo()">Cancel</button>
             <button class="btn danger" type="button" @click="confirmYes()">
               <i class="fa-solid fa-trash"></i>
-              <span>Yes</span>
+              <span>Yes, delete</span>
             </button>
           </div>
         </div>
@@ -253,6 +436,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import gsap from "gsap";
+
+
 
 /**
  * ✅ FIX: setRef safe (prevent undefined)
@@ -268,10 +453,14 @@ const route = useRoute();
 
 /**
  * =========================
- * API
+ * API (adjust endpoints in your backend)
  * =========================
- * Viewer mode uses only:
- * GET /api/documents
+ * Expected endpoints (suggested):
+ * GET    /api/documents?query=&type=&sortKey=&sortDir=&page=&limit=
+ * POST   /api/documents (multipart/form-data: file, title, type, tags[], description)
+ * PATCH  /api/documents/:id (json metadata)
+ * DELETE /api/documents/:id
+ * POST   /api/documents/bulk-delete (json: { ids: [] })
  */
 const API_BASE = import.meta.env?.VITE_API_BASE || "http://localhost:3000/api";
 
@@ -363,7 +552,7 @@ function hideToast(immediate = false) {
 
 /**
  * =========================
- * Profile dropdown (GSAP) - kept (optional)
+ * Profile dropdown (GSAP)
  * =========================
  */
 const profileWrapRef = ref(null);
@@ -436,6 +625,16 @@ function closeProfile() {
   closeProfileMenu(!!reduce);
 }
 
+function goNotifications() {
+  closeProfile();
+  router.push("/notifications").catch(() => {});
+}
+
+function goChatbox() {
+  closeProfile();
+  router.push("/chatbox").catch(() => {});
+}
+
 function logout() {
   closeProfile();
 
@@ -466,6 +665,8 @@ function onEsc(e) {
   if (e.key === "Escape") {
     closeProfile();
     hideToast(true);
+    if (uploadOpen.value) closeUpload();
+    if (editOpen.value) closeEdit();
     if (confirmState.value.open) confirmNo();
   }
 }
@@ -505,6 +706,8 @@ const sortDir = ref("desc");
 
 const page = ref(1);
 const pageSize = ref(10);
+
+const selectedIds = ref(new Set());
 
 const filteredSortedDocs = computed(() => {
   const query = (q.value || "").toLowerCase();
@@ -563,6 +766,35 @@ function nextPage() {
   page.value = Math.min(totalPages.value, page.value + 1);
 }
 
+const isAllPageSelected = computed(() => {
+  if (pagedDocs.value.length === 0) return false;
+  return pagedDocs.value.every((d) => selectedIds.value.has(d.id));
+});
+const isSomePageSelected = computed(() => {
+  if (pagedDocs.value.length === 0) return false;
+  return pagedDocs.value.some((d) => selectedIds.value.has(d.id));
+});
+
+function toggleSelect(id, ev) {
+  const checked = !!ev?.target?.checked;
+  const set = new Set(selectedIds.value);
+  if (checked) set.add(id);
+  else set.delete(id);
+  selectedIds.value = set;
+}
+
+function toggleSelectAllPage(ev) {
+  const checked = !!ev?.target?.checked;
+  const set = new Set(selectedIds.value);
+  if (checked) pagedDocs.value.forEach((d) => set.add(d.id));
+  else pagedDocs.value.forEach((d) => set.delete(d.id));
+  selectedIds.value = set;
+}
+
+function clearSelection() {
+  selectedIds.value = new Set();
+}
+
 /**
  * =========================
  * ✅ Modern GSAP: animate rows on change
@@ -591,7 +823,7 @@ watch(
 
 /**
  * =========================
- * Viewer-only: GET documents
+ * CRUD functions (manage document)
  * =========================
  */
 function getAuthHeaders() {
@@ -638,28 +870,94 @@ async function loadDocuments() {
     qs.set("sortDir", sortDir.value);
 
     const res = await fetch(`${API_BASE}/documents?${qs.toString()}`, { method: "GET", headers: { ...getAuthHeaders() } });
+
     if (!res.ok) throw new Error(`Failed to load documents (${res.status})`);
 
     const data = await res.json();
     const list = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
     documents.value = list.map(normalizeDoc);
 
-    // info toast (optional)
-    showToast({
-      type: "info",
-      title: "Loaded",
-      message: `Fetched ${documents.value.length} document(s).`,
-      duration: 1400,
-    });
+    const ids = new Set(documents.value.map((d) => d.id));
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => ids.has(id)));
   } catch (e) {
     documents.value = demoDocs().map(normalizeDoc);
-    error.value = `${e?.message || "Load error"} — showing demo data (check your GET /api/documents endpoint).`;
-    showToast({
-      type: "error",
-      title: "Load Failed",
-      message: "Showing demo data (backend not ready).",
-      duration: 1800,
+    error.value = `${e?.message || "Load error"} — showing demo data (check your /api/documents endpoint).`;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function deleteDocument(id) {
+  if (!id) return;
+
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(id)}`, { method: "DELETE", headers: { ...getAuthHeaders() } });
+    if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+
+    documents.value = documents.value.filter((d) => d.id !== id);
+    const set = new Set(selectedIds.value);
+    set.delete(id);
+    selectedIds.value = set;
+  } catch (e) {
+    documents.value = documents.value.filter((d) => d.id !== id);
+    const set = new Set(selectedIds.value);
+    set.delete(id);
+    selectedIds.value = set;
+    error.value = e?.message || "Delete error";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function bulkDelete(ids) {
+  if (!ids || ids.length === 0) return;
+
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/bulk-delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ ids }),
     });
+
+    if (!res.ok) throw new Error(`Bulk delete failed (${res.status})`);
+
+    documents.value = documents.value.filter((d) => !ids.includes(d.id));
+    clearSelection();
+  } catch (e) {
+    documents.value = documents.value.filter((d) => !ids.includes(d.id));
+    clearSelection();
+    error.value = e?.message || "Bulk delete error";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function updateDocument(id, payload) {
+  if (!id) return;
+
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error(`Update failed (${res.status})`);
+
+    const updated = normalizeDoc(await res.json());
+    documents.value = documents.value.map((d) => (d.id === id ? { ...d, ...updated } : d));
+  } catch (e) {
+    documents.value = documents.value.map((d) => (d.id === id ? { ...d, ...payload, updatedAt: new Date().toISOString() } : d));
+    error.value = e?.message || "Update error";
   } finally {
     loading.value = false;
   }
@@ -697,7 +995,7 @@ function downloadDocument(doc) {
 
 /**
  * =========================
- * Confirm dialogs (kept but unused)
+ * Confirm dialogs
  * =========================
  */
 const confirmState = ref({
@@ -706,6 +1004,15 @@ const confirmState = ref({
   message: "",
   onYes: null,
 });
+
+function askConfirm({ title, message, onYes }) {
+  confirmState.value = {
+    open: true,
+    title: title || "Confirm",
+    message: message || "",
+    onYes: typeof onYes === "function" ? onYes : null,
+  };
+}
 
 function confirmNo() {
   confirmState.value.open = false;
@@ -718,6 +1025,252 @@ async function confirmYes() {
   try {
     if (fn) await fn();
   } catch (e) {}
+}
+
+function deleteAsk(doc) {
+  if (!doc?.id) return;
+  askConfirm({
+    title: "Delete Document",
+    message: `Delete "${doc.name}"? This action cannot be undone.`,
+    onYes: () => deleteDocument(doc.id),
+  });
+}
+
+function bulkDeleteAsk() {
+  const ids = [...selectedIds.value];
+  if (ids.length === 0) return;
+
+  askConfirm({
+    title: "Delete Selected",
+    message: `Delete ${ids.length} document(s)? This action cannot be undone.`,
+    onYes: () => bulkDelete(ids),
+  });
+}
+
+/**
+ * =========================
+ * Upload modal + functions
+ * =========================
+ */
+const uploadOpen = ref(false);
+const uploadModalRef = ref(null);
+const uploadFile = ref(null);
+const uploading = ref(false);
+const uploadError = ref("");
+const isDragging = ref(false);
+
+const uploadForm = ref({
+  title: "",
+  type: "pdf",
+  tagsText: "",
+  description: "",
+});
+
+function openUpload() {
+  closeProfile();
+  uploadError.value = "";
+  uploadOpen.value = true;
+
+  nextTick(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduce) return;
+    if (uploadModalRef.value) gsap.fromTo(uploadModalRef.value, { y: 12, opacity: 0, scale: 0.98 }, { y: 0, opacity: 1, scale: 1, duration: 0.2, ease: "power3.out" });
+  });
+}
+
+function closeUpload() {
+  uploadOpen.value = false;
+  isDragging.value = false;
+  uploadError.value = "";
+  uploading.value = false;
+}
+
+function clearPickedFile() {
+  uploadFile.value = null;
+}
+
+function onPickFile(e) {
+  const f = e?.target?.files?.[0];
+  if (!f) return;
+  uploadFile.value = f;
+}
+
+function onDragOver() {
+  isDragging.value = true;
+}
+function onDragLeave() {
+  isDragging.value = false;
+}
+function onDrop(e) {
+  isDragging.value = false;
+  const f = e?.dataTransfer?.files?.[0];
+  if (!f) return;
+  uploadFile.value = f;
+}
+
+function parseTags(tagsText) {
+  return (tagsText || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+async function submitUpload() {
+  if (!uploadFile.value) return;
+  uploadError.value = "";
+  uploading.value = true;
+
+  try {
+    const fd = new FormData();
+    fd.append("file", uploadFile.value);
+
+    fd.append("title", uploadForm.value.title || uploadFile.value.name);
+    fd.append("type", uploadForm.value.type || "unknown");
+    fd.append("description", uploadForm.value.description || "");
+    const tags = parseTags(uploadForm.value.tagsText);
+    tags.forEach((t) => fd.append("tags[]", t));
+
+    const res = await fetch(`${API_BASE}/documents`, {
+      method: "POST",
+      headers: { ...getAuthHeaders() },
+      body: fd,
+    });
+
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+
+    const created = normalizeDoc(await res.json());
+    documents.value = [created, ...documents.value];
+
+    closeUpload();
+    uploadForm.value = { title: "", type: "pdf", tagsText: "", description: "" };
+    uploadFile.value = null;
+    page.value = 1;
+
+    showToast({
+      type: "success",
+      title: "Upload Success",
+      message: `"${created.name}" has been added.`,
+    });
+
+    await nextTick();
+    animateRows();
+  } catch (e) {
+    // local fallback (demo)
+    const now = new Date().toISOString();
+    const created = normalizeDoc({
+      id: `demo-${Date.now()}`,
+      name: uploadForm.value.title || uploadFile.value.name,
+      type: uploadForm.value.type,
+      tags: parseTags(uploadForm.value.tagsText),
+      owner: userName.value,
+      size: uploadFile.value.size,
+      updatedAt: now,
+      description: uploadForm.value.description,
+      path: "/",
+      viewUrl: "",
+      downloadUrl: "",
+    });
+    documents.value = [created, ...documents.value];
+
+    uploadError.value = `${e?.message || "Upload error"} — added locally (check your POST /api/documents endpoint).`;
+    showToast({
+      type: "info",
+      title: "Saved Locally",
+      message: `"${created.name}" added (backend not ready).`,
+    });
+
+    uploading.value = false;
+  } finally {
+    uploading.value = false;
+  }
+}
+
+/**
+ * =========================
+ * Edit modal + functions
+ * =========================
+ */
+const editOpen = ref(false);
+const editModalRef = ref(null);
+const editDocId = ref("");
+const savingEdit = ref(false);
+const editError = ref("");
+
+const editForm = ref({
+  name: "",
+  type: "pdf",
+  owner: "",
+  tagsText: "",
+  description: "",
+});
+
+function openEdit(doc) {
+  closeProfile();
+  if (!doc?.id) return;
+
+  editDocId.value = doc.id;
+  editForm.value = {
+    name: doc.name || "",
+    type: doc.type || "pdf",
+    owner: doc.owner || "",
+    tagsText: (doc.tags || []).join(", "),
+    description: doc.description || "",
+  };
+
+  editError.value = "";
+  editOpen.value = true;
+
+  nextTick(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduce) return;
+    if (editModalRef.value) gsap.fromTo(editModalRef.value, { y: 12, opacity: 0, scale: 0.98 }, { y: 0, opacity: 1, scale: 1, duration: 0.2, ease: "power3.out" });
+  });
+}
+
+function closeEdit() {
+  editOpen.value = false;
+  savingEdit.value = false;
+  editError.value = "";
+  editDocId.value = "";
+}
+
+async function saveEdit() {
+  if (!editDocId.value) return;
+  editError.value = "";
+  savingEdit.value = true;
+
+  const payload = {
+    name: editForm.value.name,
+    type: editForm.value.type,
+    owner: editForm.value.owner,
+    tags: parseTags(editForm.value.tagsText),
+    description: editForm.value.description,
+  };
+
+  try {
+    await updateDocument(editDocId.value, payload);
+    const nm = payload.name || "Document";
+
+    closeEdit();
+
+    showToast({
+      type: "success",
+      title: "Edit Saved",
+      message: `"${nm}" has been updated.`,
+    });
+
+    await nextTick();
+    animateRows();
+  } catch (e) {
+    editError.value = e?.message || "Save error";
+    showToast({
+      type: "error",
+      title: "Save Failed",
+      message: editError.value,
+    });
+  } finally {
+    savingEdit.value = false;
+  }
 }
 
 /**
@@ -816,12 +1369,14 @@ onMounted(async () => {
   }
 });
 
-// Close dropdown when route changes
+// Close dropdown & modals when route changes
 watch(
   () => route.fullPath,
   () => {
     closeProfile();
     hideToast(true);
+    if (uploadOpen.value) closeUpload();
+    if (editOpen.value) closeEdit();
     if (confirmState.value.open) confirmNo();
   }
 );
@@ -1274,6 +1829,18 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 900;
+  font-size: 12px;
+  opacity: 0.9;
+}
 .select {
   display: inline-flex;
   align-items: center;
@@ -1362,6 +1929,9 @@ onBeforeUnmount(() => {
   margin-right: 10px;
 }
 
+.colCheck {
+  width: 44px;
+}
 .colName {
   width: 360px;
 }
@@ -1381,7 +1951,7 @@ onBeforeUnmount(() => {
   width: 170px;
 }
 .colActions {
-  width: 140px;
+  width: 170px;
 }
 
 .nameCell {
@@ -1397,26 +1967,23 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
 }
 .dPdf {
-  background: rgba(255, 15, 55, 0.9);
+  background: rgba(255, 165, 0, 0.95);
 }
 .dDocs {
-  background: rgba(0, 123, 255, 0.95);
+  background: rgba(56, 189, 248, 0.95);
 }
 .dXls {
   background: rgba(34, 197, 94, 0.95);
 }
 .dPpt {
-  background:   rgba(255, 165, 0, 0.95) ;
-
-
+  background: rgba(244, 63, 94, 0.9);
 }
 .dTxt {
-  background: rgba(56, 189, 248, 0.95);
+  background: rgba(148, 163, 184, 0.95);
 }
 .dOther {
   background: rgba(168, 85, 247, 0.85);
 }
-
 
 .nameText {
   min-width: 0;

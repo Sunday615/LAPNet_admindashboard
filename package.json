@@ -17,6 +17,7 @@
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.5.1",
     "cors": "^2.8.5",
+    "docx-preview": "^0.3.7",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "flatpickr": "^4.6.13",

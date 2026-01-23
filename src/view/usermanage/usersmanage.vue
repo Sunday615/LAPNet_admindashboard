@@ -243,7 +243,7 @@
                 <i class="fa-solid fa-shield-halved"></i>
                 <select v-model="form.role" @change="onRoleChange">
                   <option value="viewer">viewer</option>
-                  <option value="staff">staff</option>
+                  
                   <option value="admin">admin</option>
                 </select>
               </div>
@@ -934,14 +934,14 @@ function fmtDate(v) {
 function roleIcon(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "fa-crown";
-  if (r === "staff") return "fa-user-shield";
+
   return "fa-eye";
 }
 
 function pillRoleClass(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "roleAdmin";
-  if (r === "staff") return "roleStaff";
+ 
   return "roleViewer";
 }
 

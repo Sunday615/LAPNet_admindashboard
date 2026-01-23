@@ -734,8 +734,8 @@ const HIDE_UI_KEYS = new Set(
     "atmtransfer",
     "mobiletransfer",
     "qrpayment",
-    "crossborderproduct",     // ✅ NEW: hide this column
-    "crossborder_product",    // ✅ optional variant
+    "crossborderproduct", // ✅ hide this column
+    "crossborder_product", // ✅ optional variant
   ].map((x) => x.toLowerCase())
 );
 
@@ -747,6 +747,36 @@ function isHiddenUiPath(path) {
   if (!p) return false;
   const seg0 = (p.split(".")[0] || "").toLowerCase();
   return HIDE_UI_KEYS.has(seg0);
+}
+
+/* =========================
+   ✅ HIDE in TABLE ONLY (remove fintech column in table rows/header/filter/sort)
+   ========================= */
+const HIDE_TABLE_ONLY_KEYS = new Set(
+  [
+    "fintech",
+    "fintech_product",
+    "fintechproduct",
+    "fintech_service",
+    "fintechservice",
+    "fintech_services",
+    "fintechservices",
+  ].map((x) => x.toLowerCase())
+);
+
+function isHiddenTableKey(k) {
+  return HIDE_TABLE_ONLY_KEYS.has(lastSegmentKey(k).toLowerCase());
+}
+
+function sanitizeTableState() {
+  if (isHiddenTableKey(filterKey.value)) {
+    filterKey.value = "";
+    filterValue.value = "";
+  }
+  if (isHiddenTableKey(sortKey.value)) {
+    sortKey.value = "";
+    sortDir.value = "asc";
+  }
 }
 
 /* =========================
@@ -1313,7 +1343,8 @@ const tableCols = computed(() => {
       !isImageKey(k) &&
       !isBackendIdKey(k) &&
       !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // ✅ hides crossborderproduct too
+      !isHiddenUiKey(k) && // hides crossborderproduct too
+      !isHiddenTableKey(k) && // ✅ hide fintech in table
       String(k).toLowerCase() !== ID_MEMBER_COL
   );
 
@@ -1343,7 +1374,8 @@ const tableCols = computed(() => {
       !isImageKey(k) &&
       !isBackendIdKey(k) &&
       !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // ✅ hides crossborderproduct too
+      !isHiddenUiKey(k) && // hides crossborderproduct too
+      !isHiddenTableKey(k) && // ✅ hide fintech in table
       String(k).toLowerCase() !== ID_MEMBER_COL
   );
 
@@ -1372,7 +1404,8 @@ const filterKeys = computed(() => {
       if (isImageKey(k)) return;
       if (isBackendIdKey(k)) return;
       if (isTimeKey(k)) return;
-      if (isHiddenUiKey(k)) return; // ✅ hides crossborderproduct too
+      if (isHiddenUiKey(k)) return; // hides crossborderproduct too
+      if (isHiddenTableKey(k)) return; // ✅ hide fintech in filter dropdown
       if (String(k).toLowerCase() === ID_MEMBER_COL) return;
       if (typeof v === "object" && v !== null) return;
       set.add(k);
@@ -1385,7 +1418,8 @@ const filterKeys = computed(() => {
 function toggleSort(col) {
   if (isIdMemberCol(col)) return;
   if (isTimeKey(col)) return;
-  if (isHiddenUiKey(col)) return; // ✅ includes crossborderproduct
+  if (isHiddenUiKey(col)) return; // includes crossborderproduct
+  if (isHiddenTableKey(col)) return; // ✅ hide fintech from sorting
 
   if (sortKey.value !== col) {
     sortKey.value = col;
@@ -1551,6 +1585,9 @@ async function fetchMembers() {
 
     members.value = sortMembersOldestFirst(list);
 
+    // ✅ if fintech was previously selected as sort/filter, reset safely
+    sanitizeTableState();
+
     await nextTick();
     animateRows();
   } catch (err) {
@@ -1632,7 +1669,6 @@ onBeforeUnmount(() => {
   if (gsapCtx) gsapCtx.revert();
 });
 </script>
-
 
 <style scoped>
 /* =========================
