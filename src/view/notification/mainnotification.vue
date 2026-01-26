@@ -1,851 +1,1090 @@
-
 <template>
-  <section class="page" ref="pageEl">
-    <!-- Header -->
-    <header class="page__header">
-      <div class="page__titleWrap">
-        <h1 class="page__title">ແຈ້ງເຕືອນ (Admin Dashboard)</h1>
-        <p class="page__subtitle">
-          ລາຍການແຈ້ງເຕືອນຈາກ Events (insert / edit / delete / active_on / active_off)
+  <section class="chatMb">
+    <!-- header -->
+    <header ref="headEl" class="head js-reveal">
+      <div class="headLeft">
+        <div class="kicker">
+          <span class="kDot"></span>
+          Admin • MemberBank Chat
+        </div>
+        <h1 class="title">MemberBank Inbox</h1>
+        <p class="sub">
+          1:1 chat between admin and each member bank • show iAccount • total 23 banks
         </p>
       </div>
 
-      <div class="page__actions">
-        <div class="search">
-          <span class="search__icon" aria-hidden="true">⌕</span>
-          <input
-            v-model="q"
-            class="input"
-            type="text"
-            placeholder="Search: title / message / entity / action..."
-            @input="onSearchInput"
-          />
+      <div class="headRight">
+        <div class="pill">
+          <i class="fa-solid fa-building-columns"></i>
+          <span class="mono">{{ banks.length }}</span>
+          <span class="muted">/ 23 banks</span>
         </div>
 
-        <select v-model="entity" class="select">
-          <option value="">All entity</option>
-          <option v-for="e in ENTITIES" :key="e" :value="e">{{ e }}</option>
-        </select>
-
-        <select v-model="action" class="select">
-          <option value="">All action</option>
-          <option v-for="a in ACTIONS" :key="a" :value="a">{{ a }}</option>
-        </select>
-
-        <label class="switch">
-          <input type="checkbox" v-model="unreadOnly" />
-          <span class="switch__ui"></span>
-          <span class="switch__label">Unread only</span>
-        </label>
-
-        <button class="btn btn--primary" type="button" @click="markAllRead" :disabled="loading">
-          Mark all read
-        </button>
-
-        <button class="btn" type="button" @click="reloadAll" :disabled="loading">
+        <button class="btn ghost" type="button" @click="reloadAll" :disabled="loading">
+          <i class="fa-solid fa-rotate"></i>
           Refresh
         </button>
       </div>
     </header>
 
-    <!-- Toast -->
-    <transition name="toast">
-      <div v-if="toast.show" class="toast" role="status" aria-live="polite">
-        <div class="toast__dot" aria-hidden="true"></div>
-        <div class="toast__body">
-          <div class="toast__title">{{ toast.title }}</div>
-          <div class="toast__msg">{{ toast.message }}</div>
-        </div>
-        <button class="toast__close" type="button" @click="toast.show = false">✕</button>
-      </div>
-    </transition>
+    <div class="grid">
+      <!-- LEFT: memberbank list -->
+      <aside ref="leftEl" class="panel js-reveal">
+        <div class="panelTop">
+          <div class="panelTitle">
+            <i class="fa-solid fa-users"></i>
+            Member banks
+          </div>
 
-    <!-- Main Card -->
-    <div class="card" ref="cardEl">
-      <div class="card__head">
-        <div class="card__headLeft">
-          <h2 class="card__headTitle">Notifications</h2>
-          <div class="pill">
-            Unread: <b>{{ unreadCount }}</b> · Showing: <b>{{ items.length }}</b>
+          <div class="search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              v-model.trim="q"
+              class="input"
+              type="search"
+              placeholder="Search bank name / code / iAccount..."
+            />
+            <button v-if="q" class="clear" type="button" @click="q = ''" title="Clear">✕</button>
+          </div>
+
+          <div v-if="banks.length && banks.length !== 23" class="warn">
+            <i class="fa-solid fa-circle-info"></i>
+            Loaded {{ banks.length }} banks (expected 23). Check /api/members data.
           </div>
         </div>
 
-        <div class="card__headRight">
-          <div class="pill pill--soft">
-            limit <b>{{ limit }}</b>
+        <div class="list" role="listbox" aria-label="Member banks list">
+          <button
+            v-for="b in filteredBanks"
+            :key="b._key"
+            class="bankItem"
+            :class="{ active: activeBank?.bankcode === b.bankcode }"
+            type="button"
+            @click="selectBank(b)"
+          >
+            <div class="avatar" aria-hidden="true">
+              <img v-if="b.logo" :src="b.logo" alt="" />
+              <span v-else>{{ initials(b.name || b.bankcode || "BK") }}</span>
+            </div>
+
+            <div class="bankMeta">
+              <div class="bankTop">
+                <div class="bankName">{{ b.name }}</div>
+                <span class="code mono">{{ b.bankcode }}</span>
+              </div>
+
+              <div class="bankSub">
+                <span class="muted">iAccount:</span>
+                <span class="mono">{{ b.iaccount || "-" }}</span>
+              </div>
+            </div>
+
+            <i class="fa-solid fa-chevron-right chev" aria-hidden="true"></i>
+          </button>
+
+          <div v-if="!loading && filteredBanks.length === 0" class="empty">
+            No member banks found
+          </div>
+
+          <div v-if="banksError" class="err">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ banksError }}
           </div>
         </div>
-      </div>
+      </aside>
 
-      <!-- Loading / Error -->
-      <div v-if="loading" class="state">
-        <div class="spinner" aria-hidden="true"></div>
-        <div>Loading notifications...</div>
-      </div>
+      <!-- RIGHT: chat room -->
+      <section ref="rightEl" class="chatPanel js-reveal">
+        <!-- chat header -->
+        <div class="chatTop">
+          <div class="chatTitle">
+            <template v-if="activeBank">
+              <div class="chatName">
+                <i class="fa-solid fa-comments"></i>
+                {{ activeBank.name }}
+              </div>
 
-      <div v-else-if="error" class="state state--error">
-        <div class="state__title">Load failed</div>
-        <div class="state__msg">{{ error }}</div>
-        <button class="btn btn--primary" @click="loadNotifications(true)">Try again</button>
-      </div>
+              <div class="chatMeta">
+                <span class="mono">{{ activeBank.bankcode }}</span>
+                <span class="dot">•</span>
+                <span class="muted">iAccount:</span>
+                <span class="mono">{{ activeBank.iaccount || "-" }}</span>
+              </div>
+            </template>
 
-      <!-- Table -->
-      <div v-else class="tableWrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 90px;">Status</th>
-              <th style="width: 150px;">Entity</th>
-              <th style="width: 150px;">Action</th>
-              <th style="width: 260px;">Title</th>
-              <th>Message</th>
-              <th style="width: 190px;">Time</th>
-              <th style="width: 220px; text-align: right;">Actions</th>
-            </tr>
-          </thead>
+            <template v-else>
+              <div class="chatName">
+                <i class="fa-solid fa-comments"></i>
+                Select a member bank
+              </div>
+              <div class="chatMeta muted">Pick a bank from the left panel</div>
+            </template>
+          </div>
 
-          <tbody>
-            <tr v-if="items.length === 0">
-              <td colspan="7" class="empty">No notifications</td>
-            </tr>
-
-            <tr
-              v-for="n in items"
-              :key="n.id"
-              :data-row-id="n.id"
-              :class="[{ 'row--unread': !n.isRead }, { 'row--flash': n.id === flashRowId }]"
+          <div class="chatTools">
+            <button
+              class="btn ghost"
+              type="button"
+              @click="reloadMessages"
+              :disabled="!activeBank || msgLoading"
+              title="Reload messages"
             >
-              <td>
-                <div class="status">
-                  <span class="dot" :class="n.isRead ? 'dot--read' : 'dot--unread'"></span>
-                  <span class="muted">{{ n.isRead ? "read" : "unread" }}</span>
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+
+            <button
+              class="btn ghost"
+              type="button"
+              @click="scrollToBottom(true)"
+              :disabled="!activeBank"
+              title="Scroll to bottom"
+            >
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- messages -->
+        <div ref="msgWrapEl" class="messages" @scroll="onScroll">
+          <div v-if="activeBank && msgLoading" class="msgLoading">
+            <div class="loaderDot"></div>
+            <div class="loaderDot"></div>
+            <div class="loaderDot"></div>
+          </div>
+
+          <div v-else-if="activeBank && msgError" class="err big">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ msgError }}
+          </div>
+
+          <div v-else-if="activeBank && messages.length === 0" class="empty big">
+            No messages yet. Start the conversation 👋
+          </div>
+
+          <div v-else class="msgList">
+            <div
+              v-for="m in messages"
+              :key="m._key"
+              class="msgRow"
+              :class="{ me: m.isMe }"
+            >
+              <div class="bubble">
+                <div class="bubbleTop">
+                  <span class="sender">{{ m.sender }}</span>
+                  <span class="time">{{ m.when }}</span>
                 </div>
-              </td>
+                <div class="text" v-html="m.html"></div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-              <td>
-                <div class="mono">{{ n.entity }}</div>
-                <div v-if="n.refId" class="muted mono">#{{ n.refId }}</div>
-              </td>
+        <!-- composer -->
+        <div class="composer">
+          <textarea
+            v-model="draft"
+            class="textarea"
+            rows="1"
+            placeholder="Type a message..."
+            :disabled="!activeBank || sending"
+            @keydown.enter.exact.prevent="send"
+            @keydown.enter.shift.exact.stop
+            @input="autoGrow"
+          ></textarea>
 
-              <td>
-                <div class="tag">{{ n.action }}</div>
-              </td>
-
-              <td>
-                <div class="titleCell">{{ n.title || "-" }}</div>
-                <div v-if="n.linkpath" class="muted mono">{{ n.linkpath }}</div>
-              </td>
-
-              <td>
-                <div class="msgCell">{{ n.message || "-" }}</div>
-              </td>
-
-              <td>
-                <div class="muted">{{ formatDateTime(n.time) }}</div>
-                <div v-if="n.readTime" class="muted">read: {{ formatDateTime(n.readTime) }}</div>
-              </td>
-
-              <td class="actions">
-                <button class="btn btn--ghost" :disabled="!n.linkpath" @click="openLink(n)">
-                  Open
-                </button>
-                <button class="btn btn--ghost" :disabled="n.isRead" @click="markRead(n)">
-                  Mark read
-                </button>
-                <button class="btn btn--danger" @click="removeItem(n)">
-                  Delete
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Load more -->
-        <div class="loadMore">
-          <button class="btn" type="button" @click="loadMore" :disabled="loading || !hasMore">
-            {{ hasMore ? "Load more" : "No more" }}
+          <button class="btn" type="button" @click="send" :disabled="!canSend">
+            <i class="fa-solid fa-paper-plane"></i>
+            Send
           </button>
         </div>
-      </div>
 
-      <div class="card__foot">
         <div class="hint">
-          <b>Note:</b> ຂໍ້ມູນຈາກ <span class="mono">notifications</span> table (trigger) ·
-          Filter/ຄົ້ນຫາ query params ຂອງ API
+          <i class="fa-regular fa-lightbulb"></i>
+          Enter = send • Shift+Enter = newline
         </div>
-      </div>
+      </section>
     </div>
+
+    <!-- toast -->
+    <transition name="toast">
+      <div v-if="toast.show" class="toast">
+        <div class="toastLeft">
+          <div class="toastTitle">
+            <i :class="toast.icon"></i>
+            {{ toast.title }}
+          </div>
+          <div class="toastSub">{{ toast.text }}</div>
+        </div>
+        <button class="toastBtn ghost" type="button" @click="toast.show = false" aria-label="Dismiss">✕</button>
+      </div>
+    </transition>
   </section>
 </template>
 
 <script setup>
-import { nextTick, onMounted, reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import gsap from "gsap";
 
-const router = useRouter();
+/* =========================================================
+   Config
+   ========================================================= */
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const MEMBERS_API = `${BASE}/api/members`;
 
-/**
- * ✅ API ตาม backend ที่เราทำไว้:
- * - GET    /api/notifications?limit=50&offset=0&unread=1&entity=member&action=insert&q=...
- * - GET    /api/notifications/unread-count
- * - PATCH  /api/notifications/:id/read
- * - PATCH  /api/notifications/read-all
- * - DELETE /api/notifications/:id
- */
-const API = {
-  list: (params) => {
-    const qs = new URLSearchParams(params).toString();
-    return `/api/notifications${qs ? `?${qs}` : ""}`;
-  },
-  unreadCount: "/api/notifications/unread-count",
-  read: (id) => `/api/notifications/${id}/read`,
-  readAll: "/api/notifications/read-all",
-  remove: (id) => `/api/notifications/${id}`,
-};
+// ✅ adjust to your real backend if needed
+const CHAT_MESSAGES_API = import.meta.env.VITE_CHAT_MESSAGES_API || `${BASE}/api/chat/messages`;
 
-const ENTITIES = ["member", "announcement", "news", "jobs", "boarddirector", "emp_lapnet"];
-const ACTIONS = ["insert", "edit", "delete", "active_on", "active_off"];
+/* =========================================================
+   Helpers
+   ========================================================= */
+function safeJsonParse(x) {
+  try {
+    return JSON.parse(String(x));
+  } catch {
+    return null;
+  }
+}
+function readUserFromStorage() {
+  const u1 = localStorage.getItem("user");
+  if (u1) return safeJsonParse(u1);
+  const u2 = sessionStorage.getItem("user");
+  if (u2) return safeJsonParse(u2);
+  return null;
+}
+function normalizeRole(r) {
+  return String(r || "").trim().toLowerCase();
+}
+function readToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+}
+function authHeaders() {
+  const token = readToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+function wrapList(data) {
+  return Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+}
+function keyOf(x, i) {
+  return x?.id || x?._id || x?.uuid || x?.key || `${i}-${Math.random().toString(16).slice(2)}`;
+}
+function initials(name) {
+  const s = String(name || "").trim();
+  if (!s) return "BK";
+  const parts = s.split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase()).join("") || "BK";
+}
+function stripHtml(s) {
+  return String(s || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<\/?[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+function fmtWhen(ts) {
+  const d = new Date(ts);
+  const t = d.getTime();
+  if (!Number.isFinite(t)) return "";
+  return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+function toTime(x) {
+  const d = new Date(x);
+  const t = d.getTime();
+  return Number.isFinite(t) ? t : 0;
+}
 
-// ---------- Refs ----------
-const pageEl = ref(null);
-const cardEl = ref(null);
+/* =========================================================
+   State
+   ========================================================= */
+const headEl = ref(null);
+const leftEl = ref(null);
+const rightEl = ref(null);
 
-// ---------- State ----------
-const items = ref([]);
+const me = ref(readUserFromStorage());
+const myRole = computed(() => normalizeRole(me.value?.role) || "admin");
+
 const loading = ref(false);
-const error = ref("");
-
-const unreadCount = ref(0);
-
+const banksError = ref("");
+const banks = ref([]);
 const q = ref("");
-const entity = ref("");
-const action = ref("");
-const unreadOnly = ref(false);
+const activeBank = ref(null);
 
-const limit = ref(50);
-const offset = ref(0);
-const hasMore = ref(true);
+const msgWrapEl = ref(null);
+const msgLoading = ref(false);
+const msgError = ref("");
+const messages = ref([]);
+const draft = ref("");
+const sending = ref(false);
 
-let searchTimer = null;
+const toast = ref({ show: false, title: "", text: "", icon: "fa-solid fa-circle-check" });
+let toastTimer = null;
 
-const toast = reactive({
-  show: false,
-  title: "",
-  message: "",
-  type: "info",
-  _t: null,
+let pollTimer = null;
+let pollAbort = null;
+const isNearBottom = ref(true);
+
+/* =========================================================
+   Derived
+   ========================================================= */
+const filteredBanks = computed(() => {
+  const s = q.value.toLowerCase().trim();
+  const list = banks.value || [];
+  if (!s) return list;
+  return list.filter((b) => {
+    const hay = `${b.name} ${b.bankcode} ${b.iaccount}`.toLowerCase();
+    return hay.includes(s);
+  });
 });
 
-const flashRowId = ref(null);
-let flashTimer = null;
+const canSend = computed(() => !!activeBank.value && !sending.value && draft.value.trim().length > 0);
 
-// ---------- Helpers ----------
-function showToast(type, title, message) {
-  toast.type = type;
-  toast.title = title;
-  toast.message = message;
-  toast.show = true;
+/* =========================================================
+   Normalize bank + message
+   ========================================================= */
+function normalizeBank(item, i) {
+  const id = item?.id ?? item?._id ?? item?.member_id ?? item?.uuid ?? item?.bank_id ?? null;
 
-  gsap.fromTo(".toast", { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" });
+  const bankcode = String(item?.bankcode ?? item?.bank_code ?? item?.code ?? item?.member_code ?? "").trim();
 
-  window.clearTimeout(toast._t);
-  toast._t = window.setTimeout(() => (toast.show = false), 3000);
-}
+  const name =
+    String(item?.name ?? item?.bankname ?? item?.bank_name ?? item?.title ?? "").trim() ||
+    bankcode ||
+    "Member bank";
 
-function formatDateTime(d) {
-  if (!d) return "-";
-  const dt = new Date(d);
-  if (Number.isNaN(dt.getTime())) return String(d);
-  return dt.toLocaleString();
-}
+  // ✅ iAccount mapping (รองรับหลายชื่อ field)
+  const iaccount = String(
+    item?.iaccount ??
+      item?.i_account ??
+      item?.iAccount ??
+      item?.account ??
+      item?.account_no ??
+      item?.account_number ??
+      ""
+  ).trim();
 
-function flashRow(id) {
-  flashRowId.value = id;
-  window.clearTimeout(flashTimer);
+  const logo = item?.logo_url ?? item?.logo ?? item?.image ?? item?.avatar ?? "";
 
-  nextTick(() => {
-    const el = document.querySelector(`[data-row-id="${CSS.escape(String(id))}"]`);
-    if (!el) return;
-
-    gsap.fromTo(
-      el,
-      { backgroundColor: "rgba(255, 210, 77, 0.25)" },
-      { backgroundColor: "rgba(255, 210, 77, 0)", duration: 1.1, ease: "power2.out" }
-    );
-  });
-
-  flashTimer = window.setTimeout(() => (flashRowId.value = null), 1400);
-}
-
-async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, {
-    method: opts.method || "GET",
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-    credentials: "include",
-  });
-
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return data;
-}
-
-function normalizeRow(r) {
   return {
-    id: r.idnotification ?? r.id ?? r._id,
-    entity: r.entity ?? "-",
-    action: r.action ?? "-",
-    refId: r.ref_id ?? null,
-    title: r.title ?? "",
-    message: r.message ?? "",
-    payload: r.payload ?? null,
-    linkpath: r.linkpath ?? "",
-    isRead: !!(r.is_read ?? r.isRead),
-    time: r.time ?? null,
-    readTime: r.read_time ?? r.readTime ?? null,
+    _key: keyOf(item, i),
+    id,
+    bankcode,
+    name,
+    iaccount,
+    logo,
+    raw: item,
   };
 }
 
-function buildParams(extra = {}) {
-  const params = {
-    limit: String(limit.value),
-    offset: String(offset.value),
-    ...(q.value?.trim() ? { q: q.value.trim() } : {}),
-    ...(entity.value ? { entity: entity.value } : {}),
-    ...(action.value ? { action: action.value } : {}),
-    ...(unreadOnly.value ? { unread: "1" } : {}),
-    ...extra,
+function normalizeMessage(item, i) {
+  const text = item?.text ?? item?.message ?? item?.content ?? item?.body ?? "";
+  const created = item?.created_at ?? item?.createdAt ?? item?.date ?? item?.time ?? Date.now();
+
+  const senderRole = normalizeRole(item?.sender_role ?? item?.role ?? item?.from_role ?? "");
+ const senderName = String(
+  (item?.sender_name ?? item?.sender ?? item?.from_name ?? senderRole) || "User"
+).trim();
+
+
+  // best-effort decide "me"
+  const myId = String(me.value?.id ?? me.value?.user_id ?? me.value?._id ?? "").trim();
+  const senderId = String(item?.sender_id ?? item?.user_id ?? item?.from_id ?? "").trim();
+  const isMe = (myId && senderId && myId === senderId) || (!!senderRole && senderRole === myRole.value);
+
+  return {
+    _key: keyOf(item, i),
+    id: item?.id ?? item?._id ?? null,
+    isMe,
+    sender: senderName || (isMe ? "Admin" : "MemberBank"),
+    when: fmtWhen(created),
+    html: escapeHtml(stripHtml(text)).replaceAll("\n", "<br/>"),
+    createdAt: toTime(created),
   };
-  return params;
 }
 
-// ---------- API calls ----------
-async function loadUnreadCount() {
-  try {
-    const data = await apiFetch(API.unreadCount);
-    unreadCount.value = data?.unread ?? 0;
-  } catch {
-    // ไม่ต้อง throw เพื่อไม่ให้หน้า fail ทั้งหมด
-  }
-}
-
-async function loadNotifications(reset = false) {
-  if (loading.value) return;
-
-  if (reset) {
-    offset.value = 0;
-    hasMore.value = true;
-  }
-
+/* =========================================================
+   API
+   ========================================================= */
+async function fetchBanks() {
   loading.value = true;
-  error.value = "";
-
+  banksError.value = "";
   try {
-    const data = await apiFetch(API.list(buildParams()));
-    const rows = Array.isArray(data) ? data : data?.items || [];
-    const normalized = rows.map(normalizeRow);
+    const res = await fetch(MEMBERS_API, { headers: { ...authHeaders() } });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const list = wrapList(await res.json());
 
-    if (reset) items.value = normalized;
-    else items.value = [...items.value, ...normalized];
+    // sort by bankcode (nice for 23 banks)
+    banks.value = list.map((x, i) => normalizeBank(x, i)).sort((a, b) => String(a.bankcode).localeCompare(String(b.bankcode)));
 
-    // heuristic: ถ้าได้น้อยกว่า limit -> ไม่มีต่อ
-    hasMore.value = normalized.length === limit.value;
-
-    await nextTick();
-    const trs = document.querySelectorAll("tbody tr");
-    gsap.fromTo(trs, { opacity: 0.86, y: 4 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.01 });
-
-    loadUnreadCount();
+    // auto select first
+    if (!activeBank.value && banks.value.length) {
+      activeBank.value = banks.value[0];
+      await loadMessagesForActive();
+    }
   } catch (e) {
-    error.value = e?.message || String(e);
+    banksError.value = e?.message || "Failed to load member banks";
   } finally {
     loading.value = false;
   }
 }
 
-async function loadMore() {
-  if (!hasMore.value) return;
-  offset.value += limit.value;
-  await loadNotifications(false);
-}
+async function fetchMessages(bank) {
+  if (!bank) return [];
 
-async function markRead(item) {
+  msgLoading.value = true;
+  msgError.value = "";
   try {
-    await apiFetch(API.read(item.id), { method: "PATCH" });
-    item.isRead = true;
-    item.readTime = new Date().toISOString();
+    const url = new URL(CHAT_MESSAGES_API);
+    if (bank.bankcode) url.searchParams.set("bankcode", bank.bankcode);
+    if (bank.id != null) url.searchParams.set("member_id", String(bank.id));
 
-    showToast("success", "Updated", "Marked as read");
-    flashRow(item.id);
-    loadUnreadCount();
+    if (pollAbort) pollAbort.abort();
+    pollAbort = new AbortController();
+
+    const res = await fetch(url.toString(), { signal: pollAbort.signal, headers: { ...authHeaders() } });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+    const list = wrapList(await res.json());
+    return list.map((x, i) => normalizeMessage(x, i)).sort((a, b) => a.createdAt - b.createdAt);
   } catch (e) {
-    showToast("error", "Failed", e?.message || String(e));
+    if (e?.name === "AbortError") return messages.value;
+    msgError.value = e?.message || "Failed to load messages";
+    return [];
+  } finally {
+    msgLoading.value = false;
   }
 }
 
-async function markAllRead() {
-  const ok = window.confirm("Mark all notifications as read?");
-  if (!ok) return;
+async function postMessage(bank, text) {
+  const payload = {
+    bankcode: bank?.bankcode || "",
+    member_id: bank?.id ?? null,
+    text,
+  };
 
-  try {
-    await apiFetch(API.readAll, { method: "PATCH" });
-    items.value = items.value.map((x) => ({ ...x, isRead: true, readTime: x.readTime || new Date().toISOString() }));
-    showToast("success", "Done", "All notifications marked as read");
-    loadUnreadCount();
-  } catch (e) {
-    showToast("error", "Failed", e?.message || String(e));
-  }
+  const res = await fetch(CHAT_MESSAGES_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return await res.json();
 }
 
-async function removeItem(item) {
-  const ok = window.confirm(`Delete this notification?\n${item.entity}.${item.action} (#${item.refId || "-"})`);
-  if (!ok) return;
-
-  try {
-    await apiFetch(API.remove(item.id), { method: "DELETE" });
-    items.value = items.value.filter((x) => x.id !== item.id);
-    showToast("success", "Deleted", "Notification removed");
-    loadUnreadCount();
-  } catch (e) {
-    showToast("error", "Failed", e?.message || String(e));
-  }
-}
-
-function openLink(item) {
-  if (!item.linkpath) return;
-  router.push(item.linkpath);
-}
-
+/* =========================================================
+   UI actions
+   ========================================================= */
 async function reloadAll() {
-  await loadNotifications(true);
-  await loadUnreadCount();
-  showToast("success", "Refreshed", "Loaded latest notifications");
+  await fetchBanks();
+  if (activeBank.value) await loadMessagesForActive();
 }
 
-// ---------- Search debounce ----------
-function onSearchInput() {
-  window.clearTimeout(searchTimer);
-  searchTimer = window.setTimeout(() => {
-    loadNotifications(true);
-  }, 220);
+async function selectBank(b) {
+  if (!b) return;
+  if (activeBank.value?.bankcode === b.bankcode) return;
+  activeBank.value = b;
+  await loadMessagesForActive();
 }
 
-// ---------- Watch filters ----------
-watch([entity, action, unreadOnly], () => loadNotifications(true));
+async function loadMessagesForActive() {
+  stopPolling();
+  if (!activeBank.value) {
+    messages.value = [];
+    return;
+  }
 
-// ---------- Lifecycle ----------
+  messages.value = await fetchMessages(activeBank.value);
+  await nextTick();
+  scrollToBottom(true);
+  startPolling();
+}
+
+async function reloadMessages() {
+  if (!activeBank.value) return;
+  messages.value = await fetchMessages(activeBank.value);
+  await nextTick();
+  if (isNearBottom.value) scrollToBottom(true);
+}
+
+function autoGrow(e) {
+  const el = e?.target;
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 140) + "px";
+}
+
+function showToast(title, text, icon = "fa-solid fa-circle-check") {
+  toast.value = { show: true, title, text, icon };
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value.show = false), 4200);
+}
+
+async function send() {
+  if (!canSend.value) return;
+  const text = draft.value.trim();
+  const bank = activeBank.value;
+
+  // optimistic
+  const optimistic = {
+    _key: `optimistic-${Date.now()}`,
+    id: null,
+    isMe: true,
+    sender: "Admin",
+    when: fmtWhen(Date.now()),
+    html: escapeHtml(text).replaceAll("\n", "<br/>"),
+    createdAt: Date.now(),
+  };
+
+  sending.value = true;
+  draft.value = "";
+  messages.value = [...messages.value, optimistic];
+
+  await nextTick();
+  scrollToBottom(true);
+
+  try {
+    await postMessage(bank, text);
+    messages.value = await fetchMessages(bank);
+    await nextTick();
+    scrollToBottom(true);
+  } catch (e) {
+    showToast("Send failed", e?.message || "Network error", "fa-solid fa-circle-xmark");
+  } finally {
+    sending.value = false;
+  }
+}
+
+/* =========================================================
+   Scroll / polling
+   ========================================================= */
+function onScroll() {
+  const el = msgWrapEl.value;
+  if (!el) return;
+  const gap = el.scrollHeight - (el.scrollTop + el.clientHeight);
+  isNearBottom.value = gap < 220;
+}
+
+function scrollToBottom(smooth = false) {
+  const el = msgWrapEl.value;
+  if (!el) return;
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+}
+
+function startPolling() {
+  stopPolling();
+  if (!activeBank.value) return;
+
+  pollTimer = setInterval(async () => {
+    if (!activeBank.value) return;
+    const next = await fetchMessages(activeBank.value);
+
+    const shouldStick = isNearBottom.value;
+    messages.value = next;
+
+    if (shouldStick) {
+      await nextTick();
+      scrollToBottom(false);
+    }
+  }, 4500);
+}
+
+function stopPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  if (pollAbort) pollAbort.abort();
+  pollAbort = null;
+}
+
+/* =========================================================
+   Animations
+   ========================================================= */
+function animateIn() {
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+  gsap.set(".js-reveal", { opacity: 0, y: 12 });
+  tl.to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.05);
+}
+
+watch(
+  () => (localStorage.getItem("user") || sessionStorage.getItem("user")),
+  () => (me.value = readUserFromStorage())
+);
+
 onMounted(async () => {
-  if (pageEl.value) gsap.fromTo(pageEl.value, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" });
-  if (cardEl.value) gsap.fromTo(cardEl.value, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.28 });
+  animateIn();
+  await fetchBanks();
+});
 
-  await loadUnreadCount();
-  await loadNotifications(true);
+onBeforeUnmount(() => {
+  stopPolling();
+  if (toastTimer) clearTimeout(toastTimer);
 });
 </script>
 
 <style scoped>
-/* ✅ ใช้ CSS variables จาก App.vue เป็นหลัก (global theme) */
-.page {
-  padding: 18px;
-  color: var(--text, #eaeaea);
+/* page layout (เข้ากับ theme tech ของคุณ) */
+.chatMb {
+  min-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.page__header {
+.head {
   display: flex;
-  gap: 14px;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
 }
 
-.page__titleWrap {
-  min-width: 280px;
-}
-.page__title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.page__subtitle {
-  margin: 6px 0 0;
-  opacity: 0.75;
-  font-size: 13px;
-}
-
-.page__actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-}
-.search__icon {
-  opacity: 0.7;
-}
-
-.input {
-  width: 100%;
-  min-width: 240px;
-  color: inherit;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 13px;
-}
-
-.select {
-  min-width: 160px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
-  color: inherit;
-  outline: none;
-  font-size: 13px;
-}
-
-/* Buttons */
-.btn {
-  appearance: none;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
-  color: inherit;
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: transform 0.08s ease, opacity 0.2s ease;
-}
-.btn:hover {
-  opacity: 0.95;
-}
-.btn:active {
-  transform: scale(0.99);
-}
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.btn--primary {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: var(--primary, rgba(120, 92, 255, 0.35));
-}
-.btn--ghost {
-  background: transparent;
-}
-.btn--danger {
-  background: rgba(255, 80, 80, 0.18);
-  border-color: rgba(255, 80, 80, 0.25);
-}
-
-/* Card */
-.card {
-  border-radius: 16px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-  background: var(--surface, rgba(255, 255, 255, 0.04));
-  overflow: hidden;
-  box-shadow: var(--shadow, 0 10px 30px rgba(0, 0, 0, 0.25));
-}
-
-.card__head {
-  padding: 14px 14px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-}
-.card__headLeft {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.card__headTitle {
-  margin: 0;
-  font-size: 15px;
-}
-.card__headRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.card__foot {
-  padding: 12px 14px;
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-}
-.hint {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-/* Table */
-.tableWrap {
-  overflow: auto;
-}
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-th,
-td {
-  padding: 12px 12px;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  vertical-align: top;
-}
-th {
-  text-align: left;
-  opacity: 0.75;
-  font-weight: 600;
-}
-.actions {
-  text-align: right;
-  white-space: nowrap;
-}
-.actions .btn {
-  margin-left: 6px;
-}
-
-.empty {
-  padding: 18px;
-  text-align: center;
-  opacity: 0.7;
-}
-
-.row--unread {
-  background: rgba(255, 255, 255, 0.02);
-}
-.row--flash {
-  outline: 2px solid rgba(255, 210, 77, 0.25);
-  outline-offset: -2px;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
-}
-.muted {
-  opacity: 0.7;
-}
-.tag {
+.kicker {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
-  padding: 6px 10px;
-  border-radius: 999px;
+  gap: 10px;
   font-size: 12px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.66);
+}
+.kDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.85);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
+}
+.title {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+}
+.sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.headRight {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .pill {
   display: inline-flex;
+  gap: 10px;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  padding: 10px 12px;
   border-radius: 999px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 900;
   font-size: 12px;
 }
-.pill--soft {
-  background: rgba(255, 255, 255, 0.06);
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 900;
+}
+.muted { opacity: 0.72; }
+.dot { opacity: 0.6; }
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-weight: 950;
+  cursor: pointer;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.28);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.ghost {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.84);
 }
 
-.titleCell {
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 12px;
+}
+
+.panel,
+.chatPanel {
+  min-height: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.panelTop {
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 10px;
+}
+.panelTitle {
+  font-weight: 950;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search i {
+  position: absolute;
+  left: 12px;
+  opacity: 0.7;
+}
+.input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  border-radius: 14px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 700;
 }
-.msgCell {
+.input:focus {
+  border-color: rgba(56, 189, 248, 0.24);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
+}
+.clear {
+  position: absolute;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+
+.warn {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.list {
+  padding: 10px 10px 12px;
+  overflow: auto;
+  min-height: 0;
+  height: calc(100% - 120px);
+}
+.list::-webkit-scrollbar { width: 10px; }
+.list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
+
+.bankItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+  margin-bottom: 10px;
+}
+.bankItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.18);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.bankItem.active {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.16), rgba(99, 102, 241, 0.10));
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.10);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.bankMeta { flex: 1; min-width: 0; }
+.bankTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bankName {
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.code {
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
   opacity: 0.92;
 }
-
-/* Status dot */
-.status {
+.bankSub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
   display: inline-flex;
-  align-items: center;
   gap: 8px;
-}
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
-}
-.dot--unread {
-  background: rgba(255, 210, 77, 0.95);
-}
-.dot--read {
-  background: rgba(120, 92, 255, 0.7);
-  box-shadow: 0 0 0 6px rgba(120, 92, 255, 0.12);
-}
-
-/* Switch */
-.switch {
-  display: inline-flex;
   align-items: center;
+  white-space: nowrap;
+}
+.chev { opacity: 0.55; }
+
+.chatTop {
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
 }
-.switch input {
-  display: none;
+.chatName {
+  font-weight: 950;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
 }
-.switch__ui {
-  width: 44px;
-  height: 24px;
-  border-radius: 999px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.18));
-  background: rgba(255, 255, 255, 0.06);
-  position: relative;
-  cursor: pointer;
+.chatMeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
 }
-.switch__ui::after {
-  content: "";
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  top: 2px;
-  left: 2px;
-  background: rgba(255, 255, 255, 0.75);
-  transition: transform 0.18s ease;
+.chatTools { display: inline-flex; gap: 8px; align-items: center; }
+
+.messages {
+  min-height: 0;
+  height: calc(100% - 132px);
+  overflow: auto;
+  padding: 14px 14px 10px;
 }
-.switch input:checked + .switch__ui {
-  background: var(--primary, rgba(120, 92, 255, 0.35));
+.messages::-webkit-scrollbar { width: 10px; }
+.messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
+
+.msgList { display: grid; gap: 10px; }
+
+.msgRow { display: flex; justify-content: flex-start; }
+.msgRow.me { justify-content: flex-end; }
+
+.bubble {
+  max-width: min(620px, 92%);
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
 }
-.switch input:checked + .switch__ui::after {
-  transform: translateX(20px);
+.msgRow.me .bubble {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.10));
+  border-color: rgba(56, 189, 248, 0.22);
 }
-.switch__label {
+.bubbleTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  opacity: 0.78;
+}
+.sender { font-weight: 950; }
+.time { opacity: 0.7; }
+.text {
   font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+  word-break: break-word;
+}
+
+.composer {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.textarea {
+  flex: 1;
+  resize: none;
+  padding: 10px 12px;
+  border-radius: 14px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+  min-height: 42px;
+  max-height: 140px;
+  overflow: auto;
+}
+.textarea:focus {
+  border-color: rgba(56, 189, 248, 0.24);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
+}
+
+.hint {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* states */
+.empty,
+.err {
+  margin: 10px 0 0;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.70);
+  text-align: center;
+}
+.empty.big,
+.err.big { margin: 0; }
+.err {
+  border-style: solid;
+  border-color: rgba(255, 80, 80, 0.22);
+  background: rgba(255, 80, 80, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* loader */
+.msgLoading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
   opacity: 0.9;
 }
-
-/* States */
-.state {
-  padding: 20px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  opacity: 0.85;
-}
-.state--error {
-  color: var(--danger-text, #ffb3b3);
-}
-.state__title {
-  font-weight: 700;
-}
-.state__msg {
-  opacity: 0.85;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(255, 255, 255, 0.8);
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Load more */
-.loadMore {
-  padding: 12px 14px;
-  display: flex;
-  justify-content: center;
-}
-
-/* Toast */
-.toast {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  width: min(420px, calc(100vw - 28px));
-  border-radius: 14px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-  background: var(--surface, rgba(20, 20, 25, 0.92));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  padding: 12px 12px;
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  z-index: 80;
-}
-.toast__dot {
+.loaderDot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--primary, rgba(120, 92, 255, 0.8));
-  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
+  animation: ld 0.9s ease-in-out infinite;
 }
-.toast__body {
-  flex: 1;
+.loaderDot:nth-child(2) { animation-delay: 0.12s; }
+.loaderDot:nth-child(3) { animation-delay: 0.24s; }
+@keyframes ld {
+  0% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(-5px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.55; }
 }
-.toast__title {
-  font-weight: 800;
-  font-size: 13px;
+
+/* toast */
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  background: rgba(8, 12, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  max-width: min(460px, 92vw);
 }
-.toast__msg {
-  opacity: 0.8;
+.toastLeft { display: grid; gap: 4px; min-width: 0; }
+.toastTitle {
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.toastSub {
   font-size: 12px;
-  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.toast__close {
-  border: none;
-  background: transparent;
-  color: inherit;
-  opacity: 0.7;
+.toastBtn {
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-weight: 900;
   cursor: pointer;
-  font-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.80);
 }
-
 .toast-enter-active,
-.toast-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
+.toast-leave-active { transition: transform 180ms ease, opacity 180ms ease; }
 .toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
+.toast-leave-to { opacity: 0; transform: translateY(10px); }
 
-@media (max-width: 980px) {
-  .input {
-    min-width: 200px;
-  }
-  th:nth-child(5),
-  td:nth-child(5) {
-    min-width: 320px;
-  }
+/* responsive */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+  .panel { height: 360px; }
 }
 </style>

@@ -186,6 +186,86 @@
       </section>
     </main>
 
+    <!-- ✅ NEW: Viewer popup (modal) on login -->
+    <transition name="popup">
+      <div
+        v-if="isViewer && annPopup.show && !isAuthPage"
+        class="popupMask"
+        @click.self="closeAnnPopup"
+      >
+        <div class="popupCard" role="dialog" aria-modal="true" aria-label="Announcements popup">
+          <div class="popupHead">
+            <div class="popupHeadLeft">
+              <div class="popupTitle">
+                <i class="fa-solid fa-bullhorn"></i>
+                Announcements
+              </div>
+
+              <div class="popupSub">
+                <template v-if="annPopup.loading">Loading...</template>
+                <template v-else>
+                  <span v-if="annPopup.newCount > 0" class="popupNewCount">
+                    {{ annPopup.newCount }} new
+                  </span>
+                  <span v-else class="popupMuted">Latest updates</span>
+                </template>
+              </div>
+            </div>
+
+            <button class="iconClose" type="button" @click="closeAnnPopup" aria-label="Close">
+              ✕
+            </button>
+          </div>
+
+          <div class="popupBody">
+            <div v-if="annPopup.loading" class="popupLoading">
+              <div class="loaderDot"></div>
+              <div class="loaderDot"></div>
+              <div class="loaderDot"></div>
+            </div>
+
+            <div v-else-if="annPopup.error" class="popupErr">
+              {{ annPopup.error }}
+            </div>
+
+            <ul v-else class="annList">
+              <li v-for="a in annPopup.items" :key="a._key" class="annItem">
+                <div class="annTop">
+                  <div class="annTitle">{{ a.title }}</div>
+                  <span v-if="a.isNew" class="annTagNew">NEW</span>
+                </div>
+                <div class="annMeta">{{ a.when }}</div>
+                <div v-if="a.preview" class="annPreview">{{ a.preview }}</div>
+              </li>
+
+              <li v-if="!annPopup.items.length" class="annEmpty">
+                No announcements found
+              </li>
+            </ul>
+          </div>
+
+          <div class="popupActions">
+            <button class="popupBtn ghost" type="button" @click="closeAnnPopup">
+              Close
+            </button>
+
+            <button class="popupBtn" type="button" @click="goToViewerAnnouncementsFromPopup">
+              View all
+            </button>
+
+            <button
+              v-if="annPopup.newCount > 0"
+              class="popupBtn soft"
+              type="button"
+              @click="markAllReadFromPopup"
+            >
+              Mark read
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- ✅ NEW: viewer toast notification (viewer only) -->
     <transition name="toast">
       <div v-if="isViewer && toast.show && !isAuthPage" class="toast">
@@ -338,8 +418,6 @@ const viewItems = [
   { key: "form_templates", label: "ເບິ່ງ Form Templates", to: "/formtemplates", fa: "fa-solid fa-layer-group" },
   { key: "viewsubmitform", label: "ເບິ່ງ Form Submit", to: "/viewsubmitform", fa: "fa-solid fa-list-check" },
   { key: "viewannouncementtomember", label: "ເບິ່ງແຈ້ງການເຖິງສະມາຊິກ", to: "/viewannouncementtomember", fa: "fa-solid fa-bullhorn" },
-
-
 ];
 
 // ✅ dropdown state (INSERT)
@@ -372,6 +450,9 @@ function logout() {
   viewerAnnNewCount.value = 0;
   viewerAnnLatestAt.value = 0;
   hideToast();
+
+  // ✅ popup reset
+  closeAnnPopup(true);
 
   router.replace({ path: "/login" });
 }
@@ -615,6 +696,7 @@ onMounted(async () => {
 
 /* =========================================================
    ✅ NEW: Viewer notification (poll announcements and badge)
+   ✅ PLUS: Viewer popup on login
    ========================================================= */
 
 const ANN_API_URL = "http://localhost:3000/api/announcements";
@@ -631,6 +713,16 @@ let viewerAnnAbort = null;
 
 const toast = ref({ show: false, text: "" });
 let toastTimer = null;
+
+// ✅ Popup state
+const annPopup = ref({
+  show: false,
+  loading: false,
+  error: "",
+  items: [],
+  newCount: 0,
+  latestAt: 0,
+});
 
 function getViewerIdentityKey() {
   const u = readUserFromStorage();
@@ -654,6 +746,23 @@ function saveViewerSeen(ts) {
   localStorage.setItem(key, String(ts || 0));
 }
 
+// ✅ Popup shown per session
+function viewerPopupSessionKey() {
+  return `viewer_login_popup_shown_v1_${getViewerIdentityKey()}`;
+}
+function hasShownPopupThisSession() {
+  try {
+    return sessionStorage.getItem(viewerPopupSessionKey()) === "1";
+  } catch {
+    return false;
+  }
+}
+function markPopupShownThisSession() {
+  try {
+    sessionStorage.setItem(viewerPopupSessionKey(), "1");
+  } catch {}
+}
+
 function toTime(x) {
   const d = new Date(x);
   const n = d.getTime();
@@ -669,6 +778,58 @@ function getAnnTime(item) {
     toTime(item?.updatedAt) ||
     0
   );
+}
+
+function pickAnnTitle(item) {
+  return (
+    String(item?.title || item?.subject || item?.name || item?.heading || "").trim() ||
+    "(Untitled)"
+  );
+}
+
+function stripHtml(s) {
+  return String(s || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<\/?[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pickAnnBody(item) {
+  return (
+    item?.body ??
+    item?.content ??
+    item?.detail ??
+    item?.description ??
+    item?.message ??
+    item?.text ??
+    ""
+  );
+}
+
+function formatWhen(ts) {
+  const d = new Date(ts);
+  if (!Number.isFinite(d.getTime())) return "-";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function annKey(item, i) {
+  return item?.id || item?._id || item?.uuid || item?.key || `${i}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function fetchAnnouncementsList() {
+  const res = await fetch(ANN_API_URL);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const data = await res.json();
+  const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+  return list;
 }
 
 async function checkViewerAnnouncements() {
@@ -787,9 +948,128 @@ function goToViewerAnnouncements() {
   hideToast();
 }
 
+/* ===========================
+   ✅ Popup logic
+   =========================== */
+async function openAnnPopup() {
+  annPopup.value.show = true;
+  annPopup.value.loading = true;
+  annPopup.value.error = "";
+  annPopup.value.items = [];
+  annPopup.value.newCount = 0;
+  annPopup.value.latestAt = 0;
+
+  try {
+    const list = await fetchAnnouncementsList();
+
+    // sort by time desc
+    const sorted = (list || [])
+      .map((x, i) => ({ ...x, _t: getAnnTime(x), _key: annKey(x, i) }))
+      .sort((a, b) => (b._t || 0) - (a._t || 0));
+
+    const latest = sorted[0]?._t || 0;
+    annPopup.value.latestAt = latest;
+
+    const seen = loadViewerSeen();
+    const seenTs = seen == null ? 0 : seen;
+
+    const newCount = sorted.reduce((acc, it) => acc + ((it._t || 0) > seenTs ? 1 : 0), 0);
+    annPopup.value.newCount = newCount;
+
+    annPopup.value.items = sorted.slice(0, 8).map((it) => {
+      const title = pickAnnTitle(it);
+      const body = stripHtml(pickAnnBody(it));
+      const preview = body ? (body.length > 140 ? body.slice(0, 140) + "…" : body) : "";
+      const when = it._t ? formatWhen(it._t) : "-";
+
+      return {
+        _key: it._key,
+        title,
+        preview,
+        when,
+        isNew: (it._t || 0) > seenTs,
+        _t: it._t || 0,
+      };
+    });
+  } catch (e) {
+    annPopup.value.error = e?.message || "Load announcements failed";
+  } finally {
+    annPopup.value.loading = false;
+  }
+}
+
+function closeAnnPopup(hard = false) {
+  annPopup.value.show = false;
+  if (hard) {
+    annPopup.value.loading = false;
+    annPopup.value.error = "";
+    annPopup.value.items = [];
+    annPopup.value.newCount = 0;
+    annPopup.value.latestAt = 0;
+  }
+}
+
+function markAllReadFromPopup() {
+  // set seen to popup latest (or global latest)
+  const latest = annPopup.value.latestAt || viewerAnnLatestAt.value || Date.now();
+  saveViewerSeen(latest);
+  viewerAnnNewCount.value = 0;
+  hideToast();
+  closeAnnPopup();
+}
+
+function goToViewerAnnouncementsFromPopup() {
+  // mark seen first (optional but user-friendly)
+  markAllReadFromPopup();
+  router.push(VIEWER_ANN_ROUTE);
+}
+
+// ESC close
+function onGlobalKeydown(e) {
+  if (e?.key === "Escape" && annPopup.value.show) closeAnnPopup();
+}
+watch(
+  () => annPopup.value.show,
+  (v) => {
+    if (v) window.addEventListener("keydown", onGlobalKeydown);
+    else window.removeEventListener("keydown", onGlobalKeydown);
+  },
+  { immediate: true }
+);
+
+// ✅ Show popup once per login session for viewer
+async function maybeShowViewerPopupOnLogin() {
+  if (isAuthPage.value) return;
+  if (!isViewer.value) return;
+
+  // only once per session
+  if (hasShownPopupThisSession()) return;
+  markPopupShownThisSession();
+
+  // optional: don't popup if already on announcement page
+  // if (route.path === VIEWER_ANN_ROUTE) return;
+
+  await openAnnPopup();
+}
+
+watch(
+  [isViewer, isAuthPage, () => route.path],
+  async () => {
+    if (isViewer.value && !isAuthPage.value) {
+      await nextTick();
+      // small delay makes it feel smoother after redirect
+      setTimeout(() => {
+        maybeShowViewerPopupOnLogin();
+      }, 180);
+    }
+  },
+  { immediate: true }
+);
+
 onBeforeUnmount(() => {
   stopViewerAnnPoll();
   hideToast();
+  window.removeEventListener("keydown", onGlobalKeydown);
 });
 </script>
 
@@ -1235,6 +1515,223 @@ onBeforeUnmount(() => {
 .mainBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
+}
+
+/* ✅ NEW: Popup modal */
+.popupMask {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.popupCard {
+  width: min(720px, 96vw);
+  max-height: min(78vh, 760px);
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(8, 12, 28, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(14px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.popupHead {
+  padding: 14px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.popupTitle {
+  font-weight: 950;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.popupSub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.popupNewCount {
+  font-weight: 950;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(56, 189, 248, 0.10);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.popupMuted {
+  opacity: 0.85;
+}
+
+.iconClose {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+}
+.iconClose:hover {
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
+}
+
+.popupBody {
+  padding: 12px 14px 12px;
+  overflow: auto;
+}
+.popupBody::-webkit-scrollbar {
+  width: 10px;
+}
+.popupBody::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.popupLoading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 26px 0;
+  opacity: 0.9;
+}
+.loaderDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
+  animation: ld 0.9s ease-in-out infinite;
+}
+.loaderDot:nth-child(2) { animation-delay: 0.12s; }
+.loaderDot:nth-child(3) { animation-delay: 0.24s; }
+@keyframes ld {
+  0% { transform: translateY(0); opacity: 0.55; }
+  50% { transform: translateY(-5px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.55; }
+}
+
+.popupErr {
+  padding: 14px 12px;
+  border-radius: 14px;
+  background: rgba(255, 80, 80, 0.10);
+  border: 1px solid rgba(255, 80, 80, 0.22);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.annList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.annItem {
+  border-radius: 14px;
+  padding: 12px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.annTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.annTitle {
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.25;
+}
+
+.annTagNew {
+  font-size: 11px;
+  font-weight: 950;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+.annMeta {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.68;
+}
+
+.annPreview {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.82;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.annEmpty {
+  padding: 18px 12px;
+  opacity: 0.7;
+  text-align: center;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.popupActions {
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.popupBtn {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
+.popupBtn.ghost {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.80);
+}
+.popupBtn.soft {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.popup-enter-active,
+.popup-leave-active {
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.popup-enter-from,
+.popup-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
 }
 
 /* ✅ NEW: Toast notification */

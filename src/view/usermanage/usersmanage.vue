@@ -56,7 +56,8 @@
                 <th class="colId">ID</th>
                 <th>Username</th>
                 <th class="colRole">Role</th>
-                <th class="colBank">Bankcode</th>
+                <!-- ✅ show profile from /api/members by bankcode -->
+                <th class="colBank">MemberBank</th>
                 <th class="colActive">Active</th>
                 <th class="colTime">Created</th>
                 <th class="colTime">Updated</th>
@@ -103,11 +104,33 @@
                   </span>
                 </td>
 
-                <td class="mono">
-                  <span v-if="u.bankcode" class="bankPill">
-                    <i class="fa-solid fa-building-columns"></i>
-                    <span>{{ u.bankcode }}</span>
-                  </span>
+                <!-- ✅ MemberBank profile cell (logo + name + bankcode) -->
+                <td>
+                  <template v-if="u.bankcode">
+                    <div v-if="memberOf(u.bankcode)" class="bankProfile">
+                      <img
+                        class="bankLogo"
+                        :src="memberOf(u.bankcode)?.logo || defaultBankLogo"
+                        :alt="memberOf(u.bankcode)?.name || u.bankcode"
+                        @error="onBankLogoError"
+                      />
+                      <div class="bankMeta">
+                        <div class="bankName">{{ memberOf(u.bankcode)?.name }}</div>
+                        <div class="bankSub">
+                          <span class="mono">{{ u.bankcode }}</span>
+                          <span class="dot2">•</span>
+                          <span class="mono muted">id {{ memberOf(u.bankcode)?.member_id ?? "—" }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- fallback if bankcode exists but members not loaded / not found -->
+                    <span v-else class="bankPill">
+                      <i class="fa-solid fa-building-columns"></i>
+                      <span class="mono">{{ u.bankcode }}</span>
+                    </span>
+                  </template>
+
                   <span v-else class="muted">—</span>
                 </td>
 
@@ -153,6 +176,12 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- ✅ optional: show members load issue (still works, just fallback UI) -->
+        <div class="membersMsg" v-if="membersError">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>MemberBank profiles unavailable: {{ membersError }}</span>
         </div>
       </section>
 
@@ -243,7 +272,6 @@
                 <i class="fa-solid fa-shield-halved"></i>
                 <select v-model="form.role" @change="onRoleChange">
                   <option value="viewer">viewer</option>
-                  
                   <option value="admin">admin</option>
                 </select>
               </div>
@@ -269,9 +297,7 @@
 
                   <div class="mSelText">
                     <div class="mSelName">
-                      {{
-                        membersLoading ? "Loading MemberBank..." : selectedMember ? selectedMember.name : "Select MemberBank"
-                      }}
+                      {{ membersLoading ? "Loading MemberBank..." : selectedMember ? selectedMember.name : "Select MemberBank" }}
                     </div>
                     <div class="mSelSub">
                       <span v-if="selectedMember?.bankcode" class="mono">{{ selectedMember.bankcode }}</span>
@@ -304,6 +330,29 @@
                   Clear
                 </button>
               </div>
+
+              <!-- ✅ MemberBank profile preview card -->
+              <div v-if="selectedMember" class="mbPreview">
+                <img
+                  class="mbLogo"
+                  :src="selectedMember.logo || defaultBankLogo"
+                  :alt="selectedMember.name"
+                  @error="onBankLogoError"
+                />
+                <div class="mbInfo">
+                  <div class="mbName">{{ selectedMember.name }}</div>
+                  <div class="mbLine">
+                    <span class="tag">
+                      <i class="fa-solid fa-building-columns"></i>
+                      <span class="mono">{{ selectedMember.bankcode }}</span>
+                    </span>
+                    <span class="tag">
+                      <i class="fa-solid fa-id-card"></i>
+                      <span class="mono">member_id {{ selectedMember.member_id ?? "—" }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
             </label>
           </div>
 
@@ -325,7 +374,10 @@
             </button>
 
             <button class="btn" type="submit" :disabled="saving || !canSave">
-              <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : isEditMode ? 'fa-floppy-disk' : 'fa-user-plus'"></i>
+              <i
+                class="fa-solid"
+                :class="saving ? 'fa-spinner fa-spin' : isEditMode ? 'fa-floppy-disk' : 'fa-user-plus'"
+              ></i>
               <span>{{
                 saving
                   ? isEditMode
@@ -506,6 +558,7 @@ function isRowBusy(id) {
 /* -----------------------------
   MemberBank dropdown (single select)
   ✅ smooth + clean floating dropdown (Teleport) so it won't be clipped by modal scroll
+  ✅ also used for showing MemberBank profile in table via bankcode mapping
 ----------------------------- */
 const defaultBankLogo = "/bank-logos/default.png";
 const members = ref([]);
@@ -551,6 +604,7 @@ function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
   if (/^(https?:|data:|blob:)/i.test(s)) return s;
+  // keep your current behavior (members API is on localhost)
   if (s.startsWith("/")) return `http://localhost:3000${s}`;
   return `http://localhost:3000/${s.replace(/^\/+/, "")}`;
 }
@@ -654,6 +708,16 @@ async function loadMembers() {
   }
 }
 
+/* ✅ fast lookup map: bankcode -> member profile */
+const memberByCode = computed(() => {
+  const mp = new Map();
+  for (const m of members.value) mp.set(String(m.bankcode || "").trim(), m);
+  return mp;
+});
+function memberOf(bankcode) {
+  return memberByCode.value.get(String(bankcode || "").trim()) || null;
+}
+
 const filteredMembers = computed(() => {
   const s = memberQ.value.trim().toLowerCase();
   if (!s) return members.value;
@@ -731,7 +795,6 @@ function toggleMemberDropdown() {
     nextTick(() => {
       bindFloatingEvents();
       updateMemberMenuPos();
-      // focus search quickly for smooth UX
       setTimeout(() => memberSearchInputRef.value?.focus?.(), 0);
     });
   } else {
@@ -859,7 +922,6 @@ async function openConfirm(opts = {}) {
     .to(overlay, { autoAlpha: 1, duration: 0.16, ease: "power2.out" }, 0)
     .to(card, { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: "power3.out" }, 0.02);
 
-  // focus safe button
   nextTick(() => confirmCancelBtnRef.value?.focus?.());
 
   return new Promise((resolve) => {
@@ -934,14 +996,12 @@ function fmtDate(v) {
 function roleIcon(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "fa-crown";
-
   return "fa-eye";
 }
 
 function pillRoleClass(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "roleAdmin";
- 
   return "roleViewer";
 }
 
@@ -967,7 +1027,6 @@ async function requestFirstSuccess(requests) {
 }
 
 async function apiUpdateUser(id, payload) {
-  // try /api/users/:id first (PATCH then PUT)
   const idUrls = userIdEndpoints(id);
   const headers = { "Content-Type": "application/json" };
 
@@ -980,8 +1039,6 @@ async function apiUpdateUser(id, payload) {
       url,
       opts: { method: "PUT", headers, body: JSON.stringify(payload) },
     })),
-
-    // fallback: base /api/users with id in body
     ...USERS_ENDPOINTS.map((url) => ({
       url,
       opts: { method: "PATCH", headers, body: JSON.stringify({ id, ...payload }) },
@@ -1000,7 +1057,6 @@ async function apiDeleteUser(id) {
 
   const reqs = [
     ...idUrls.map((url) => ({ url, opts: { method: "DELETE" } })),
-    // fallback: base delete with body
     ...USERS_ENDPOINTS.map((url) => ({
       url,
       opts: { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) },
@@ -1104,7 +1160,6 @@ async function deleteUser(u) {
   if (!u?.id) return;
   if (isRowBusy(u.id)) return;
 
-  // ✅ Beautiful confirm dialog (GSAP)
   const ok = await openConfirm({
     title: "Delete user?",
     message: `Delete "${u.username}" (ID ${u.id})? This action cannot be undone.`,
@@ -1385,7 +1440,6 @@ function animateRows() {
 
 function onKeydown(e) {
   if (e.key === "Escape") {
-    // ✅ priority: confirm dialog first
     const overlayEl = confirmOverlayRef.value;
     const isConfirmVisible = overlayEl && window.getComputedStyle(overlayEl).display !== "none";
     if (isConfirmVisible) {
@@ -1404,7 +1458,6 @@ function onDocPointerDown(e) {
   const wrap = memberSelectWrapRef.value;
   const menu = memberMenuRef.value;
 
-  // ✅ allow clicks inside button OR inside floating menu
   if (wrap?.contains?.(e.target)) return;
   if (menu?.contains?.(e.target)) return;
 
@@ -1416,7 +1469,8 @@ function onResize() {
 }
 
 onMounted(() => {
-  load();
+  // ✅ preload members so table can show MemberBank profile by bankcode
+  Promise.allSettled([loadMembers(), load()]);
 
   ctx = gsap.context(() => {
     gsap.set([cardListRef.value, cardTipRef.value], { autoAlpha: 0, y: 18 });
@@ -1641,6 +1695,21 @@ watch(
   color: rgba(255, 210, 210, 0.95);
 }
 
+/* ✅ Members info message */
+.membersMsg {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(210, 235, 255, 0.82);
+}
+
 /* ===== Table ===== */
 .tableWrap {
   overflow: auto;
@@ -1689,7 +1758,7 @@ tbody tr.inactive td {
   width: 140px;
 }
 .colBank {
-  width: 170px;
+  width: 320px; /* ✅ more room for profile */
 }
 .colActive {
   width: 180px;
@@ -1748,9 +1817,6 @@ tbody tr.inactive td {
 .pill.roleAdmin {
   background: rgba(255, 215, 90, 0.12);
 }
-.pill.roleStaff {
-  background: rgba(180, 140, 255, 0.12);
-}
 .pill.roleViewer {
   background: rgba(90, 180, 255, 0.12);
 }
@@ -1762,6 +1828,49 @@ tbody tr.inactive td {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(90, 180, 255, 0.09);
+}
+
+/* ✅ MemberBank profile (table cell) */
+.bankProfile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(90, 180, 255, 0.08);
+  max-width: 100%;
+}
+.bankLogo {
+  width: 34px;
+  height: 34px;
+  border-radius: 14px;
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  flex: 0 0 auto;
+}
+.bankMeta {
+  min-width: 0;
+}
+.bankName {
+  font-weight: 950;
+  color: rgba(240, 250, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bankSub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(210, 235, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dot2 {
+  margin: 0 6px;
+  opacity: 0.6;
 }
 
 /* ✅ mini switch in table */
@@ -2087,6 +2196,56 @@ tbody tr.inactive td {
 }
 .chev.up {
   transform: rotate(180deg);
+}
+
+/* ✅ MemberBank preview card (inside overlay) */
+.mbPreview {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(90, 180, 255, 0.08);
+}
+.mbLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  flex: 0 0 auto;
+}
+.mbInfo {
+  min-width: 0;
+}
+.mbName {
+  font-size: 13px;
+  font-weight: 950;
+  color: rgba(240, 250, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mbLine {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(240, 250, 255, 0.9);
+  font-weight: 900;
+  font-size: 11px;
 }
 
 /* ✅ Smooth floating menu */

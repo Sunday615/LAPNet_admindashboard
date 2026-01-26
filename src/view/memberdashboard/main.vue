@@ -1,1528 +1,1289 @@
-<!-- src/views/ViewerDashboard.vue  (single-file, bento layout, tech modern style + GSAP + Document Overlay Viewer) -->
 <template>
-  <div class="vdash">
-    <!-- header -->
-    <header ref="topbarEl" class="topbar js-reveal">
-      <div class="headline">
+  <section class="ov">
+    <!-- Header -->
+    <header ref="headEl" class="ovHead js-reveal">
+      <div class="headLeft">
         <div class="kicker">
           <span class="kDot"></span>
-          Viewer Console
+          Members Console
         </div>
-        <h1 class="title">Main Dashboard</h1>
-        <p class="subtitle">Overview: Documents • Announcements • Forms</p>
+        <h1 class="title">ພາບລວມ (Overview)</h1>
+        <p class="sub">Documents • Announcements • Form Templates</p>
       </div>
 
-      <div class="actions">
-        <button
-          class="btn"
-          type="button"
-          @click="refresh"
-          :disabled="loading"
-          @mouseenter="btnHover($event, true)"
-          @mouseleave="btnHover($event, false)"
+      <div class="headRight">
+        <!-- ✅ SINGLE BOX (Account + MemberBank) -->
+        <div
+          class="profileBox"
+          @mouseenter="profileHover($event, true)"
+          @mouseleave="profileHover($event, false)"
+          title="Account / MemberBank"
         >
+          <div class="avatar">
+            <span v-if="profileLoading || memberLoading" class="dotSpin"></span>
+
+            <template v-else>
+              <!-- ✅ show bank logo if exists, else show user initial -->
+              <img
+                v-if="memberProfile?.logo"
+                class="avatarImg"
+                :src="memberProfile.logo"
+                :alt="memberProfile.name || 'Bank logo'"
+                @error="onAvatarLogoError"
+              />
+              <span v-else>{{ avatarText }}</span>
+            </template>
+          </div>
+
+          <div class="profileMeta">
+            <div class="profileName">
+              {{ profileLoading ? "Loading..." : displayUsername }}
+            </div>
+
+            <!-- ✅ Bank info (full name, no ellipsis) -->
+            <div class="profileBankLine">
+              <i class="fa-solid fa-building-columns"></i>
+
+              <div class="bankStack">
+                <div class="bankCodeRow">
+                  <template v-if="profileLoading">
+                    <span class="mono">...</span>
+                  </template>
+                  <template v-else>
+                    <span class="mono" v-if="profile?.bankcode">{{ profile.bankcode }}</span>
+                    <span class="mono" v-else>NO_BANKCODE</span>
+                  </template>
+                </div>
+
+                <div class="bankNameRow">
+                  <template v-if="profileLoading">
+                    <span class="muted">...</span>
+                  </template>
+
+                  <template v-else>
+                    <span v-if="memberProfile?.name" class="bankName">
+                      {{ memberProfile.name }}
+                    </span>
+                    <span v-else class="bankName muted">
+                      {{ profile?.bankcode ? "MemberBank not found" : "Not mapped" }}
+                    </span>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- errors -->
+            <div v-if="profileError" class="profileErr">{{ profileError }}</div>
+            <div v-else-if="memberError" class="profileErr">{{ memberError }}</div>
+          </div>
+        </div>
+
+        <button class="btn" type="button" @click="refresh" :disabled="loading">
           <span class="btnIcon" :class="{ spin: loading }">⟲</span>
           Refresh
         </button>
       </div>
     </header>
 
-    <!-- stats -->
-    <section ref="statsEl" class="stats js-reveal">
-      <div
-        class="statCard"
-        @click="go('/v/documentviewer')"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
-        <div class="statIcon"><i class="fa-solid fa-file"></i></div>
-        <div class="statMeta">
-          <div class="statLabel">Documents</div>
-          <div class="statValue">
-            <span v-if="loading" class="sk sk-w80"></span>
-            <span v-else>{{ docs.length }}</span>
-          </div>
-        </div>
-        <div class="statHint">
-          <span class="pill">View</span>
-          <span class="muted">latest {{ latestDocs[0] ? formatDate(getAnyDate(latestDocs[0])) : "-" }}</span>
-        </div>
-      </div>
-
-      <div
-        class="statCard"
-        @click="go('/v/announcement_member')"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
-        <div class="statIcon"><i class="fa-solid fa-bullhorn"></i></div>
-        <div class="statMeta">
-          <div class="statLabel">Announcements</div>
-          <div class="statValue">
-            <span v-if="loading" class="sk sk-w80"></span>
-            <span v-else>{{ anns.length }}</span>
-          </div>
-        </div>
-        <div class="statHint">
-          <span class="pill">View</span>
-          <span class="muted">latest {{ latestAnns[0] ? formatDate(getAnyDate(latestAnns[0])) : "-" }}</span>
-        </div>
-      </div>
-
-      <div
-        class="statCard"
-        @click="go('/v/formmemberview')"
-        @mouseenter="cardHover($event, true)"
-        @mouseleave="cardHover($event, false)"
-      >
-        <div class="statIcon"><i class="fa-solid fa-list-check"></i></div>
-        <div class="statMeta">
-          <div class="statLabel">Forms</div>
-          <div class="statValue">
-            <span v-if="loading" class="sk sk-w80"></span>
-            <span v-else>{{ forms.length }}</span>
-          </div>
-        </div>
-        <div class="statHint">
-          <span class="pill">View</span>
-          <span class="muted">active {{ activeForms }} / {{ forms.length }}</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- bento (fills remaining height; each card scrolls inside) -->
-    <section ref="bentoEl" class="bento js-reveal">
-      <!-- BIG: Documents -->
-      <article class="card card--docs">
-        <div class="cardTop">
-          <div class="cardTitle">
-            <span class="cardIcon"><i class="fa-solid fa-file"></i></span>
-            <div>
-              <div class="t1">Documents</div>
-              <div class="t2">Click a row to preview (overlay)</div>
-            </div>
-          </div>
-
-          <div class="cardActions">
-            <div class="search">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input v-model.trim="docQuery" type="text" placeholder="Search documents..." spellcheck="false" />
-              <button class="x" type="button" v-if="docQuery" @click="docQuery = ''" aria-label="Clear">✕</button>
-            </div>
-
-            <button class="ghost" type="button" @click="go('/v/documentviewer')">
-              View all
-              <i class="fa-solid fa-arrow-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="cardBody">
-          <div class="tableHead">
-            <div>Title</div>
-            <div class="hideSm">Category</div>
-            <div class="right">Updated</div>
-          </div>
-
-          <div v-if="loading" class="rows scroll">
-            <div v-for="i in 12" :key="i" class="row skRow">
-              <span class="sk sk-w60"></span>
-              <span class="sk sk-w30 hideSm"></span>
-              <span class="sk sk-w20 right"></span>
-            </div>
-          </div>
-
-          <div v-else class="rows scroll">
-            <button
-              v-for="(d, idx) in filteredDocs.slice(0, 80)"
-              :key="d?.id ?? d?._id ?? idx"
-              class="row rowBtn"
-              type="button"
-              @mouseenter="rowHover($event, true)"
-              @mouseleave="rowHover($event, false)"
-              @click="viewDocument(d)"
-              :title="getDocTitle(d)"
-            >
-              <div class="cell titleCell">
-                <span class="dot" :class="typeDot(inferDocType(d))"></span>
-                <span class="ellipsis">{{ getDocTitle(d) }}</span>
-              </div>
-              <div class="cell hideSm ellipsis muted">
-                {{ d?.category || d?.department || d?.typeGroup || d?.group || "—" }}
-              </div>
-              <div class="cell right muted">{{ formatDate(getAnyDate(d)) }}</div>
-            </button>
-
-            <div v-if="filteredDocs.length === 0" class="empty">
-              <div class="emptyTitle">No documents found</div>
-              <div class="emptySub">Try another keyword.</div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <!-- Announcements -->
-      <article class="card card--ann">
-        <div class="cardTop">
-          <div class="cardTitle">
-            <span class="cardIcon"><i class="fa-solid fa-bullhorn"></i></span>
-            <div>
-              <div class="t1">Announcements</div>
-              <div class="t2">Latest updates</div>
-            </div>
-          </div>
-          <button class="ghost" type="button" @click="go('/v/announcement_member')">
-            View all <i class="fa-solid fa-arrow-right"></i>
-          </button>
-        </div>
-
-        <div class="cardBody">
-          <div v-if="loading" class="miniList scroll">
-            <div v-for="i in 8" :key="i" class="miniItem">
-              <span class="sk sk-w70"></span>
-              <span class="sk sk-w35"></span>
-            </div>
-          </div>
-
-          <div v-else class="miniList scroll">
-            <button
-              v-for="(a, idx) in latestAnns.slice(0, 30)"
-              :key="a?.id ?? a?._id ?? idx"
-              class="miniBtn"
-              type="button"
-              @mouseenter="rowHover($event, true)"
-              @mouseleave="rowHover($event, false)"
-              @click="openItem('announcements', a)"
-            >
-              <div class="miniTitle ellipsis">{{ getAnnTitle(a) }}</div>
-              <div class="miniSub">
-                <span class="chip">{{ formatDate(getAnyDate(a)) }}</span>
-                <span class="ellipsis muted">{{ getAnnSub(a) }}</span>
-              </div>
-            </button>
-
-            <div v-if="latestAnns.length === 0" class="empty small">
-              <div class="emptyTitle">No announcements</div>
-              <div class="emptySub">Nothing to show.</div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <!-- Forms -->
-      <article class="card card--forms">
-        <div class="cardTop">
-          <div class="cardTitle">
-            <span class="cardIcon"><i class="fa-solid fa-list-check"></i></span>
-            <div>
-              <div class="t1">Forms</div>
-              <div class="t2">Templates</div>
-            </div>
-          </div>
-          <button class="ghost" type="button" @click="go('/v/formmemberview')">
-            View all <i class="fa-solid fa-arrow-right"></i>
-          </button>
-        </div>
-
-        <div class="cardBody">
-          <div v-if="loading" class="miniGrid scroll">
-            <div v-for="i in 10" :key="i" class="formTile">
-              <span class="sk sk-w70"></span>
-              <span class="sk sk-w45"></span>
-            </div>
-          </div>
-
-          <div v-else class="miniGrid scroll">
-            <button
-              v-for="(f, idx) in latestForms.slice(0, 40)"
-              :key="f?.id ?? f?._id ?? f?.templateId ?? idx"
-              class="formTile tileBtn"
-              type="button"
-              @mouseenter="rowHover($event, true)"
-              @mouseleave="rowHover($event, false)"
-              @click="openItem('forms', f)"
-            >
-              <div class="tileTop">
-                <div class="tileName ellipsis">{{ getFormTitle(f) }}</div>
-                <span class="badge" :class="{ on: isActive(f) }">{{ isActive(f) ? "Active" : "Inactive" }}</span>
-              </div>
-              <div class="tileSub muted">updated {{ formatDate(getAnyDate(f)) }}</div>
-            </button>
-
-            <div v-if="latestForms.length === 0" class="empty small">
-              <div class="emptyTitle">No forms</div>
-              <div class="emptySub">No templates available.</div>
-            </div>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <!-- error -->
-    <transition name="toast">
-      <div v-if="error" class="toastErr">
-        <div class="toastErrTitle">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          Error
-        </div>
-        <div class="toastErrMsg">{{ error }}</div>
-        <button class="toastErrBtn" type="button" @click="error = ''">Dismiss</button>
-      </div>
-    </transition>
-
-    <!-- ✅ Document Overlay Viewer (like your DocumentViewer modal design) -->
-    <div v-if="docModal.open" class="modalOverlay" @mousedown.self="closeDocModal()">
-      <div ref="docModalRef" class="modal docModal" role="dialog" aria-modal="true">
-        <div class="modalHead">
-          <div class="modalTitle">
-            <i class="fa-regular fa-eye"></i>
-            <span class="ellipsis">{{ docModal.title || "Document Preview" }}</span>
-          </div>
-
-          <div class="modalHeadActions">
-            <button class="iconBtn" type="button" title="Open in new tab" :disabled="!docModal.url" @click="openDocInNewTab()">
-              <i class="fa-solid fa-up-right-from-square"></i>
-            </button>
-            <button class="iconBtn" type="button" title="Download" :disabled="!docModal.downloadUrl && !docModal.url" @click="downloadDocFromModal()">
-              <i class="fa-solid fa-download"></i>
-            </button>
-            <button class="iconBtn" type="button" title="Close" @click="closeDocModal()">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="modalBody">
-          <div class="docMetaRow">
-            <span class="pill2" :class="typePill(inferDocType(docModal.doc))">
-              {{ (inferDocType(docModal.doc) || "unknown").toUpperCase() }}
-            </span>
-            <span class="muted ellipsis">
-              Updated: {{ formatDate(getAnyDate(docModal.doc)) }}
-            </span>
-          </div>
-
-          <div class="previewWrap" role="region" aria-label="Document preview">
-            <div v-if="!docModal.url" class="previewEmpty">
-              <i class="fa-regular fa-folder-open"></i>
-              No preview URL for this document
-            </div>
-
-            <!-- images -->
-            <img
-              v-else-if="docModal.kind === 'image'"
-              class="previewImg"
-              :src="docModal.url"
-              :alt="docModal.title || 'Preview'"
-            />
-
-            <!-- everything else: iframe (pdf, txt, etc.) -->
-            <iframe
-              v-else
-              class="previewFrame"
-              :src="docModal.url"
-              title="Document preview"
-              loading="lazy"
-            ></iframe>
-          </div>
-
-          <div class="modalFoot">
-            <button class="btn ghost" type="button" @click="closeDocModal()">Close</button>
-            <button class="btn primary" type="button" :disabled="!docModal.url" @click="openDocInNewTab()">
-              <i class="fa-regular fa-eye"></i>
-              <span>View</span>
-            </button>
-          </div>
-
-          <div v-if="docModal.note" class="note">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>{{ docModal.note }}</span>
-          </div>
-        </div>
-      </div>
+    <!-- Error -->
+    <div v-if="error" class="banner js-reveal">
+      <div class="bannerTitle">⚠️ Load error</div>
+      <div class="bannerBody">{{ error }}</div>
     </div>
-  </div>
+
+    <!-- Grid -->
+    <div class="grid">
+      <!-- Stats -->
+      <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-file-lines"></i>
+            Documents
+          </div>
+          <div class="pill">Total</div>
+        </div>
+        <div class="statRow">
+          <div class="statValue">{{ totals.documents }}</div>
+          <div class="statMeta">
+            <div class="statLabel">Last 7 days</div>
+            <div class="statSub">+{{ last7.documents }} new</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="mini">
+          <div class="miniLabel">Latest</div>
+          <div class="miniText">{{ latestDocTitle }}</div>
+        </div>
+
+        <button class="miniBtn" type="button" @click="go('/v/documentviewer')">
+          View documents <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </article>
+
+      <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-bullhorn"></i>
+            Announcements
+          </div>
+          <div class="pill">Total</div>
+        </div>
+        <div class="statRow">
+          <div class="statValue">{{ totals.announcements }}</div>
+          <div class="statMeta">
+            <div class="statLabel">Last 7 days</div>
+            <div class="statSub">+{{ last7.announcements }} new</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="mini">
+          <div class="miniLabel">Latest</div>
+          <div class="miniText">{{ latestAnnTitle }}</div>
+        </div>
+
+        <button class="miniBtn" type="button" @click="go('/v/announcement_member')">
+          View announcements <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </article>
+
+      <!-- ✅ FORMS (ACTIVE ONLY) -->
+      <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-list-check"></i>
+            Form Templates
+          </div>
+          <div class="pill">Active</div>
+        </div>
+        <div class="statRow">
+          <div class="statValue">{{ totals.forms }}</div>
+          <div class="statMeta">
+            <div class="statLabel">Last 7 days</div>
+            <div class="statSub">+{{ last7.forms }} new</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="mini">
+          <div class="miniLabel">Latest (active)</div>
+          <div class="miniText">{{ latestFormTitle }}</div>
+        </div>
+
+        <button class="miniBtn" type="button" @click="go('/v/formmemberview')">
+          View forms <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </article>
+
+      <!-- Trend chart -->
+      <article class="card chartWide js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-chart-line"></i>
+            Last 6 Months Trend
+          </div>
+          <div class="pill">Line</div>
+        </div>
+
+        <div class="chartWrap">
+          <canvas ref="trendCanvas"></canvas>
+        </div>
+
+        <div class="hint">Count by month (Documents / Announcements / Active Forms)</div>
+      </article>
+
+      <!-- Distribution chart -->
+      <article class="card chartNarrow js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-chart-pie"></i>
+            Distribution
+          </div>
+          <div class="pill">Doughnut</div>
+        </div>
+
+        <div class="chartWrap small">
+          <canvas ref="distCanvas"></canvas>
+        </div>
+
+        <div class="hint">Total proportions (active forms only)</div>
+      </article>
+
+      <!-- Quick actions -->
+      <article class="card actions js-reveal">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-bolt"></i>
+            Quick Actions
+          </div>
+          <div class="pill">Shortcuts</div>
+        </div>
+
+        <div class="actionGrid">
+          <button class="qbtn" type="button" @click="go('/v/documentviewer')">
+            <i class="fa-solid fa-file"></i>
+            Documents
+          </button>
+          <button class="qbtn" type="button" @click="go('/v/announcement_member')">
+            <i class="fa-solid fa-bullhorn"></i>
+            Announcements
+          </button>
+          <button class="qbtn" type="button" @click="go('/v/formmemberview')">
+            <i class="fa-solid fa-list-check"></i>
+            Forms
+          </button>
+          <button class="qbtn" type="button" @click="go('/v/chat')">
+            <i class="fa-solid fa-message"></i>
+            Chat
+          </button>
+        </div>
+      </article>
+
+      <!-- Recent: Documents -->
+      <article class="card list js-reveal">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-clock"></i>
+            Recent Documents
+          </div>
+          <div class="pill">Latest 6</div>
+        </div>
+
+        <div v-if="loading" class="skeletonList">
+          <div class="sk" v-for="i in 6" :key="'docsk' + i"></div>
+        </div>
+
+        <ul v-else class="rows">
+          <li
+            v-for="d in recentDocs"
+            :key="d._key"
+            class="row"
+            @mouseenter="rowHover($event, true)"
+            @mouseleave="rowHover($event, false)"
+          >
+            <div class="rowMain">
+              <div class="rowTitle">{{ d.title || d.name || "(Untitled)" }}</div>
+              <div class="rowSub">{{ formatDate(d._date) }}</div>
+            </div>
+            <div class="chip">{{ d.category || d.type || "DOC" }}</div>
+          </li>
+          <li v-if="!recentDocs.length" class="empty">No documents found</li>
+        </ul>
+      </article>
+
+      <!-- Recent: Announcements -->
+      <article class="card list js-reveal">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-clock"></i>
+            Recent Announcements
+          </div>
+          <div class="pill">Latest 6</div>
+        </div>
+
+        <div v-if="loading" class="skeletonList">
+          <div class="sk" v-for="i in 6" :key="'annsk' + i"></div>
+        </div>
+
+        <ul v-else class="rows">
+          <li
+            v-for="a in recentAnns"
+            :key="a._key"
+            class="row"
+            @mouseenter="rowHover($event, true)"
+            @mouseleave="rowHover($event, false)"
+          >
+            <div class="rowMain">
+              <div class="rowTitle">{{ a.title || a.subject || "(Untitled)" }}</div>
+              <div class="rowSub">{{ formatDate(a._date) }}</div>
+            </div>
+            <div class="chip">{{ a.category || "ANN" }}</div>
+          </li>
+          <li v-if="!recentAnns.length" class="empty">No announcements found</li>
+        </ul>
+      </article>
+
+      <!-- ✅ Recent: Forms (ACTIVE ONLY) -->
+      <article class="card list js-reveal">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-clock"></i>
+            Recent Form Templates
+          </div>
+          <div class="pill">Active only</div>
+        </div>
+
+        <div v-if="loading" class="skeletonList">
+          <div class="sk" v-for="i in 6" :key="'formsk' + i"></div>
+        </div>
+
+        <ul v-else class="rows">
+          <li
+            v-for="f in recentForms"
+            :key="f._key"
+            class="row"
+            @mouseenter="rowHover($event, true)"
+            @mouseleave="rowHover($event, false)"
+          >
+            <div class="rowMain">
+              <div class="rowTitle">{{ f.name || f.title || "(Untitled)" }}</div>
+              <div class="rowSub">{{ formatDate(f._date) }}</div>
+            </div>
+            <div class="chip">ACTIVE</div>
+          </li>
+          <li v-if="!recentForms.length" class="empty">No active form templates</li>
+        </ul>
+      </article>
+    </div>
+  </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Tooltip,
+  Legend,
+  DoughnutController,
+  ArcElement,
+} from "chart.js";
+
+Chart.register(
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Tooltip,
+  Legend,
+  DoughnutController,
+  ArcElement
+);
+
 const router = useRouter();
+const headEl = ref(null);
 
-const API_BASE = (import.meta?.env?.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
-const DOC_URL = `${API_BASE}/api/documents`;
-const ANN_URL = `${API_BASE}/api/announcements`;
-const FORM_URL = `${API_BASE}/api/form-templates`;
+/* ✅ Force Year + Anno Domini label everywhere */
+const DISPLAY_YEAR = 2026;
+const AD_LABEL = "";
 
-const topbarEl = ref(null);
-const statsEl = ref(null);
-const bentoEl = ref(null);
+// ---- API base
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const endpoints = {
+  documents: `${BASE}/api/documents`,
+  announcements: `${BASE}/api/announcements`,
+  forms: `${BASE}/api/form-templates`,
+  users: `${BASE}/api/users`,
+  members: `${BASE}/api/members`, // ✅ member bank profile + logo
+};
 
+// ---- State
 const loading = ref(false);
 const error = ref("");
 
-const docs = ref([]);
-const anns = ref([]);
+const documents = ref([]);
+const announcements = ref([]);
+
+// ✅ forms that will be shown (ACTIVE ONLY)
 const forms = ref([]);
 
-const docQuery = ref("");
+const totals = reactive({ documents: 0, announcements: 0, forms: 0 });
+const last7 = reactive({ documents: 0, announcements: 0, forms: 0 });
 
-/** ✅ Modal viewer state */
-const docModalRef = ref(null);
-const docModal = ref({
-  open: false,
-  doc: null,
-  title: "",
-  url: "",
-  downloadUrl: "",
-  kind: "iframe", // iframe | image
-  note: "",
+// ---- Profile (Account)  ✅ role removed
+const profileLoading = ref(false);
+const profileError = ref("");
+const profile = ref({
+  username: "-",
+  bankcode: "",
+  member_id: null,
 });
 
-function normalizeList(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.data)) return payload.data;
-  if (payload && Array.isArray(payload.rows)) return payload.rows;
-  if (payload && Array.isArray(payload.items)) return payload.items;
+// ---- MemberBank Profile
+const memberLoading = ref(false);
+const memberError = ref("");
+const memberProfile = ref({
+  member_id: null,
+  bankcode: "",
+  name: "",
+  logo: "",
+});
+
+// ---- Charts
+const trendCanvas = ref(null);
+const distCanvas = ref(null);
+let trendChart = null;
+let distChart = null;
+
+// ---- Helpers (storage/user)
+function safeJsonParse(x) {
+  try {
+    return JSON.parse(String(x));
+  } catch {
+    return null;
+  }
+}
+function readUserFromStorage() {
+  const u1 = localStorage.getItem("user");
+  if (u1) return safeJsonParse(u1);
+  const u2 = sessionStorage.getItem("user");
+  if (u2) return safeJsonParse(u2);
+  return null;
+}
+function readToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+}
+function authHeaders() {
+  const token = readToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ---- Helpers (lists/dates)
+function pickDate(obj) {
+  const candidates = [
+    obj.createdAt,
+    obj.created_at,
+    obj.createdDate,
+    obj.created_date,
+    obj.updatedAt,
+    obj.updated_at,
+    obj.date,
+    obj.datetime,
+    obj.time,
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    const d = new Date(c);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+function pickKey(obj, i) {
+  return obj.id || obj._id || obj.uuid || obj.key || `${i}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeList(list) {
+  return (Array.isArray(list) ? list : []).map((x, i) => ({
+    ...x,
+    _date: pickDate(x),
+    _key: pickKey(x, i),
+  }));
+}
+
+function joinParts(...parts) {
+  return parts
+    .map((p) => String(p ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function toFixedYearDate(input) {
+  const d = new Date(input);
+  const t = d.getTime();
+  if (!Number.isFinite(t)) return null;
+
+  const m = d.getMonth();
+  const day = d.getDate();
+
+  const fixed = new Date(DISPLAY_YEAR, m, day);
+  if (fixed.getMonth() !== m) {
+    return new Date(DISPLAY_YEAR, m + 1, 0);
+  }
+  return fixed;
+}
+
+function formatDate(input) {
+  const d = toFixedYearDate(input);
+  if (!d) return "-";
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mon = d.toLocaleString(undefined, { month: "short" });
+
+  return joinParts(dd, mon, AD_LABEL, DISPLAY_YEAR);
+}
+
+function isWithinLastDays(date, days) {
+  const t = new Date(date).getTime();
+  const diff = Date.now() - t;
+  return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+}
+
+function monthKey(date) {
+  const d = new Date(date);
+  return { y: DISPLAY_YEAR, m: d.getMonth() };
+}
+
+function lastNMonths(n = 6) {
+  const out = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mon = d.toLocaleString(undefined, { month: "short" });
+    out.push({
+      y: DISPLAY_YEAR,
+      m: d.getMonth(),
+      label: joinParts(mon, AD_LABEL, DISPLAY_YEAR),
+    });
+  }
+  return out;
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url, { headers: { ...authHeaders() } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${url})`);
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.rows)) return data.rows;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.members)) return data.members;
+  if (Array.isArray(data?.result)) return data.result;
   return [];
 }
 
-async function getJson(url) {
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Request failed (${res.status}) ${url}${text ? `\n${text}` : ""}`);
+/* ✅ ACTIVE CHECK: activetoggle = 1 */
+function isFormActive(x) {
+  const v =
+    x?.activetoggle ??
+    x?.activeToggle ??
+    x?.active_toggle ??
+    x?.is_active ??
+    x?.isActive ??
+    x?.active ??
+    0;
+
+  if (v === true) return true;
+  const n = Number(v);
+  return Number.isFinite(n) ? n === 1 : false;
+}
+
+// ------------------------
+// ✅ Member helpers
+// ------------------------
+function resolveAssetUrl(val) {
+  const s = (val ?? "").toString().trim();
+  if (!s) return "";
+  if (/^(https?:|data:|blob:)/i.test(s)) return s;
+
+  const base = String(BASE || "http://localhost:3000").replace(/\/+$/, "");
+  if (s.startsWith("/")) return `${base}${s}`;
+  return `${base}/${s.replace(/^\/+/, "")}`;
+}
+
+function readMemberId(r) {
+  const raw =
+    r?.idmember ?? r?.IdMember ?? r?.IDMEMBER ?? r?.memberId ?? r?.MemberId ?? r?.idMember ?? r?.member_id ?? null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeMemberRow(r) {
+  const bankcode = (r?.Bankcode ?? r?.BankCode ?? r?.bankcode ?? r?.code ?? r?.id ?? "").toString().trim();
+  const name = (r?.BanknameLA ?? r?.BankNameLA ?? r?.banknameLA ?? r?.name ?? r?.bank_name ?? "").toString().trim();
+  const logoRaw = r?.image ?? r?.Image ?? r?.bankLogo ?? r?.logo ?? r?.bank_logo ?? "";
+  const logo = resolveAssetUrl(logoRaw);
+  const member_id = readMemberId(r);
+
+  return { member_id, bankcode, name, logo };
+}
+
+function onAvatarLogoError() {
+  // ✅ fallback to user initial by removing logo
+  memberProfile.value = { ...memberProfile.value, logo: "" };
+}
+
+async function fetchMemberProfileByBankcode(bankcode) {
+  memberLoading.value = true;
+  memberError.value = "";
+
+  try {
+    const code = String(bankcode ?? "").trim();
+    if (!code) {
+      memberProfile.value = { member_id: null, bankcode: "", name: "", logo: "" };
+      return;
+    }
+
+    const raw = await fetchJSON(endpoints.members);
+    const mapped = (raw || []).map(normalizeMemberRow).filter((m) => m.bankcode);
+
+    const found = mapped.find((m) => String(m.bankcode) === code) || null;
+
+    if (!found) {
+      memberProfile.value = { member_id: null, bankcode: code, name: "", logo: "" };
+      return;
+    }
+
+    memberProfile.value = {
+      member_id: found.member_id ?? null,
+      bankcode: found.bankcode,
+      name: found.name,
+      logo: found.logo || "",
+    };
+  } catch (e) {
+    memberError.value = e?.message || "MemberBank load failed";
+    memberProfile.value = { member_id: null, bankcode: String(bankcode ?? ""), name: "", logo: "" };
+  } finally {
+    memberLoading.value = false;
   }
-  return res.json();
 }
 
-function toTime(x) {
-  const t = new Date(x).getTime();
-  return Number.isFinite(t) ? t : 0;
+// ---- Profile fetch + pick
+function pickProfileUser(usersList) {
+  const list = Array.isArray(usersList) ? usersList : [];
+  const me = readUserFromStorage();
+
+  const meId = me?.id ?? me?.user_id ?? me?._id ?? me?.uuid ?? null;
+  const meUsername = (me?.username ?? me?.user_name ?? "").toString().trim();
+  const meEmail = (me?.email ?? "").toString().trim();
+
+  const byId =
+    meId != null ? list.find((u) => String(u?.id ?? u?.user_id ?? u?._id ?? u?.uuid ?? "") === String(meId)) : null;
+
+  const byUsername =
+    !byId && meUsername
+      ? list.find((u) => String(u?.username ?? u?.user_name ?? u?.name ?? "").trim() === meUsername)
+      : null;
+
+  const byEmail =
+    !byId && !byUsername
+      ? list.find((u) => String(u?.email ?? "").trim() && String(u?.email ?? "").trim() === meEmail)
+      : null;
+
+  return byId || byUsername || byEmail || list[0] || null;
 }
 
-function getAnyDate(x) {
-  return (
-    x?.updatedAt ||
-    x?.updated_at ||
-    x?.modifiedAt ||
-    x?.createdAt ||
-    x?.created_at ||
-    x?.publishedAt ||
-    x?.date ||
-    x?.uploadedAt ||
-    x?.upload_date ||
-    null
-  );
+function pickBankcodeFromUser(u) {
+  const v = u?.bankcode ?? u?.Bankcode ?? u?.BankCode ?? u?.bank_code ?? u?.code ?? "";
+  return String(v ?? "").trim();
 }
 
-function sortLatest(arr) {
-  return [...arr].sort((a, b) => toTime(getAnyDate(b)) - toTime(getAnyDate(a)));
+function pickMemberIdFromUser(u) {
+  const raw = u?.member_id ?? u?.memberId ?? u?.MemberId ?? u?.idmember ?? u?.IdMember ?? null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
-const latestDocs = computed(() => sortLatest(docs.value));
-const latestAnns = computed(() => sortLatest(anns.value));
-const latestForms = computed(() => sortLatest(forms.value));
+async function fetchUserProfile() {
+  profileLoading.value = true;
+  profileError.value = "";
 
-function getDocTitle(d) {
-  return d?.title || d?.name || d?.filename || d?.file_name || "Untitled";
-}
-function getAnnTitle(a) {
-  return a?.title || a?.subject || a?.name || "No title";
-}
-function getAnnSub(a) {
-  return (a?.summary || a?.content || a?.body || a?.detail || "—").toString().replace(/\s+/g, " ").slice(0, 70);
-}
-function getFormTitle(f) {
-  return f?.templateName || f?.name || f?.title || "Unnamed form";
-}
-function isActive(f) {
-  return (f?.isActive ?? f?.active) === true;
+  try {
+    const usersRaw = await fetchJSON(endpoints.users);
+    const u = pickProfileUser(usersRaw);
+
+    if (!u) {
+      profile.value = { username: "-", bankcode: "", member_id: null };
+      return;
+    }
+
+    const username = u?.username ?? u?.user_name ?? u?.name ?? u?.email ?? "-";
+
+    const bankcode = pickBankcodeFromUser(u) || String(readUserFromStorage()?.bankcode ?? "").trim();
+    const member_id = pickMemberIdFromUser(u) ?? pickMemberIdFromUser(readUserFromStorage() || {});
+
+    profile.value = {
+      username: String(username || "-"),
+      bankcode,
+      member_id,
+    };
+
+    // ✅ load MemberBank (logo + name)
+    fetchMemberProfileByBankcode(bankcode);
+  } catch (e) {
+    profileError.value = e?.message || "Profile load failed";
+  } finally {
+    profileLoading.value = false;
+  }
 }
 
-const activeForms = computed(() => forms.value.filter((x) => isActive(x)).length);
+// ---- UI computed
+const recentDocs = computed(() => documents.value.slice(0, 6));
+const recentAnns = computed(() => announcements.value.slice(0, 6));
+const recentForms = computed(() => forms.value.slice(0, 6));
 
-const filteredDocs = computed(() => {
-  const q = docQuery.value.trim().toLowerCase();
-  if (!q) return latestDocs.value;
-  return latestDocs.value.filter((d) => {
-    const s = `${getDocTitle(d)} ${d?.category || ""} ${d?.department || ""} ${d?.type || ""} ${d?.group || ""}`.toLowerCase();
-    return s.includes(q);
-  });
+const latestDocTitle = computed(() => recentDocs.value?.[0]?.title || recentDocs.value?.[0]?.name || "-");
+const latestAnnTitle = computed(() => recentAnns.value?.[0]?.title || recentAnns.value?.[0]?.subject || "-");
+const latestFormTitle = computed(() => recentForms.value?.[0]?.name || recentForms.value?.[0]?.title || "-");
+
+const displayUsername = computed(() => (profile.value?.username ? String(profile.value.username) : "-"));
+const avatarText = computed(() => {
+  const u = displayUsername.value;
+  if (!u || u === "-") return "U";
+  return String(u).trim().charAt(0).toUpperCase() || "U";
 });
 
-function formatDate(v) {
-  if (!v) return "-";
-  const dt = new Date(v);
-  if (Number.isNaN(dt.getTime())) return "-";
-  return dt.toLocaleString();
+// ---- Charts
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
 }
 
-function go(path) {
-  router.push(path);
-}
+function buildCharts() {
+  if (!trendCanvas.value || !distCanvas.value) return;
 
-/**
- * Keep list routing for announcements/forms
- */
-function openItem(type, item) {
-  const id = item?.id ?? item?._id ?? item?.documentId ?? item?.templateId;
-  if (type === "announcements") return go(id ? `/v/announcement_member/${id}` : "/v/announcement_member");
-  if (type === "forms") return go(id ? `/v/formmemberview/${id}` : "/v/formmemberview");
-}
+  if (trendChart) trendChart.destroy();
+  if (distChart) distChart.destroy();
 
-/* -------------------------
- * ✅ Document overlay viewer
- * ------------------------- */
-function resolveUrl(u) {
-  if (!u) return "";
-  const s = String(u).trim();
-  if (!s) return "";
-  if (/^(https?:)?\/\//i.test(s) || s.startsWith("blob:") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s.replace(/^\.?\//, "")}`;
-}
+  const months = lastNMonths(6);
+  const labels = months.map((x) => x.label);
 
-function pickDocUrl(d) {
-  // try common fields (viewer url first)
-  return (
-    d?.viewUrl ||
-    d?.view_url ||
-    d?.previewUrl ||
-    d?.preview_url ||
-    d?.url ||
-    d?.fileUrl ||
-    d?.file_url ||
-    d?.pathUrl ||
-    d?.path_url ||
-    d?.publicUrl ||
-    d?.public_url ||
-    ""
-  );
-}
-
-function pickDownloadUrl(d) {
-  return d?.downloadUrl || d?.download_url || d?.dlUrl || d?.dl_url || "";
-}
-
-function inferDocType(d) {
-  const raw = (d?.type || d?.ext || d?.fileType || "").toString().toLowerCase();
-  if (raw) {
-    if (raw.includes("pdf")) return "pdf";
-    if (raw.includes("doc")) return "docs";
-    if (raw.includes("xls")) return "excel";
-    if (raw.includes("ppt")) return "ppt";
-    if (raw.includes("txt")) return "txt";
-    if (raw.includes("png") || raw.includes("jpg") || raw.includes("jpeg") || raw.includes("webp") || raw.includes("gif"))
-      return "image";
-  }
-
-  const name = getDocTitle(d).toLowerCase();
-  const m = name.match(/\.([a-z0-9]+)$/i);
-  const ext = m?.[1] || "";
-  if (ext === "pdf") return "pdf";
-  if (ext === "doc" || ext === "docx") return "docs";
-  if (ext === "xls" || ext === "xlsx" || ext === "csv") return "excel";
-  if (ext === "ppt" || ext === "pptx") return "ppt";
-  if (ext === "txt") return "txt";
-  if (["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"].includes(ext)) return "image";
-  return raw || "other";
-}
-
-function viewDocument(d) {
-  const title = getDocTitle(d);
-  const url = resolveUrl(pickDocUrl(d) || pickDownloadUrl(d));
-  const dl = resolveUrl(pickDownloadUrl(d) || pickDocUrl(d));
-  const type = inferDocType(d);
-
-  docModal.value = {
-    open: true,
-    doc: d,
-    title,
-    url,
-    downloadUrl: dl,
-    kind: type === "image" ? "image" : "iframe",
-    note:
-      !url
-        ? "Your API did not return viewUrl/downloadUrl for this document."
-        : type === "docs" || type === "excel" || type === "ppt"
-        ? "If the preview does not render in iframe, use View (new tab) or Download."
-        : "",
+  const bucketCount = (arr) => {
+    const map = new Map(months.map((m) => [`${m.y}-${m.m}`, 0]));
+    for (const item of arr) {
+      const { y, m } = monthKey(item._date);
+      const k = `${y}-${m}`;
+      if (map.has(k)) map.set(k, map.get(k) + 1);
+    }
+    return months.map((m) => map.get(`${m.y}-${m.m}`) || 0);
   };
 
-  nextTick(() => {
-    const el = docModalRef.value;
-    if (!el) return;
+  const docsSeries = bucketCount(documents.value);
+  const annsSeries = bucketCount(announcements.value);
+  const formsSeries = bucketCount(forms.value);
 
-    gsap.killTweensOf(el);
-    gsap.fromTo(el, { y: 10, opacity: 0, scale: 0.985 }, { y: 0, opacity: 1, scale: 1, duration: 0.18, ease: "power3.out" });
+  const c1 = cssVar("--blueA", "rgba(56, 189, 248, 0.9)");
+  const c2 = cssVar("--blueB", "rgba(99, 102, 241, 0.9)");
+  const c3 = cssVar("--blueC", "rgba(14, 165, 233, 0.85)");
+
+  const tickColor = "rgba(255,255,255,0.72)";
+  const gridColor = "rgba(255,255,255,0.08)";
+
+  trendChart = new Chart(trendCanvas.value, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Documents", data: docsSeries, borderColor: c1, backgroundColor: "rgba(56,189,248,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
+        { label: "Announcements", data: annsSeries, borderColor: c2, backgroundColor: "rgba(99,102,241,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
+        { label: "Active Forms", data: formsSeries, borderColor: c3, backgroundColor: "rgba(14,165,233,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: tickColor } },
+        tooltip: { mode: "index", intersect: false },
+      },
+      interaction: { mode: "nearest", axis: "x", intersect: false },
+      scales: {
+        x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: tickColor }, grid: { color: gridColor } },
+      },
+    },
   });
-}
 
-function closeDocModal(immediate = false) {
-  const el = docModalRef.value;
-  if (!el || immediate) {
-    docModal.value.open = false;
-    docModal.value.doc = null;
-    docModal.value.url = "";
-    docModal.value.downloadUrl = "";
-    docModal.value.note = "";
-    return;
-  }
-
-  gsap.killTweensOf(el);
-  gsap.to(el, {
-    y: 10,
-    opacity: 0,
-    scale: 0.985,
-    duration: 0.14,
-    ease: "power2.inOut",
-    onComplete: () => {
-      docModal.value.open = false;
-      docModal.value.doc = null;
-      docModal.value.url = "";
-      docModal.value.downloadUrl = "";
-      docModal.value.note = "";
+  distChart = new Chart(distCanvas.value, {
+    type: "doughnut",
+    data: {
+      labels: ["Documents", "Announcements", "Active Forms"],
+      datasets: [
+        {
+          data: [totals.documents, totals.announcements, totals.forms],
+          backgroundColor: [c1, c2, c3],
+          borderColor: "rgba(255,255,255,0.10)",
+          borderWidth: 1,
+          cutout: "62%",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom", labels: { color: tickColor } },
+      },
     },
   });
 }
 
-function openDocInNewTab() {
-  const url = docModal.value.url;
-  if (!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
+// ---- Animations
+function revealIn() {
+  const scope = document.querySelector(".ov");
+  if (!scope) return;
+
+  const els = Array.from(scope.querySelectorAll(".js-reveal"));
+  gsap.set(els, { opacity: 0, y: 10 });
+
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+  if (headEl.value) {
+    tl.fromTo(headEl.value, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45 }, 0);
+  }
+  tl.to(els, { opacity: 1, y: 0, duration: 0.42, stagger: 0.06 }, 0.05);
 }
 
-function downloadDocFromModal() {
-  const url = docModal.value.downloadUrl || docModal.value.url;
-  if (!url) return;
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.download = docModal.value.title || "document";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+function cardHover(e, enter) {
+  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
+}
+function rowHover(e, enter) {
+  gsap.to(e.currentTarget, { x: enter ? 3 : 0, duration: 0.16, ease: "power2.out" });
+}
+function profileHover(e, enter) {
+  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
 
-/* Card/Row dot helpers (matching your DocumentViewer look) */
-function typeDot(type) {
-  const t = (type || "").toLowerCase();
-  if (t === "pdf") return "dPdf";
-  if (t === "docs") return "dDocs";
-  if (t === "excel") return "dXls";
-  if (t === "ppt") return "dPpt";
-  if (t === "txt") return "dTxt";
-  if (t === "image") return "dImg";
-  return "dOther";
+// ---- Actions
+function go(path) {
+  router.push(path);
 }
 
-function typePill(type) {
-  const t = (type || "").toLowerCase();
-  if (t === "pdf") return "pPdf";
-  if (t === "docs") return "pDocs";
-  if (t === "excel") return "pXls";
-  if (t === "ppt") return "pPpt";
-  if (t === "txt") return "pTxt";
-  if (t === "image") return "pImg";
-  return "pOther";
-}
-
-/* Loading */
-async function load() {
+async function refresh() {
   loading.value = true;
   error.value = "";
   try {
-    const [d, a, f] = await Promise.all([getJson(DOC_URL), getJson(ANN_URL), getJson(FORM_URL)]);
+    const [docsRaw, annsRaw, formsRaw] = await Promise.all([
+      fetchJSON(endpoints.documents),
+      fetchJSON(endpoints.announcements),
+      fetchJSON(endpoints.forms),
+    ]);
 
-    const docList = normalizeList(d);
-    const annList = normalizeList(a);
-    const formList = normalizeList(f);
+    // ✅ fetch profile in parallel but don't block dashboard if fails
+    fetchUserProfile();
 
-    // keep raw but ensure stable id/title fields exist for UI + modal
-    docs.value = docList.map((x, i) => ({
-      ...x,
-      id: x?.id ?? x?._id ?? x?.documentId ?? i,
-      title: x?.title ?? x?.name ?? x?.filename ?? x?.file_name,
-    }));
-    anns.value = annList;
-    forms.value = formList;
+    documents.value = normalizeList(docsRaw).sort((a, b) => b._date - a._date);
+    announcements.value = normalizeList(annsRaw).sort((a, b) => b._date - a._date);
+
+    forms.value = normalizeList(formsRaw).filter(isFormActive).sort((a, b) => b._date - a._date);
+
+    totals.documents = documents.value.length;
+    totals.announcements = announcements.value.length;
+    totals.forms = forms.value.length;
+
+    last7.documents = documents.value.filter((x) => isWithinLastDays(x._date, 7)).length;
+    last7.announcements = announcements.value.filter((x) => isWithinLastDays(x._date, 7)).length;
+    last7.forms = forms.value.filter((x) => isWithinLastDays(x._date, 7)).length;
+
+    buildCharts();
+    revealIn();
   } catch (e) {
     error.value = e?.message || String(e);
   } finally {
     loading.value = false;
   }
-
-  await nextTick();
-  animateIn();
-}
-
-function refresh() {
-  load();
-}
-
-/* GSAP animations */
-function animateIn() {
-  const root = bentoEl.value?.closest(".vdash") || document;
-  const items = root.querySelectorAll(".js-reveal");
-
-  gsap.killTweensOf(items);
-  gsap.set(items, { opacity: 0, y: 14, filter: "blur(6px)" });
-
-  gsap.to(items, {
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    duration: 0.55,
-    stagger: 0.06,
-    ease: "power3.out",
-  });
-}
-
-function btnHover(e, enter) {
-  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
-}
-function cardHover(e, enter) {
-  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
-}
-function rowHover(e, enter) {
-  gsap.to(e.currentTarget, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
-}
-
-/* ESC close modal */
-function onKey(e) {
-  if (e.key === "Escape") {
-    if (docModal.value.open) closeDocModal();
-  }
 }
 
 onMounted(() => {
-  document.addEventListener("keydown", onKey);
-  load();
+  refresh();
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener("keydown", onKey);
+  if (trendChart) trendChart.destroy();
+  if (distChart) distChart.destroy();
 });
 </script>
 
 <style scoped>
-/* ====== Base / Layout (full height + scroll INSIDE cards) ====== */
-.vdash {
-  --bg0: var(--bg0, #050914);
-  --bg1: var(--bg1, #070e23);
-  --txt: var(--txt, rgba(255, 255, 255, 0.92));
-  --muted: var(--muted, rgba(255, 255, 255, 0.55));
-  --glass: var(--glass, rgba(255, 255, 255, 0.035));
-  --glass2: var(--glass2, rgba(255, 255, 255, 0.02));
-
-  color: var(--txt);
-  padding: 14px 10px 18px;
-  position: relative;
-
-  /* ✅ fill viewport and allow grid to take remaining height */
-  min-height: calc(100vh - 36px);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.ov {
+  padding: 14px;
 }
 
-.vdash::before {
-  content: "";
-  position: absolute;
-  inset: -14px -10px -18px;
-  pointer-events: none;
-  opacity: 0.18;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-  background-size: 46px 46px;
-  mask-image: radial-gradient(circle at 30% 10%, black 0%, transparent 62%);
-}
-
-.topbar {
+.ovHead {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  position: relative;
-  z-index: 1;
-  flex: 0 0 auto;
+  gap: 16px;
+  padding: 16px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
 }
 
-.headline .kicker {
+.headRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kicker {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 .kDot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
 }
 .title {
   margin: 8px 0 4px;
-  font-size: 28px;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  font-size: 26px;
+  line-height: 1.1;
   font-weight: 950;
 }
-.subtitle {
+.sub {
   margin: 0;
   font-size: 13px;
-  color: var(--muted);
+  opacity: 0.7;
 }
 
-.actions {
+/* ✅ Single Profile box */
+.profileBox {
   display: inline-flex;
   align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: default;
+  min-width: 320px;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(99, 102, 241, 0.25));
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
+  overflow: hidden;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dotSpin {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.profileMeta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Username can still be ellipsized if super long */
+.profileName {
+  font-weight: 950;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+/* ✅ Bank info: FULL NAME (no ellipsis) */
+.profileBankLine {
+  display: flex;
+  align-items: flex-start;
   gap: 10px;
+  font-size: 12px;
+  line-height: 1.25;
+  opacity: 0.9;
+
+  /* allow wrap / multi-line */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.bankStack {
+  display: grid;
+  gap: 2px;
+}
+
+.bankCodeRow {
+  opacity: 0.9;
+}
+
+.bankNameRow {
+  opacity: 0.95;
+}
+
+.bankName {
+  font-weight: 950;
+  white-space: normal;      /* ✅ allow wrap */
+  overflow: visible;        /* ✅ no hidden */
+  text-overflow: unset;     /* ✅ no ellipsis */
+  word-break: break-word;   /* ✅ long words still break */
+}
+
+.muted {
+  opacity: 0.75;
+  font-weight: 800;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.profileErr {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(255, 140, 140, 0.9);
+  opacity: 0.95;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 320px;
 }
 
 .btn {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-  position: relative;
-  z-index: 1;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
 }
 .btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
-}
-.btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
-}
-.btn.primary {
-  background: rgba(56, 189, 248, 0.16);
-  border-color: rgba(56, 189, 248, 0.22);
 }
 .btnIcon {
   display: inline-block;
-  opacity: 0.95;
 }
 .spin {
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* ====== Stats ====== */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-  position: relative;
-  z-index: 1;
-  flex: 0 0 auto;
-}
-
-.statCard {
-  border-radius: 18px;
-  background: linear-gradient(180deg, var(--glass), var(--glass2));
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px);
-  padding: 14px;
-  display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 12px;
-  cursor: pointer;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-.statCard:hover {
-  border-color: rgba(56, 189, 248, 0.20);
-  box-shadow: 0 18px 42px rgba(56, 189, 248, 0.10);
-}
-.statIcon {
-  width: 46px;
-  height: 46px;
+.banner {
+  margin-top: 12px;
+  padding: 14px 16px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 80, 80, 0.10);
+  border: 1px solid rgba(255, 80, 80, 0.22);
 }
-.statLabel {
+.bannerTitle {
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+.bannerBody {
+  opacity: 0.85;
   font-size: 13px;
-  color: var(--muted);
-  font-weight: 800;
 }
-.statValue {
-  margin-top: 4px;
-  font-size: 26px;
-  font-weight: 950;
-  letter-spacing: -0.02em;
+
+.grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
 }
-.statHint {
-  grid-column: 1 / -1;
+
+.card {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+.cardHead {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  padding: 14px 14px 10px;
+}
+.cardTitle {
+  font-weight: 950;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-top: 8px;
 }
 .pill {
   font-size: 12px;
-  font-weight: 950;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  background: rgba(56, 189, 248, 0.10);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
-}
-.muted {
-  color: var(--muted);
-}
-
-/* ====== Bento grid (fills remaining height) ====== */
-.bento {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-height: 0;
-
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(0, 1fr)); /* ✅ fit perfectly */
-  gap: 12px;
-}
-
-/* ====== Card base (flex column so body can scroll) ====== */
-.card {
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+  background: rgba(0, 0, 0, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.30);
-  backdrop-filter: blur(14px);
-  overflow: hidden;
-  position: relative;
-
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* ✅ important for internal scroll */
-}
-.card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  pointer-events: none;
-  border-radius: 20px;
-  background: radial-gradient(520px 260px at 20% 20%, rgba(56, 189, 248, 0.12), transparent 60%),
-    radial-gradient(520px 260px at 80% 55%, rgba(99, 102, 241, 0.10), transparent 62%);
   opacity: 0.9;
 }
 
-.cardTop {
-  position: relative;
-  padding: 14px 14px 10px;
+.stat { grid-column: span 4; padding-bottom: 12px; }
+.chartWide { grid-column: span 8; }
+.chartNarrow { grid-column: span 4; }
+.actions { grid-column: span 12; }
+.list { grid-column: span 4; }
+
+.statRow {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  z-index: 1;
-  flex: 0 0 auto;
+  gap: 14px;
+  padding: 0 14px 12px;
 }
-
-.cardBody {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 0 12px 14px;
-
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.cardTitle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.cardIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.t1 {
+.statValue {
+  font-size: 42px;
   font-weight: 950;
-  letter-spacing: -0.01em;
+  letter-spacing: -1px;
 }
-.t2 {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 56ch;
-}
-.cardActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.ghost {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.88);
-  padding: 10px 10px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.ghost:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(56, 189, 248, 0.18);
-  box-shadow: 0 12px 28px rgba(56, 189, 248, 0.08);
-}
+.statMeta { text-align: right; }
+.statLabel { font-size: 12px; opacity: 0.72; }
+.statSub { font-size: 13px; font-weight: 900; opacity: 0.9; }
 
-/* Search */
-.search {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(0, 0, 0, 0.14);
-  min-width: min(360px, 48vw);
-}
-.search i {
-  opacity: 0.85;
-}
-.search input {
-  flex: 1;
-  outline: none;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-}
-.search input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
-}
-.search .x {
-  border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.82);
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-/* placements */
-.card--docs {
-  grid-column: 1 / span 8;
-  grid-row: 1 / span 6;
-}
-.card--ann {
-  grid-column: 9 / span 4;
-  grid-row: 1 / span 3;
-}
-.card--forms {
-  grid-column: 9 / span 4;
-  grid-row: 4 / span 3;
-}
-
-/* shared scroll area */
-.scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 2px;
-}
-.scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.scroll::-webkit-scrollbar-thumb {
+.divider {
+  height: 1px;
+  margin: 0 14px;
   background: rgba(255, 255, 255, 0.10);
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  border-radius: 999px;
 }
-.scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Documents list */
-.tableHead {
-  display: grid;
-  grid-template-columns: 1fr 0.7fr 0.55fr;
-  gap: 10px;
-  padding: 10px 10px;
-  margin: 0 2px 0;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.12);
-  font-size: 12px;
+.mini { padding: 12px 14px 8px; }
+.miniLabel { font-size: 12px; opacity: 0.72; margin-bottom: 6px; }
+.miniText {
+  font-size: 13px;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.72);
-  flex: 0 0 auto;
-}
-
-.rows {
-  display: grid;
-  gap: 8px;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 0.7fr 0.55fr;
-  gap: 10px;
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(0, 0, 0, 0.10);
-}
-.rowBtn {
-  text-align: left;
-  cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.rowBtn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(56, 189, 248, 0.16);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.07);
-}
-.cell {
-  min-width: 0;
-}
-.titleCell {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.10);
-}
-
-/* dot colors like DocumentViewer */
-.dPdf { background: rgba(255, 15, 55, 0.9); }
-.dDocs { background: rgba(0, 123, 255, 0.95); }
-.dXls { background: rgba(34, 197, 94, 0.95); }
-.dPpt { background: rgba(255, 165, 0, 0.95); }
-.dTxt { background: rgba(56, 189, 248, 0.95); }
-.dImg { background: rgba(168, 85, 247, 0.9); }
-.dOther { background: rgba(148, 163, 184, 0.85); }
-
-.right {
-  text-align: right;
-}
-.ellipsis {
+  opacity: 0.95;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Ann list */
-.miniList {
-  display: grid;
-  gap: 8px;
 }
 .miniBtn {
-  text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(0, 0, 0, 0.10);
-  border-radius: 14px;
-  padding: 10px 10px;
-  cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.miniBtn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(56, 189, 248, 0.16);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.07);
-}
-.miniTitle {
-  font-weight: 950;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-.miniSub {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: 12px;
-}
-.chip {
-  font-size: 11px;
-  font-weight: 950;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.80);
-}
-
-/* Forms tiles */
-.miniGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.formTile {
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(0, 0, 0, 0.10);
-  border-radius: 16px;
-  padding: 12px;
-}
-.tileBtn {
-  text-align: left;
-  cursor: pointer;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.tileBtn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(56, 189, 248, 0.16);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.07);
-}
-.tileTop {
-  display: flex;
-  align-items: center;
+  margin: 0 14px 14px;
+  width: calc(100% - 28px);
+  display: inline-flex;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.tileName {
-  font-weight: 950;
-  font-size: 13px;
-  min-width: 0;
-}
-.badge {
-  font-size: 11px;
-  font-weight: 950;
-  padding: 5px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.78);
-  white-space: nowrap;
-}
-.badge.on {
-  border-color: rgba(56, 189, 248, 0.20);
-  background: rgba(56, 189, 248, 0.10);
-  color: rgba(255, 255, 255, 0.90);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
-}
-.tileSub {
-  font-size: 12px;
-}
-
-/* Skeleton */
-.sk {
-  display: inline-block;
-  height: 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.10);
-  position: relative;
-  overflow: hidden;
-}
-.sk::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
-  animation: shimmer 1.1s infinite;
-}
-.sk-w80 { width: 90px; height: 18px; }
-.sk-w70 { width: 70%; }
-.sk-w60 { width: 60%; }
-.sk-w45 { width: 45%; }
-.sk-w35 { width: 35%; }
-.sk-w30 { width: 30%; }
-.sk-w20 { width: 20%; }
-.skRow { border-color: rgba(255, 255, 255, 0.05); }
-@keyframes shimmer { 100% { transform: translateX(100%); } }
-
-/* Empty */
-.empty {
-  margin-top: 10px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.02);
-  text-align: center;
-}
-.empty.small { margin-top: 8px; }
-.emptyTitle { font-weight: 950; margin-bottom: 4px; }
-.emptySub { color: var(--muted); font-size: 12px; }
-
-/* Error toast */
-.toastErr {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 9999;
-  padding: 12px 12px;
-  border-radius: 16px;
-  background: rgba(8, 12, 28, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
-  max-width: min(520px, 92vw);
-}
-.toastErrTitle {
-  font-weight: 950;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.toastErrMsg {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-  white-space: pre-wrap;
-  margin-bottom: 10px;
-}
-.toastErrBtn {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.90);
-  padding: 9px 10px;
-  border-radius: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-/* ====== ✅ Modal Overlay (DocumentViewer style) ====== */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-  z-index: 9998;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-
-.modal {
-  width: min(980px, 100%);
-  border-radius: 18px;
-  background: rgba(10, 12, 22, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  max-height: min(86vh, 940px);
-  display: flex;
-  flex-direction: column;
-}
-
-.modalHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 12px;
-}
-
-.modalTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 950;
-  min-width: 0;
-}
-
-.modalHeadActions {
-  display: inline-flex;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.iconBtn {
-  width: 34px;
-  height: 34px;
-  border: none;
-  cursor: pointer;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.86);
-  transition: transform 160ms ease, filter 160ms ease, background 160ms ease;
-}
-.iconBtn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  background: rgba(255, 255, 255, 0.07);
-}
-.iconBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.modalBody {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  flex: 1 1 auto;
-}
-
-.docMetaRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.pill2 {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-weight: 950;
-  font-size: 11px;
-  letter-spacing: 0.4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-}
-.pPdf { background: rgba(255, 165, 0, 0.14); border-color: rgba(255, 165, 0, 0.22); }
-.pDocs { background: rgba(56, 189, 248, 0.14); border-color: rgba(56, 189, 248, 0.22); }
-.pXls { background: rgba(34, 197, 94, 0.14); border-color: rgba(34, 197, 94, 0.22); }
-.pPpt { background: rgba(244, 63, 94, 0.12); border-color: rgba(244, 63, 94, 0.2); }
-.pTxt { background: rgba(148, 163, 184, 0.12); border-color: rgba(148, 163, 184, 0.2); }
-.pImg { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.2); }
-.pOther { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.2); }
-
-.previewWrap {
-  flex: 1 1 auto;
-  min-height: 0;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.18);
-  overflow: hidden;
-}
-
-.previewFrame {
-  width: 100%;
-  height: 100%;
-  border: none;
-  display: block;
-}
-
-.previewImg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.previewEmpty {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  gap: 10px;
-  padding: 18px;
-  font-weight: 900;
-  opacity: 0.78;
-}
-
-.modalFoot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.note {
-  display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
-  font-weight: 850;
-  background: rgba(56, 189, 248, 0.10);
-  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+.miniBtn:hover { background: rgba(56, 189, 248, 0.10); }
+
+.chartWrap { height: 280px; padding: 0 14px 12px; }
+.chartWrap.small { height: 240px; }
+.hint { padding: 0 14px 14px; font-size: 12px; opacity: 0.7; }
+
+.actionGrid {
+  padding: 0 14px 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.qbtn {
+  border-radius: 14px;
+  padding: 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.86);
+  font-weight: 950;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.qbtn:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-/* ====== Responsive ====== */
-@media (max-width: 1200px) {
-  .search { min-width: min(280px, 42vw); }
-  .bento {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-template-rows: repeat(8, minmax(0, 1fr));
-  }
-  .card--docs { grid-column: 1 / span 12; grid-row: 1 / span 4; }
-  .card--ann { grid-column: 1 / span 6; grid-row: 5 / span 2; }
-  .card--forms { grid-column: 7 / span 6; grid-row: 5 / span 2; }
+.rows { list-style: none; padding: 0 10px 12px; margin: 0; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  transition: background 160ms ease;
+}
+.row:hover { background: rgba(255, 255, 255, 0.05); }
+.rowTitle { font-weight: 950; font-size: 13px; }
+.rowSub { font-size: 12px; opacity: 0.68; margin-top: 2px; }
+.chip {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+  opacity: 0.9;
+  white-space: nowrap;
+}
+.empty { padding: 16px 10px; opacity: 0.7; font-size: 13px; }
+
+.skeletonList { padding: 0 14px 14px; }
+.sk {
+  height: 42px;
+  border-radius: 12px;
+  margin-top: 10px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.10),
+    rgba(255, 255, 255, 0.05)
+  );
+  background-size: 240% 100%;
+  animation: shimmer 1.1s ease infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 120% 0; }
 }
 
-@media (max-width: 880px) {
-  .stats { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+  .stat { grid-column: span 6; }
+  .chartWide { grid-column: span 12; }
+  .chartNarrow { grid-column: span 12; }
+  .list { grid-column: span 6; }
+  .actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .bento {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    gap: 12px;
+  .profileBox { min-width: 280px; }
+  .profileName { max-width: 200px; }
+}
+
+@media (max-width: 720px) {
+  .ovHead { flex-direction: column; align-items: flex-start; }
+  .headRight { width: 100%; justify-content: space-between; }
+
+  .stat, .list { grid-column: span 12; }
+  .actionGrid { grid-template-columns: 1fr; }
+
+  .profileBox {
+    width: 100%;
+    min-width: 0;
   }
-  .card--docs, .card--ann, .card--forms { grid-column: auto; grid-row: auto; }
-
-  .tableHead, .row { grid-template-columns: 1fr 0.55fr; }
-  .hideSm { display: none; }
-
-  .search { min-width: 52vw; }
+  .profileName { max-width: 260px; }
 }
 </style>
