@@ -1,223 +1,219 @@
 <template>
-  <section class="chatMb">
+  <section ref="rootEl" class="mbChat">
     <!-- header -->
-    <header ref="headEl" class="head js-reveal">
-      <div class="headLeft">
+    <header class="mbHead js-reveal">
+      <div class="mbHeadLeft">
         <div class="kicker">
           <span class="kDot"></span>
           Admin • MemberBank Chat
         </div>
         <h1 class="title">MemberBank Inbox</h1>
         <p class="sub">
-          1:1 chat between admin and each member bank • show iAccount • total 23 banks
+          Showing only banks that have chats • total
+          <b class="mono">{{ totalBanksLabel }}</b>
+          banks
         </p>
       </div>
 
-      <div class="headRight">
+      <div class="mbHeadRight">
         <div class="pill">
           <i class="fa-solid fa-building-columns"></i>
-          <span class="mono">{{ banks.length }}</span>
-          <span class="muted">/ 23 banks</span>
+          <span class="mono">{{ filteredBanks.length }}</span>
+          <span class="muted">/ {{ totalBanksLabel }}</span>
         </div>
 
-        <button class="btn ghost" type="button" @click="reloadAll" :disabled="loading">
-          <i class="fa-solid fa-rotate"></i>
+        <button class="btn ghost" type="button" @click="reloadAll" :disabled="loadingBanks">
+          <span class="btnIcon" :class="{ spin: loadingBanks }">⟲</span>
           Refresh
         </button>
       </div>
     </header>
 
-    <div class="grid">
-      <!-- LEFT: memberbank list -->
-      <aside ref="leftEl" class="panel js-reveal">
+    <div class="mbGrid js-reveal">
+      <!-- LEFT -->
+      <aside class="left">
         <div class="panelTop">
           <div class="panelTitle">
-            <i class="fa-solid fa-users"></i>
-            Member banks
+            <i class="fa-solid fa-inbox"></i>
+            Banks
           </div>
 
           <div class="search">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input
               v-model.trim="q"
-              class="input"
+              class="searchInput"
               type="search"
-              placeholder="Search bank name / code / iAccount..."
+              placeholder="Search bankcode / iAccount / name..."
             />
-            <button v-if="q" class="clear" type="button" @click="q = ''" title="Clear">✕</button>
-          </div>
-
-          <div v-if="banks.length && banks.length !== 23" class="warn">
-            <i class="fa-solid fa-circle-info"></i>
-            Loaded {{ banks.length }} banks (expected 23). Check /api/members data.
+            <button v-if="q" class="x" type="button" @click="q = ''" title="Clear">×</button>
           </div>
         </div>
 
-        <div class="list" role="listbox" aria-label="Member banks list">
-          <button
-            v-for="b in filteredBanks"
-            :key="b._key"
-            class="bankItem"
-            :class="{ active: activeBank?.bankcode === b.bankcode }"
-            type="button"
-            @click="selectBank(b)"
-          >
-            <div class="avatar" aria-hidden="true">
-              <img v-if="b.logo" :src="b.logo" alt="" />
-              <span v-else>{{ initials(b.name || b.bankcode || "BK") }}</span>
-            </div>
-
-            <div class="bankMeta">
-              <div class="bankTop">
-                <div class="bankName">{{ b.name }}</div>
-                <span class="code mono">{{ b.bankcode }}</span>
-              </div>
-
-              <div class="bankSub">
-                <span class="muted">iAccount:</span>
-                <span class="mono">{{ b.iaccount || "-" }}</span>
-              </div>
-            </div>
-
-            <i class="fa-solid fa-chevron-right chev" aria-hidden="true"></i>
-          </button>
-
-          <div v-if="!loading && filteredBanks.length === 0" class="empty">
-            No member banks found
+        <div class="list">
+          <div v-if="loadingBanks" class="state">
+            <div class="spinner"></div>
+            Loading banks...
           </div>
 
-          <div v-if="banksError" class="err">
+          <div v-else-if="bankError" class="state err">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ banksError }}
+            <span class="text">{{ bankError }}</span>
+            <button class="btn tiny" type="button" @click="reloadAll">Try again</button>
           </div>
+
+          <!-- ✅ show member real name + logo from /api/members (mapping by bankcode) -->
+          <template v-else>
+            <button
+              v-for="b in filteredBanks"
+              :key="b._key"
+              type="button"
+              class="bankItem"
+              :class="{ active: activeBank?.id === b.id }"
+              @click="selectBank(b)"
+              @mouseenter="cardHover($event, true)"
+              @mouseleave="cardHover($event, false)"
+            >
+              <div class="bankTop">
+                <div class="bankName">
+                  <div class="bankRow">
+                    <div class="bankAvatar" aria-hidden="true">
+                      <img v-if="bankLogo(b)" :src="bankLogo(b)" alt="" @error="onImgError($event)" />
+                      <span v-else>{{ (bankName(b) || "M").slice(0, 1).toUpperCase() }}</span>
+                    </div>
+
+                    <div class="bankText">
+                      <span class="name">{{ bankName(b) || "MemberBank" }}</span>
+                      <span class="mono id">#{{ b.bankcode || b.iaccount || b.id }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <span v-if="b.unread_count > 0" class="badge">
+                  {{ b.unread_count > 99 ? "99+" : b.unread_count }}
+                </span>
+              </div>
+
+              <div class="bankBottom">
+                <div class="preview">{{ b.last_preview || "—" }}</div>
+                <div class="time mono">{{ b.last_at ? formatTime(b.last_at) : "" }}</div>
+              </div>
+            </button>
+
+            <div v-if="!filteredBanks.length" class="state">
+              <i class="fa-regular fa-comment-dots"></i>
+              No active chats yet
+            </div>
+          </template>
         </div>
       </aside>
 
-      <!-- RIGHT: chat room -->
-      <section ref="rightEl" class="chatPanel js-reveal">
-        <!-- chat header -->
-        <div class="chatTop">
-          <div class="chatTitle">
-            <template v-if="activeBank">
-              <div class="chatName">
-                <i class="fa-solid fa-comments"></i>
-                {{ activeBank.name }}
-              </div>
-
-              <div class="chatMeta">
-                <span class="mono">{{ activeBank.bankcode }}</span>
-                <span class="dot">•</span>
-                <span class="muted">iAccount:</span>
-                <span class="mono">{{ activeBank.iaccount || "-" }}</span>
-              </div>
-            </template>
-
-            <template v-else>
-              <div class="chatName">
-                <i class="fa-solid fa-comments"></i>
-                Select a member bank
-              </div>
-              <div class="chatMeta muted">Pick a bank from the left panel</div>
-            </template>
-          </div>
-
-          <div class="chatTools">
-            <button
-              class="btn ghost"
-              type="button"
-              @click="reloadMessages"
-              :disabled="!activeBank || msgLoading"
-              title="Reload messages"
-            >
-              <i class="fa-solid fa-rotate"></i>
-            </button>
-
-            <button
-              class="btn ghost"
-              type="button"
-              @click="scrollToBottom(true)"
-              :disabled="!activeBank"
-              title="Scroll to bottom"
-            >
-              <i class="fa-solid fa-arrow-down"></i>
-            </button>
+      <!-- RIGHT -->
+      <main class="right">
+        <div v-if="!activeBank" class="empty">
+          <div class="emptyCard">
+            <div class="bigIcon">💬</div>
+            <h2>Select a bank</h2>
+            <p>Choose a member bank on the left to start chatting.</p>
           </div>
         </div>
 
-        <!-- messages -->
-        <div ref="msgWrapEl" class="messages" @scroll="onScroll">
-          <div v-if="activeBank && msgLoading" class="msgLoading">
-            <div class="loaderDot"></div>
-            <div class="loaderDot"></div>
-            <div class="loaderDot"></div>
-          </div>
+        <template v-else>
+          <!-- chat header -->
+          <div class="chatHead">
+            <div class="who">
+              <div class="avatar" aria-hidden="true">
+                <img v-if="activeBank.logo" :src="activeBank.logo" alt="" @error="onImgError($event)" />
+                <i v-else class="fa-solid fa-building-columns"></i>
+              </div>
 
-          <div v-else-if="activeBank && msgError" class="err big">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ msgError }}
-          </div>
-
-          <div v-else-if="activeBank && messages.length === 0" class="empty big">
-            No messages yet. Start the conversation 👋
-          </div>
-
-          <div v-else class="msgList">
-            <div
-              v-for="m in messages"
-              :key="m._key"
-              class="msgRow"
-              :class="{ me: m.isMe }"
-            >
-              <div class="bubble">
-                <div class="bubbleTop">
-                  <span class="sender">{{ m.sender }}</span>
-                  <span class="time">{{ m.when }}</span>
+              <div class="whoText">
+                <div class="whoName">
+                  {{ activeBank.name || "MemberBank" }}
+                  <span class="mono whoId">({{ activeBank.bankcode || activeBank.iaccount || activeBank.id }})</span>
                 </div>
-                <div class="text" v-html="m.html"></div>
+                <div class="whoSub">
+                  <span class="dot"></span>
+                  <span class="muted">Direct chat</span>
+                  <span class="dotSep">•</span>
+                  <span class="muted">
+                    {{
+                      msgLoading
+                        ? "Loading…"
+                        : messages.length
+                          ? `${messages.length} messages`
+                          : "No messages yet"
+                    }}
+                  </span>
+                </div>
               </div>
             </div>
+
+            <div class="chatActions">
+              <button class="btn ghost" type="button" @click="reloadMessages" :disabled="msgLoading">
+                <span class="btnIcon" :class="{ spin: msgLoading }">⟲</span>
+                Reload
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- composer -->
-        <div class="composer">
-          <textarea
-            v-model="draft"
-            class="textarea"
-            rows="1"
-            placeholder="Type a message..."
-            :disabled="!activeBank || sending"
-            @keydown.enter.exact.prevent="send"
-            @keydown.enter.shift.exact.stop
-            @input="autoGrow"
-          ></textarea>
+          <!-- messages -->
+          <div ref="msgWrapEl" class="msgWrap">
+            <div v-if="msgLoading" class="state">
+              <div class="spinner"></div>
+              Loading messages...
+            </div>
 
-          <button class="btn" type="button" @click="send" :disabled="!canSend">
-            <i class="fa-solid fa-paper-plane"></i>
-            Send
-          </button>
-        </div>
+            <div v-else-if="msgError" class="state err">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span class="text">{{ msgError }}</span>
+              <button class="btn tiny" type="button" @click="reloadMessages">Try again</button>
+            </div>
 
-        <div class="hint">
-          <i class="fa-regular fa-lightbulb"></i>
-          Enter = send • Shift+Enter = newline
-        </div>
-      </section>
+            <div v-else class="msgs">
+              <div v-if="!messages.length" class="state">
+                <i class="fa-regular fa-comment-dots"></i>
+                Start the conversation…
+              </div>
+
+              <div v-for="m in messages" :key="m._key" class="row" :class="{ me: isMe(m), other: !isMe(m) }">
+                <div class="bubble" :class="{ pending: m._pending }">
+                  <div class="body" v-html="escapeToHtml(m.body || '')" />
+                  <div class="meta">
+                    <span class="time mono">{{ formatTime(m.created_at) }}</span>
+                    <span v-if="m._pending" class="pend mono">sending…</span>
+                    <span v-else-if="m.edited_at" class="edit mono">edited</span>
+                  </div>
+                </div>
+              </div>
+
+              <div ref="bottomEl" class="bottom" />
+            </div>
+          </div>
+
+          <!-- composer -->
+          <form class="composer" @submit.prevent="sendMessage">
+            <div class="inputWrap">
+              <textarea
+                ref="textareaEl"
+                v-model="draft"
+                class="input"
+                rows="1"
+                placeholder="Type a message…"
+                @input="autosize()"
+                @keydown.enter.exact.prevent="sendMessage"
+                @keydown.enter.shift.exact.stop
+              />
+            </div>
+
+            <button class="btn" type="submit" :disabled="sending || !draft.trim()">
+              <i class="fa-solid fa-paper-plane"></i>
+              Send
+            </button>
+          </form>
+        </template>
+      </main>
     </div>
-
-    <!-- toast -->
-    <transition name="toast">
-      <div v-if="toast.show" class="toast">
-        <div class="toastLeft">
-          <div class="toastTitle">
-            <i :class="toast.icon"></i>
-            {{ toast.title }}
-          </div>
-          <div class="toastSub">{{ toast.text }}</div>
-        </div>
-        <button class="toastBtn ghost" type="button" @click="toast.show = false" aria-label="Dismiss">✕</button>
-      </div>
-    </transition>
   </section>
 </template>
 
@@ -225,866 +221,1046 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import gsap from "gsap";
 
-/* =========================================================
-   Config
-   ========================================================= */
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MEMBERS_API = `${BASE}/api/members`;
+/** =======================
+ *  API CONFIG
+ *  ======================= */
+const RAW_BASE = (import.meta?.env?.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_ROOT = /\/api$/i.test(RAW_BASE) ? RAW_BASE : `${RAW_BASE}/api`;
+const API_ORIGIN = /\/api$/i.test(RAW_BASE) ? RAW_BASE.replace(/\/api$/i, "") : RAW_BASE;
 
-// ✅ adjust to your real backend if needed
-const CHAT_MESSAGES_API = import.meta.env.VITE_CHAT_MESSAGES_API || `${BASE}/api/chat/messages`;
+const MEMBERS_API = (import.meta?.env?.VITE_MEMBERS_API || `${API_ROOT}/members`).replace(/\/$/, "");
+const CHAT_API = (import.meta?.env?.VITE_CHAT_API || `${API_ROOT}/chat`).replace(/\/$/, "");
+const FETCH_CREDENTIALS = (import.meta?.env?.VITE_FETCH_CREDENTIALS || "omit").toLowerCase();
 
-/* =========================================================
-   Helpers
-   ========================================================= */
-function safeJsonParse(x) {
-  try {
-    return JSON.parse(String(x));
-  } catch {
-    return null;
-  }
+/** =======================
+ *  STATE
+ *  ======================= */
+const rootEl = ref(null);
+const msgWrapEl = ref(null);
+const bottomEl = ref(null);
+const textareaEl = ref(null);
+
+const banks = ref([]);
+const loadingBanks = ref(false);
+const bankError = ref("");
+
+const activeBank = ref(null);
+
+const messages = ref([]);
+const msgLoading = ref(false);
+const msgError = ref("");
+
+const q = ref("");
+const draft = ref("");
+const sending = ref(false);
+
+let revealTween = null;
+
+/** ✅ members index for mapping (bankcode -> member) */
+const membersIndex = ref(new Map());
+
+/** =======================
+ *  HELPERS
+ *  ======================= */
+function normKey(v) {
+  return String(v ?? "").trim().toLowerCase();
 }
-function readUserFromStorage() {
-  const u1 = localStorage.getItem("user");
-  if (u1) return safeJsonParse(u1);
-  const u2 = sessionStorage.getItem("user");
-  if (u2) return safeJsonParse(u2);
-  return null;
+
+function canonCode(v) {
+  return String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, "");
 }
-function normalizeRole(r) {
-  return String(r || "").trim().toLowerCase();
+
+function pickArray(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.members)) return data.members;
+  if (Array.isArray(data?.banks)) return data.banks;
+  if (Array.isArray(data?.rows)) return data.rows;
+  return [];
 }
-function readToken() {
-  return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+
+function resolveLogoUrl(raw) {
+  const v =
+    raw?.logo ||
+    raw?.logo_url ||
+    raw?.logoUrl ||
+    raw?.avatar ||
+    raw?.avatar_url ||
+    raw?.avatarUrl ||
+    raw?.image ||
+    raw?.image_url ||
+    raw?.imageUrl ||
+    raw?.profile_image ||
+    raw?.profileImage ||
+    "";
+
+  const s = String(v || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
+  return `${API_ORIGIN}/${s.replace(/^\.?\//, "")}`;
 }
-function authHeaders() {
-  const token = readToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+
+function normalizeMember(raw, i = 0) {
+  const id = raw?.id ?? raw?.member_id ?? raw?.memberId ?? raw?.user_id ?? raw?._id ?? i;
+
+  const bankcode =
+    raw?.bankcode ??
+    raw?.bank_code ??
+    raw?.bankCode ??
+    raw?.code ??
+    raw?.iaccount ??
+    raw?.iAccount ??
+    raw?.i_account ??
+    null;
+
+  const iaccount =
+    raw?.iaccount ?? raw?.iAccount ?? raw?.i_account ?? raw?.account_code ?? raw?.accountCode ?? raw?.code ?? "";
+
+  const name =
+    raw?.name ??
+    raw?.bank_name ??
+    raw?.bankName ??
+    raw?.member_name ??
+    raw?.display_name ??
+    raw?.displayName ??
+    raw?.title ??
+    "MemberBank";
+
+  const safeCode = String(bankcode || iaccount || id || "").trim();
+
+  const codesRaw = [
+    bankcode,
+    iaccount,
+    raw?.bank_code,
+    raw?.bankcode,
+    raw?.bankCode,
+    raw?.code,
+    raw?.iaccount,
+    raw?.iAccount,
+    raw?.i_account,
+    raw?.account_code,
+    raw?.accountCode,
+    raw?.member_code,
+    raw?.memberCode,
+    id,
+  ];
+
+  const codes = Array.from(
+    new Set(
+      codesRaw
+        .map((x) => String(x ?? "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  return {
+    id,
+    bankcode: safeCode,
+    iaccount: String(iaccount || safeCode || "").trim(),
+    name: String(name || "").trim(),
+    logo: resolveLogoUrl(raw),
+
+    unread_count: 0,
+    last_preview: "",
+    last_at: null,
+    conversation_id: null,
+
+    _codes: codes,
+    _key: `m:${String(id)}:${safeCode}`,
+  };
 }
-function wrapList(data) {
-  return Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+
+function normalizeMetaBank(raw) {
+  const bankcode = raw?.bankcode ?? raw?.bank_code ?? raw?.code ?? raw?.iaccount ?? raw?.iAccount ?? "";
+  const member_id = raw?.member_id ?? raw?.memberId ?? raw?.user_id ?? raw?.uid ?? null;
+
+  return {
+    bankcode: String(bankcode || "").trim(),
+    member_id,
+    conversation_id: raw?.conversation_id ?? raw?.conversationId ?? raw?.conversation ?? raw?.id ?? null,
+    unread_count: Number(raw?.unread_count ?? raw?.unread ?? 0),
+    last_preview: raw?.last_preview ?? raw?.last_message ?? raw?.preview ?? "",
+    last_at: raw?.last_at ?? raw?.last_message_at ?? raw?.updated_at ?? null,
+  };
 }
-function keyOf(x, i) {
-  return x?.id || x?._id || x?.uuid || x?.key || `${i}-${Math.random().toString(16).slice(2)}`;
+
+function normalizeMessage(raw) {
+  const created = raw.created_at ?? raw.createdAt ?? raw.time ?? raw.sent_at ?? new Date().toISOString();
+  const id = raw.id ?? raw.message_id ?? raw.mid ?? null;
+  return {
+    id,
+    conversation_id: raw.conversation_id ?? raw.conversationId ?? null,
+    sender_role: raw.sender_role ?? raw.role ?? raw.from_role ?? "",
+    sender_bankcode: raw.sender_bankcode ?? raw.bankcode ?? raw.bank_code ?? null,
+    body: raw.body ?? raw.message ?? raw.text ?? "",
+    created_at: created,
+    edited_at: raw.edited_at ?? raw.editedAt ?? null,
+    client_msg_id: raw.client_msg_id ?? raw.clientMsgId ?? null,
+    _pending: Boolean(raw._pending),
+    _key: id ? `m:${id}` : `tmp:${raw.client_msg_id || Math.random().toString(16).slice(2)}`,
+  };
 }
-function initials(name) {
-  const s = String(name || "").trim();
-  if (!s) return "BK";
-  const parts = s.split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("") || "BK";
-}
-function stripHtml(s) {
-  return String(s || "")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<\/?[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-function escapeHtml(s) {
-  return String(s || "")
+
+function escapeToHtml(s) {
+  const safe = String(s ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-function fmtWhen(ts) {
-  const d = new Date(ts);
-  const t = d.getTime();
-  if (!Number.isFinite(t)) return "";
-  return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-}
-function toTime(x) {
-  const d = new Date(x);
-  const t = d.getTime();
-  return Number.isFinite(t) ? t : 0;
+  return safe.replaceAll("\n", "<br>");
 }
 
-/* =========================================================
-   State
-   ========================================================= */
-const headEl = ref(null);
-const leftEl = ref(null);
-const rightEl = ref(null);
-
-const me = ref(readUserFromStorage());
-const myRole = computed(() => normalizeRole(me.value?.role) || "admin");
-
-const loading = ref(false);
-const banksError = ref("");
-const banks = ref([]);
-const q = ref("");
-const activeBank = ref(null);
-
-const msgWrapEl = ref(null);
-const msgLoading = ref(false);
-const msgError = ref("");
-const messages = ref([]);
-const draft = ref("");
-const sending = ref(false);
-
-const toast = ref({ show: false, title: "", text: "", icon: "fa-solid fa-circle-check" });
-let toastTimer = null;
-
-let pollTimer = null;
-let pollAbort = null;
-const isNearBottom = ref(true);
-
-/* =========================================================
-   Derived
-   ========================================================= */
-const filteredBanks = computed(() => {
-  const s = q.value.toLowerCase().trim();
-  const list = banks.value || [];
-  if (!s) return list;
-  return list.filter((b) => {
-    const hay = `${b.name} ${b.bankcode} ${b.iaccount}`.toLowerCase();
-    return hay.includes(s);
-  });
-});
-
-const canSend = computed(() => !!activeBank.value && !sending.value && draft.value.trim().length > 0);
-
-/* =========================================================
-   Normalize bank + message
-   ========================================================= */
-function normalizeBank(item, i) {
-  const id = item?.id ?? item?._id ?? item?.member_id ?? item?.uuid ?? item?.bank_id ?? null;
-
-  const bankcode = String(item?.bankcode ?? item?.bank_code ?? item?.code ?? item?.member_code ?? "").trim();
-
-  const name =
-    String(item?.name ?? item?.bankname ?? item?.bank_name ?? item?.title ?? "").trim() ||
-    bankcode ||
-    "Member bank";
-
-  // ✅ iAccount mapping (รองรับหลายชื่อ field)
-  const iaccount = String(
-    item?.iaccount ??
-      item?.i_account ??
-      item?.iAccount ??
-      item?.account ??
-      item?.account_no ??
-      item?.account_number ??
-      ""
-  ).trim();
-
-  const logo = item?.logo_url ?? item?.logo ?? item?.image ?? item?.avatar ?? "";
-
-  return {
-    _key: keyOf(item, i),
-    id,
-    bankcode,
-    name,
-    iaccount,
-    logo,
-    raw: item,
-  };
-}
-
-function normalizeMessage(item, i) {
-  const text = item?.text ?? item?.message ?? item?.content ?? item?.body ?? "";
-  const created = item?.created_at ?? item?.createdAt ?? item?.date ?? item?.time ?? Date.now();
-
-  const senderRole = normalizeRole(item?.sender_role ?? item?.role ?? item?.from_role ?? "");
- const senderName = String(
-  (item?.sender_name ?? item?.sender ?? item?.from_name ?? senderRole) || "User"
-).trim();
-
-
-  // best-effort decide "me"
-  const myId = String(me.value?.id ?? me.value?.user_id ?? me.value?._id ?? "").trim();
-  const senderId = String(item?.sender_id ?? item?.user_id ?? item?.from_id ?? "").trim();
-  const isMe = (myId && senderId && myId === senderId) || (!!senderRole && senderRole === myRole.value);
-
-  return {
-    _key: keyOf(item, i),
-    id: item?.id ?? item?._id ?? null,
-    isMe,
-    sender: senderName || (isMe ? "Admin" : "MemberBank"),
-    when: fmtWhen(created),
-    html: escapeHtml(stripHtml(text)).replaceAll("\n", "<br/>"),
-    createdAt: toTime(created),
-  };
-}
-
-/* =========================================================
-   API
-   ========================================================= */
-async function fetchBanks() {
-  loading.value = true;
-  banksError.value = "";
+function formatTime(d) {
   try {
-    const res = await fetch(MEMBERS_API, { headers: { ...authHeaders() } });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const list = wrapList(await res.json());
-
-    // sort by bankcode (nice for 23 banks)
-    banks.value = list.map((x, i) => normalizeBank(x, i)).sort((a, b) => String(a.bankcode).localeCompare(String(b.bankcode)));
-
-    // auto select first
-    if (!activeBank.value && banks.value.length) {
-      activeBank.value = banks.value[0];
-      await loadMessagesForActive();
-    }
-  } catch (e) {
-    banksError.value = e?.message || "Failed to load member banks";
-  } finally {
-    loading.value = false;
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return "";
+    return dt.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
   }
 }
 
-async function fetchMessages(bank) {
-  if (!bank) return [];
+function isMe(m) {
+  return String(m?.sender_role || "").toLowerCase() === "admin";
+}
 
+function onImgError(e) {
+  const img = e?.target;
+  if (img) img.style.display = "none";
+}
+
+/** ✅ build index: bankcode -> member */
+function buildMembersIndex(membersArr) {
+  const mp = new Map();
+  for (const mb of membersArr || []) {
+    const keys = new Set(
+      [mb.bankcode, mb.iaccount, mb.id, ...(mb._codes || [])]
+        .map((x) => String(x ?? "").trim())
+        .filter(Boolean)
+    );
+    for (const k of keys) {
+      mp.set(normKey(k), mb);
+      mp.set(canonCode(k), mb);
+    }
+  }
+  membersIndex.value = mp;
+}
+
+function memberFromBank(b) {
+  const code = String(b?.bankcode || b?.iaccount || b?.id || "").trim();
+  if (!code) return null;
+  return membersIndex.value.get(normKey(code)) || membersIndex.value.get(canonCode(code)) || null;
+}
+
+function bankName(b) {
+  const mb = memberFromBank(b);
+  return mb?.name || b?.name || "MemberBank";
+}
+
+function bankLogo(b) {
+  const mb = memberFromBank(b);
+  return mb?.logo || b?.logo || "";
+}
+
+function getToken() {
+  try {
+    return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+  } catch {
+    return "";
+  }
+}
+
+async function fetchJSON(url, options = {}) {
+  const token = getToken();
+
+  const headers = {
+    Accept: "application/json",
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers,
+      credentials: FETCH_CREDENTIALS === "include" ? "include" : "omit",
+    });
+  } catch (e) {
+    console.error("[fetchJSON network error]", url, e);
+    throw new Error("Network error: ติดต่อ API ไม่ได้ (เช็คว่า backend รันอยู่ไหม / CORS)");
+  }
+
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    data = raw;
+  }
+
+  if (!res.ok) {
+    console.error("[fetchJSON fail]", { url, status: res.status, data });
+    const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+/** =======================
+ *  API CALLS
+ *  ======================= */
+async function apiLoadOnlyBanksWithChats() {
+  loadingBanks.value = true;
+  bankError.value = "";
+  try {
+    const [mData, metaData] = await Promise.all([
+      fetchJSON(MEMBERS_API),
+      fetchJSON(`${CHAT_API}/admin/banks`, {
+        headers: { "x-role": "admin" },
+      }),
+    ]);
+
+    const members = pickArray(mData).map(normalizeMember).filter((x) => x && x.id != null);
+
+    // ✅ build members mapping for name/logo
+    buildMembersIndex(members);
+
+    const metaArr = pickArray(metaData).map(normalizeMetaBank);
+
+    // existing merge logic (kept as-is)
+    const memberMap = new Map();
+    for (const mb of members) {
+      const keys = new Set(
+        [mb.bankcode, mb.iaccount, mb.id, ...(mb._codes || [])]
+          .map((x) => String(x ?? "").trim())
+          .filter(Boolean)
+      );
+
+      for (const k of keys) {
+        memberMap.set(normKey(k), mb);
+        memberMap.set(canonCode(k), mb);
+      }
+    }
+
+    const merged = metaArr.map((m, idx) => {
+      const k1 = normKey(m.bankcode);
+      const k2 = canonCode(m.bankcode);
+
+      const mid1 = m.member_id != null ? normKey(m.member_id) : "";
+      const mid2 = m.member_id != null ? canonCode(m.member_id) : "";
+
+      const found =
+        memberMap.get(k1) ||
+        memberMap.get(k2) ||
+        (mid1 ? memberMap.get(mid1) : null) ||
+        (mid2 ? memberMap.get(mid2) : null);
+
+      const base = found
+        ? { ...found }
+        : {
+            id: `unknown_${idx}`,
+            bankcode: String(m.bankcode || `unknown_${idx}`),
+            iaccount: String(m.bankcode || ""),
+            name: "MemberBank",
+            logo: "",
+            _key: `unknown:${idx}:${String(m.bankcode || "")}`,
+            unread_count: 0,
+            last_preview: "",
+            last_at: null,
+            conversation_id: null,
+          };
+
+      return {
+        ...base,
+        unread_count: m.unread_count ?? base.unread_count,
+        last_preview: m.last_preview ?? base.last_preview,
+        last_at: m.last_at ?? base.last_at,
+        conversation_id: m.conversation_id ?? base.conversation_id,
+        _key: base._key || `b:${String(base.id)}:${String(base.bankcode || "")}`,
+      };
+    });
+
+    merged.sort((a, b) => {
+      const ta = a.last_at ? new Date(a.last_at).getTime() : 0;
+      const tb = b.last_at ? new Date(b.last_at).getTime() : 0;
+      return tb - ta;
+    });
+
+    banks.value = merged;
+  } catch (e) {
+    bankError.value = e?.message || "Failed to load active chat banks";
+  } finally {
+    loadingBanks.value = false;
+  }
+}
+
+async function apiEnsureConversation(bank) {
+  if (bank?.conversation_id) return Number(bank.conversation_id);
+
+  const bankcode = String(bank?.bankcode || bank?.iaccount || "").trim();
+  if (!bankcode) throw new Error("Missing bankcode/iAccount for this member");
+
+  const data = await fetchJSON(`${CHAT_API}/conversations/ensure`, {
+    method: "POST",
+    headers: { "x-role": "admin" },
+    body: JSON.stringify({ bankcode }),
+  });
+
+  const convId = data?.conversation_id ?? data?.id ?? data?.conversationId;
+  if (!convId) throw new Error("Conversation id not returned");
+  return Number(convId);
+}
+
+async function apiLoadMessages(conversationId) {
   msgLoading.value = true;
   msgError.value = "";
   try {
-    const url = new URL(CHAT_MESSAGES_API);
-    if (bank.bankcode) url.searchParams.set("bankcode", bank.bankcode);
-    if (bank.id != null) url.searchParams.set("member_id", String(bank.id));
+    const data = await fetchJSON(`${CHAT_API}/conversations/${conversationId}/messages?limit=50`, {
+      headers: { "x-role": "admin" },
+    });
+    const arr = pickArray(data);
+    messages.value = arr.map(normalizeMessage);
 
-    if (pollAbort) pollAbort.abort();
-    pollAbort = new AbortController();
-
-    const res = await fetch(url.toString(), { signal: pollAbort.signal, headers: { ...authHeaders() } });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-
-    const list = wrapList(await res.json());
-    return list.map((x, i) => normalizeMessage(x, i)).sort((a, b) => a.createdAt - b.createdAt);
+    await nextTick();
+    scrollToBottom(true);
   } catch (e) {
-    if (e?.name === "AbortError") return messages.value;
     msgError.value = e?.message || "Failed to load messages";
-    return [];
   } finally {
     msgLoading.value = false;
   }
 }
 
-async function postMessage(bank, text) {
-  const payload = {
-    bankcode: bank?.bankcode || "",
-    member_id: bank?.id ?? null,
-    text,
-  };
-
-  const res = await fetch(CHAT_MESSAGES_API, {
+async function apiSendMessage(conversationId, body, clientMsgId) {
+  const data = await fetchJSON(`${CHAT_API}/conversations/${conversationId}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(payload),
+    headers: { "x-role": "admin" },
+    body: JSON.stringify({ body, client_msg_id: clientMsgId }),
   });
-
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return await res.json();
+  const msg = data?.message ?? data;
+  return normalizeMessage(msg);
 }
 
-/* =========================================================
-   UI actions
-   ========================================================= */
+/** =======================
+ *  UI LOGIC
+ *  ======================= */
+const filteredBanks = computed(() => {
+  const s = q.value.trim().toLowerCase();
+  if (!s) return banks.value;
+  return banks.value.filter((b) => {
+    const hay = `${b.bankcode || ""} ${b.iaccount || ""} ${b.name || ""} ${b.id || ""}`.toLowerCase();
+    return hay.includes(s);
+  });
+});
+
+const totalBanksLabel = computed(() => banks.value.length || 0);
+
 async function reloadAll() {
-  await fetchBanks();
-  if (activeBank.value) await loadMessagesForActive();
+  await apiLoadOnlyBanksWithChats();
+  if (activeBank.value) {
+    const found = banks.value.find((x) => x.id === activeBank.value.id);
+    if (found) activeBank.value = found;
+  }
 }
 
 async function selectBank(b) {
-  if (!b) return;
-  if (activeBank.value?.bankcode === b.bankcode) return;
   activeBank.value = b;
-  await loadMessagesForActive();
-}
+  draft.value = "";
+  messages.value = [];
+  msgError.value = "";
 
-async function loadMessagesForActive() {
-  stopPolling();
-  if (!activeBank.value) {
-    messages.value = [];
-    return;
+  try {
+    const convId = await apiEnsureConversation(b);
+    b.conversation_id = convId;
+    await apiLoadMessages(convId);
+    b.unread_count = 0;
+
+    await nextTick();
+    autosize(true);
+  } catch (e) {
+    msgError.value = e?.message || "Failed to open conversation";
   }
-
-  messages.value = await fetchMessages(activeBank.value);
-  await nextTick();
-  scrollToBottom(true);
-  startPolling();
 }
 
 async function reloadMessages() {
   if (!activeBank.value) return;
-  messages.value = await fetchMessages(activeBank.value);
-  await nextTick();
-  if (isNearBottom.value) scrollToBottom(true);
+  const convId = await apiEnsureConversation(activeBank.value);
+  await apiLoadMessages(convId);
 }
 
-function autoGrow(e) {
-  const el = e?.target;
-  if (!el) return;
-  el.style.height = "auto";
-  el.style.height = Math.min(el.scrollHeight, 140) + "px";
+function scrollToBottom(immediate = false) {
+  const bottom = bottomEl.value;
+  if (!bottom) return;
+  bottom.scrollIntoView({ block: "end", behavior: immediate ? "auto" : "smooth" });
 }
 
-function showToast(title, text, icon = "fa-solid fa-circle-check") {
-  toast.value = { show: true, title, text, icon };
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.value.show = false), 4200);
-}
-
-async function send() {
-  if (!canSend.value) return;
+async function sendMessage() {
+  if (!activeBank.value) return;
   const text = draft.value.trim();
-  const bank = activeBank.value;
+  if (!text) return;
 
-  // optimistic
-  const optimistic = {
-    _key: `optimistic-${Date.now()}`,
+  const convId = await apiEnsureConversation(activeBank.value);
+  const clientMsgId = `c_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+  const optimistic = normalizeMessage({
     id: null,
-    isMe: true,
-    sender: "Admin",
-    when: fmtWhen(Date.now()),
-    html: escapeHtml(text).replaceAll("\n", "<br/>"),
-    createdAt: Date.now(),
-  };
+    conversation_id: convId,
+    sender_role: "admin",
+    body: text,
+    created_at: new Date().toISOString(),
+    client_msg_id: clientMsgId,
+    _pending: true,
+  });
+
+  messages.value.push(optimistic);
+  draft.value = "";
+
+  await nextTick();
+  autosize(true);
+  scrollToBottom(false);
 
   sending.value = true;
-  draft.value = "";
-  messages.value = [...messages.value, optimistic];
-
-  await nextTick();
-  scrollToBottom(true);
-
   try {
-    await postMessage(bank, text);
-    messages.value = await fetchMessages(bank);
-    await nextTick();
-    scrollToBottom(true);
+    const saved = await apiSendMessage(convId, text, clientMsgId);
+    const idx = messages.value.findIndex((m) => m.client_msg_id === clientMsgId || m._key === optimistic._key);
+    if (idx >= 0) messages.value[idx] = saved;
+    else messages.value.push(saved);
+
+    activeBank.value.last_preview = text;
+    activeBank.value.last_at = new Date().toISOString();
   } catch (e) {
-    showToast("Send failed", e?.message || "Network error", "fa-solid fa-circle-xmark");
+    msgError.value = e?.message || "Send failed";
+    const idx = messages.value.findIndex((m) => m.client_msg_id === clientMsgId || m._key === optimistic._key);
+    if (idx >= 0) messages.value[idx]._pending = false;
   } finally {
     sending.value = false;
   }
 }
 
-/* =========================================================
-   Scroll / polling
-   ========================================================= */
-function onScroll() {
-  const el = msgWrapEl.value;
+function autosize(forceSmall = false) {
+  const el = textareaEl.value;
   if (!el) return;
-  const gap = el.scrollHeight - (el.scrollTop + el.clientHeight);
-  isNearBottom.value = gap < 220;
+  el.style.height = "auto";
+  const h = Math.min(140, Math.max(42, el.scrollHeight || 42));
+  el.style.height = (forceSmall ? 42 : h) + "px";
 }
 
-function scrollToBottom(smooth = false) {
-  const el = msgWrapEl.value;
-  if (!el) return;
-  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+/** =======================
+ *  GSAP
+ *  ======================= */
+function runReveal() {
+  const root = rootEl.value;
+  if (!root) return;
+  const nodes = root.querySelectorAll(".js-reveal");
+  if (!nodes.length) return;
+
+  revealTween?.kill?.();
+  gsap.set(nodes, { opacity: 0, y: 12 });
+
+  revealTween = gsap.to(nodes, {
+    opacity: 1,
+    y: 0,
+    duration: 0.42,
+    ease: "power3.out",
+    stagger: 0.06,
+    clearProps: "opacity,transform",
+  });
 }
 
-function startPolling() {
-  stopPolling();
-  if (!activeBank.value) return;
-
-  pollTimer = setInterval(async () => {
-    if (!activeBank.value) return;
-    const next = await fetchMessages(activeBank.value);
-
-    const shouldStick = isNearBottom.value;
-    messages.value = next;
-
-    if (shouldStick) {
-      await nextTick();
-      scrollToBottom(false);
-    }
-  }, 4500);
+function cardHover(e, enter) {
+  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
-
-function stopPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
-  if (pollAbort) pollAbort.abort();
-  pollAbort = null;
-}
-
-/* =========================================================
-   Animations
-   ========================================================= */
-function animateIn() {
-  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-  gsap.set(".js-reveal", { opacity: 0, y: 12 });
-  tl.to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.05);
-}
-
-watch(
-  () => (localStorage.getItem("user") || sessionStorage.getItem("user")),
-  () => (me.value = readUserFromStorage())
-);
 
 onMounted(async () => {
-  animateIn();
-  await fetchBanks();
+  runReveal();
+  await reloadAll();
 });
 
 onBeforeUnmount(() => {
-  stopPolling();
-  if (toastTimer) clearTimeout(toastTimer);
+  revealTween?.kill?.();
+  revealTween = null;
+});
+
+watch(draft, async () => {
+  await nextTick();
+  autosize(false);
 });
 </script>
 
 <style scoped>
-/* page layout (เข้ากับ theme tech ของคุณ) */
-.chatMb {
-  min-height: calc(100vh - 36px);
-  display: flex;
-  flex-direction: column;
+/* ใช้ style เดิมของคุณได้เลย (ไม่ได้แก้) */
+.mbChat {
+  display: grid;
   gap: 14px;
+  padding: 8px 2px 2px;
 }
-
-.head {
+/* Header */
+.mbHead {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 14px;
+  gap: 12px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  padding: 16px 16px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
 }
-
 .kicker {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.66);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .kDot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.85);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
+  background: rgba(56, 189, 248, 0.95);
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1);
 }
 .title {
-  margin: 6px 0 0;
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: 0.2px;
+  margin: 8px 0 6px;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 .sub {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.62);
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
 }
-
-.headRight {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.pill {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.86);
-  font-weight: 900;
-  font-size: 12px;
+.muted {
+  color: var(--muted);
 }
 .mono {
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-weight: 900;
 }
-.muted { opacity: 0.72; }
-.dot { opacity: 0.6; }
-
-.btn {
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-weight: 950;
-  cursor: pointer;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  background: rgba(56, 189, 248, 0.12);
-  color: rgba(255, 255, 255, 0.92);
-  display: inline-flex;
+.mbHeadRight {
+  display: flex;
   gap: 10px;
   align-items: center;
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
-.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: rgba(56, 189, 248, 0.28);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
-}
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.btn.ghost {
-  border-color: rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.84);
-}
-
-.grid {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 12px;
-}
-
-.panel,
-.chatPanel {
-  min-height: 0;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
-}
-
-.panelTop {
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  display: grid;
+.pill {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+}
+/* Grid */
+.mbGrid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 14px;
+  min-height: 72vh;
+}
+/* Left */
+.left {
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+.panelTop {
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel2);
 }
 .panelTitle {
-  font-weight: 950;
-  display: inline-flex;
-  gap: 10px;
+  display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.92);
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 10px;
 }
-
 .search {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
 }
 .search i {
-  position: absolute;
-  left: 12px;
-  opacity: 0.7;
+  color: rgba(255, 255, 255, 0.65);
 }
-.input {
+.searchInput {
   width: 100%;
-  padding: 10px 36px 10px 36px;
-  border-radius: 14px;
+  border: 0;
   outline: none;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 700;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
 }
-.input:focus {
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
-}
-.clear {
-  position: absolute;
-  right: 8px;
+.x {
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.88);
   width: 28px;
   height: 28px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
-
-.warn {
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: rgba(56, 189, 248, 0.08);
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 12px;
-  font-weight: 800;
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-}
-
 .list {
-  padding: 10px 10px 12px;
+  padding: 10px;
   overflow: auto;
-  min-height: 0;
-  height: calc(100% - 120px);
-}
-.list::-webkit-scrollbar { width: 10px; }
-.list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
-
-.bankItem {
-  width: 100%;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.82);
+  flex-direction: column;
+  gap: 8px;
+}
+.bankItem {
+  text-align: left;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
-  margin-bottom: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 .bankItem:hover {
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.05);
   border-color: rgba(56, 189, 248, 0.18);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 12px 26px rgba(56, 189, 248, 0.08);
 }
 .bankItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.16), rgba(99, 102, 241, 0.10));
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
   border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 18px 40px rgba(56, 189, 248, 0.10);
+  box-shadow: 0 18px 36px rgba(56, 189, 248, 0.1);
 }
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  display: grid;
-  place-items: center;
-  font-weight: 950;
-  overflow: hidden;
-}
-.avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-.bankMeta { flex: 1; min-width: 0; }
 .bankTop {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.bankName {
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.code {
-  margin-left: auto;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.04);
-  opacity: 0.92;
-}
-.bankSub {
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.62);
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  white-space: nowrap;
-}
-.chev { opacity: 0.55; }
-
-.chatTop {
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
-.chatName {
-  font-weight: 950;
-  display: inline-flex;
+.bankRow {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  align-items: center;
 }
-.chatMeta {
-  margin-top: 4px;
-  font-size: 12px;
+.bankAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bankAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bankAvatar span {
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.88);
+}
+.bankName .name {
+  font-weight: 950;
+  display: block;
+}
+.bankName .id {
+  display: block;
+  margin-top: 2px;
   color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+}
+.badge {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
   display: inline-flex;
-  gap: 8px;
   align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 950;
+  font-size: 12px;
+  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
 }
-.chatTools { display: inline-flex; gap: 8px; align-items: center; }
-
-.messages {
-  min-height: 0;
-  height: calc(100% - 132px);
-  overflow: auto;
-  padding: 14px 14px 10px;
-}
-.messages::-webkit-scrollbar { width: 10px; }
-.messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
-
-.msgList { display: grid; gap: 10px; }
-
-.msgRow { display: flex; justify-content: flex-start; }
-.msgRow.me { justify-content: flex-end; }
-
-.bubble {
-  max-width: min(620px, 92%);
-  border-radius: 16px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.03);
-}
-.msgRow.me .bubble {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.10));
-  border-color: rgba(56, 189, 248, 0.22);
-}
-.bubbleTop {
+.bankBottom {
+  margin-top: 10px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
+}
+.preview {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+/* Right */
+.right {
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+.empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.emptyCard {
+  width: min(520px, 100%);
+  border-radius: 18px;
+  background: var(--panel2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px;
+  text-align: center;
+}
+.bigIcon {
+  font-size: 34px;
   margin-bottom: 6px;
-  opacity: 0.78;
 }
-.sender { font-weight: 950; }
-.time { opacity: 0.7; }
-.text {
-  font-size: 13px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.88);
-  word-break: break-word;
+.chatHead {
+  padding: 14px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel2);
 }
-
-.composer {
+.who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.whoName {
+  font-weight: 950;
+}
+.whoId {
+  margin-left: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+.whoSub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 2px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(120, 255, 170, 0.95);
+  box-shadow: 0 0 0 6px rgba(120, 255, 170, 0.1);
+}
+.dotSep {
+  opacity: 0.5;
+}
+.msgWrap {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 14px;
+}
+.msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.row {
+  display: flex;
+}
+.row.me {
+  justify-content: flex-end;
+}
+.row.other {
+  justify-content: flex-start;
+}
+.bubble {
+  max-width: min(72ch, 85%);
   padding: 10px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+}
+.row.me .bubble {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.18);
+}
+.bubble.pending {
+  opacity: 0.72;
+}
+.body {
+  word-break: break-word;
+  line-height: 1.35;
+  font-size: 14px;
+}
+.meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+}
+.bottom {
+  height: 1px;
+}
+/* Composer */
+.composer {
+  padding: 12px;
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--panel2);
 }
-.textarea {
+.inputWrap {
   flex: 1;
+}
+.input {
+  width: 100%;
+  min-height: 42px;
+  max-height: 140px;
   resize: none;
   padding: 10px 12px;
   border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass);
+  color: rgba(255, 255, 255, 0.92);
   outline: none;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 700;
-  min-height: 42px;
-  max-height: 140px;
-  overflow: auto;
+  font-size: 14px;
 }
-.textarea:focus {
-  border-color: rgba(56, 189, 248, 0.24);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
-}
-
-.hint {
-  padding: 10px 12px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.62);
+/* Buttons + state */
+.btn {
   display: inline-flex;
-  gap: 10px;
   align-items: center;
-}
-
-/* states */
-.empty,
-.err {
-  margin: 10px 0 0;
-  padding: 12px 12px;
+  gap: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 10px 12px;
   border-radius: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.70);
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+.btn:hover {
+  transform: translateY(-1px);
+  background: rgba(56, 189, 248, 0.16);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn.ghost {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.82);
+}
+.btn.tiny {
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.btnIcon {
+  display: inline-block;
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.state {
+  padding: 16px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
   text-align: center;
 }
-.empty.big,
-.err.big { margin: 0; }
-.err {
-  border-style: solid;
+.state.err {
+  color: rgba(255, 170, 170, 0.95);
   border-color: rgba(255, 80, 80, 0.22);
   background: rgba(255, 80, 80, 0.08);
-  color: rgba(255, 255, 255, 0.88);
 }
-
-/* loader */
-.msgLoading {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 0;
-  opacity: 0.9;
-}
-.loaderDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
-  animation: ld 0.9s ease-in-out infinite;
-}
-.loaderDot:nth-child(2) { animation-delay: 0.12s; }
-.loaderDot:nth-child(3) { animation-delay: 0.24s; }
-@keyframes ld {
-  0% { transform: translateY(0); opacity: 0.55; }
-  50% { transform: translateY(-5px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.55; }
-}
-
-/* toast */
-.toast {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 12px;
-  border-radius: 16px;
-  background: rgba(8, 12, 28, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
-  max-width: min(460px, 92vw);
-}
-.toastLeft { display: grid; gap: 4px; min-width: 0; }
-.toastTitle {
-  font-weight: 950;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.92);
-}
-.toastSub {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
-  white-space: nowrap;
+.state .text {
+  max-width: 70%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.toastBtn {
-  padding: 9px 10px;
-  border-radius: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.80);
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: spin 0.7s linear infinite;
 }
-.toast-enter-active,
-.toast-leave-active { transition: transform 180ms ease, opacity 180ms ease; }
-.toast-enter-from,
-.toast-leave-to { opacity: 0; transform: translateY(10px); }
-
-/* responsive */
-@media (max-width: 1100px) {
-  .grid { grid-template-columns: 1fr; }
-  .panel { height: 360px; }
+@media (max-width: 980px) {
+  .mbGrid {
+    grid-template-columns: 1fr;
+  }
+  .left {
+    max-height: 360px;
+  }
+  .right {
+    min-height: 60vh;
+  }
 }
 </style>
