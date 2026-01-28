@@ -1,1266 +1,1040 @@
 <template>
-  <section ref="rootEl" class="mbChat">
+  <!-- ✅ IMPORTANT: ไม่ต้องมี .app/.tech wrapper เพราะ App.vue ทำให้แล้ว -->
+  <section ref="rootEl" class="chatAdmin">
     <!-- header -->
-    <header class="mbHead js-reveal">
-      <div class="mbHeadLeft">
+    <header ref="headEl" class="topbar js-reveal">
+      <div class="headline">
         <div class="kicker">
           <span class="kDot"></span>
           Admin • MemberBank Chat
         </div>
-        <h1 class="title">MemberBank Inbox</h1>
-        <p class="sub">
-          Showing only banks that have chats • total
-          <b class="mono">{{ totalBanksLabel }}</b>
-          banks
+
+        <h1 class="title">Inbox</h1>
+
+        <p class="subtitle">
+          Realtime chat with each bankcode
+          <span class="dotSep">•</span>
+          total <b class="mono">{{ filteredBanks.length }}</b>
+          <span class="dotSep">•</span>
+          unread <b class="mono">{{ totalUnread }}</b>
+          <span class="dotSep">•</span>
+          socket
+          <b class="mono" :class="{ ok: socketStatus === 'connected', bad: socketStatus !== 'connected' }">
+            {{ socketStatus }}
+          </b>
         </p>
       </div>
 
-      <div class="mbHeadRight">
-        <div class="pill">
-          <i class="fa-solid fa-building-columns"></i>
-          <span class="mono">{{ filteredBanks.length }}</span>
-          <span class="muted">/ {{ totalBanksLabel }}</span>
+      <div class="actions">
+        <div class="pill" :class="{ ok: socketStatus === 'connected', bad: socketStatus !== 'connected' }">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="mono">{{ socketStatus }}</span>
         </div>
 
-        <button class="btn ghost" type="button" @click="reloadAll" :disabled="loadingBanks">
-          <span class="btnIcon" :class="{ spin: loadingBanks }">⟲</span>
+        <button
+          class="btn ghost"
+          type="button"
+          @click="reloadAll(true)"
+          :disabled="loading"
+          @mouseenter="btnHover($event, true)"
+          @mouseleave="btnHover($event, false)"
+        >
+          <span class="btnIcon" :class="{ spin: loading }">⟲</span>
           Refresh
         </button>
       </div>
     </header>
 
-    <div class="mbGrid js-reveal">
-      <!-- LEFT -->
-      <aside class="left">
-        <div class="panelTop">
-          <div class="panelTitle">
-            <i class="fa-solid fa-inbox"></i>
-            Banks
-          </div>
+    <div class="grid">
+      <!-- LEFT: list -->
+      <aside class="left js-reveal">
+        <div class="leftTop">
+          <div class="field">
+            <div class="label">Search bankcode</div>
 
-          <div class="search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input
-              v-model.trim="q"
-              class="searchInput"
-              type="search"
-              placeholder="Search bankcode / iAccount / name..."
-            />
-            <button v-if="q" class="x" type="button" @click="q = ''" title="Clear">×</button>
-          </div>
-        </div>
-
-        <div class="list">
-          <div v-if="loadingBanks" class="state">
-            <div class="spinner"></div>
-            Loading banks...
-          </div>
-
-          <div v-else-if="bankError" class="state err">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span class="text">{{ bankError }}</span>
-            <button class="btn tiny" type="button" @click="reloadAll">Try again</button>
-          </div>
-
-          <!-- ✅ show member real name + logo from /api/members (mapping by bankcode) -->
-          <template v-else>
-            <button
-              v-for="b in filteredBanks"
-              :key="b._key"
-              type="button"
-              class="bankItem"
-              :class="{ active: activeBank?.id === b.id }"
-              @click="selectBank(b)"
-              @mouseenter="cardHover($event, true)"
-              @mouseleave="cardHover($event, false)"
-            >
-              <div class="bankTop">
-                <div class="bankName">
-                  <div class="bankRow">
-                    <div class="bankAvatar" aria-hidden="true">
-                      <img v-if="bankLogo(b)" :src="bankLogo(b)" alt="" @error="onImgError($event)" />
-                      <span v-else>{{ (bankName(b) || "M").slice(0, 1).toUpperCase() }}</span>
-                    </div>
-
-                    <div class="bankText">
-                      <span class="name">{{ bankName(b) || "MemberBank" }}</span>
-                      <span class="mono id">#{{ b.bankcode || b.iaccount || b.id }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <span v-if="b.unread_count > 0" class="badge">
-                  {{ b.unread_count > 99 ? "99+" : b.unread_count }}
-                </span>
-              </div>
-
-              <div class="bankBottom">
-                <div class="preview">{{ b.last_preview || "—" }}</div>
-                <div class="time mono">{{ b.last_at ? formatTime(b.last_at) : "" }}</div>
-              </div>
-            </button>
-
-            <div v-if="!filteredBanks.length" class="state">
-              <i class="fa-regular fa-comment-dots"></i>
-              No active chats yet
-            </div>
-          </template>
-        </div>
-      </aside>
-
-      <!-- RIGHT -->
-      <main class="right">
-        <div v-if="!activeBank" class="empty">
-          <div class="emptyCard">
-            <div class="bigIcon">💬</div>
-            <h2>Select a bank</h2>
-            <p>Choose a member bank on the left to start chatting.</p>
-          </div>
-        </div>
-
-        <template v-else>
-          <!-- chat header -->
-          <div class="chatHead">
-            <div class="who">
-              <div class="avatar" aria-hidden="true">
-                <img v-if="activeBank.logo" :src="activeBank.logo" alt="" @error="onImgError($event)" />
-                <i v-else class="fa-solid fa-building-columns"></i>
-              </div>
-
-              <div class="whoText">
-                <div class="whoName">
-                  {{ activeBank.name || "MemberBank" }}
-                  <span class="mono whoId">({{ activeBank.bankcode || activeBank.iaccount || activeBank.id }})</span>
-                </div>
-                <div class="whoSub">
-                  <span class="dot"></span>
-                  <span class="muted">Direct chat</span>
-                  <span class="dotSep">•</span>
-                  <span class="muted">
-                    {{
-                      msgLoading
-                        ? "Loading…"
-                        : messages.length
-                          ? `${messages.length} messages`
-                          : "No messages yet"
-                    }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="chatActions">
-              <button class="btn ghost" type="button" @click="reloadMessages" :disabled="msgLoading">
-                <span class="btnIcon" :class="{ spin: msgLoading }">⟲</span>
-                Reload
+            <div class="searchRow">
+              <input v-model.trim="q" class="input" placeholder="Search…" @keydown.enter.prevent />
+              <button
+                v-if="q"
+                class="btn tiny"
+                type="button"
+                @click="q = ''"
+                title="Clear"
+                @mouseenter="btnHover($event, true)"
+                @mouseleave="btnHover($event, false)"
+              >
+                <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
           </div>
 
-          <!-- messages -->
-          <div ref="msgWrapEl" class="msgWrap">
-            <div v-if="msgLoading" class="state">
-              <div class="spinner"></div>
-              Loading messages...
+          <div class="miniRow">
+            <div class="mini">
+              <span class="muted">Unread</span>
+              <b class="mono">{{ totalUnread }}</b>
             </div>
-
-            <div v-else-if="msgError" class="state err">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              <span class="text">{{ msgError }}</span>
-              <button class="btn tiny" type="button" @click="reloadMessages">Try again</button>
+            <div class="mini">
+              <span class="muted">Active</span>
+              <b class="mono">{{ active?.bankcode || "-" }}</b>
             </div>
+          </div>
+        </div>
 
-            <div v-else class="msgs">
-              <div v-if="!messages.length" class="state">
-                <i class="fa-regular fa-comment-dots"></i>
-                Start the conversation…
-              </div>
-
-              <div v-for="m in messages" :key="m._key" class="row" :class="{ me: isMe(m), other: !isMe(m) }">
-                <div class="bubble" :class="{ pending: m._pending }">
-                  <div class="body" v-html="escapeToHtml(m.body || '')" />
-                  <div class="meta">
-                    <span class="time mono">{{ formatTime(m.created_at) }}</span>
-                    <span v-if="m._pending" class="pend mono">sending…</span>
-                    <span v-else-if="m.edited_at" class="edit mono">edited</span>
-                  </div>
-                </div>
-              </div>
-
-              <div ref="bottomEl" class="bottom" />
+        <div class="list">
+          <div v-if="bankError" class="state err">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <div class="stateTitle">Load inbox failed</div>
+              <div class="stateMsg">{{ bankError }}</div>
             </div>
           </div>
 
-          <!-- composer -->
-          <form class="composer" @submit.prevent="sendMessage">
-            <div class="inputWrap">
-              <textarea
-                ref="textareaEl"
-                v-model="draft"
-                class="input"
-                rows="1"
-                placeholder="Type a message…"
-                @input="autosize()"
-                @keydown.enter.exact.prevent="sendMessage"
-                @keydown.enter.shift.exact.stop
-              />
+          <div v-else-if="loading && banks.length === 0" class="state">
+            <span class="spinner" aria-hidden="true"></span>
+            Loading inbox…
+          </div>
+
+          <template v-else>
+            <div v-if="filteredBanks.length === 0" class="state">
+              <i class="fa-regular fa-folder-open"></i>
+              No conversations
             </div>
 
-            <button class="btn" type="submit" :disabled="sending || !draft.trim()">
-              <i class="fa-solid fa-paper-plane"></i>
-              Send
+            <button
+              v-for="b in filteredBanks"
+              :key="b._key"
+              type="button"
+              class="item"
+              :class="{ active: active?.conversation_id === b.conversation_id }"
+              @click="openConversation(b)"
+              @mouseenter="itemHover($event, true, b)"
+              @mouseleave="itemHover($event, false, b)"
+            >
+              <div class="itemTop">
+                <div class="bank">
+                  <i class="fa-solid fa-building-columns"></i>
+                  <span class="mono">{{ b.bankcode }}</span>
+                </div>
+
+                <div v-if="Number(b.unread_count) > 0" class="badge mono">
+                  {{ b.unread_count > 99 ? "99+" : b.unread_count }}
+                </div>
+              </div>
+
+              <div class="preview">
+                {{ b.last_preview || "—" }}
+              </div>
+
+              <div class="meta">
+                <span class="muted mono">#{{ b.conversation_id || "-" }}</span>
+                <span class="dotSep">•</span>
+                <span class="muted">{{ formatTime(b.last_message_at || b.updated_at) }}</span>
+              </div>
             </button>
-          </form>
-        </template>
+          </template>
+        </div>
+      </aside>
+
+      <!-- RIGHT: chat room -->
+      <main class="right js-reveal">
+        <div class="roomTop">
+          <div class="roomTitle">
+            <i class="fa-solid fa-comments"></i>
+            <span>ChatRoom</span>
+          </div>
+
+          <div class="roomMeta">
+            <span class="muted">Bankcode</span>
+            <b class="mono">{{ active?.bankcode || "-" }}</b>
+            <span class="dotSep">•</span>
+            <span class="muted">Conversation</span>
+            <b class="mono">{{ active?.conversation_id || "-" }}</b>
+          </div>
+
+          <button
+            class="btn tiny ghost"
+            type="button"
+            @click="reloadActive"
+            :disabled="!active || msgLoading"
+            @mouseenter="btnHover($event, true)"
+            @mouseleave="btnHover($event, false)"
+          >
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+        </div>
+
+        <div ref="msgListEl" class="msgs">
+          <div v-if="msgError" class="state err big">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <div class="stateTitle">Load messages failed</div>
+              <div class="stateMsg">{{ msgError }}</div>
+            </div>
+          </div>
+
+          <div v-else-if="!active" class="state big">
+            <i class="fa-regular fa-message"></i>
+            Select a bank on the left to start chatting
+          </div>
+
+          <div v-else-if="msgLoading && messages.length === 0" class="state big">
+            <span class="spinner" aria-hidden="true"></span>
+            Loading messages…
+          </div>
+
+          <template v-else>
+            <div v-if="messages.length === 0" class="state big">
+              <i class="fa-regular fa-message"></i>
+              No messages yet
+            </div>
+
+            <div
+              v-for="m in messages"
+              :key="m._key"
+              class="row"
+              :class="{ me: isMe(m), bank: !isMe(m) }"
+            >
+              <div class="bubble">
+                <div class="bubbleTop">
+                  <span class="who">
+                    <i v-if="isMe(m)" class="fa-solid fa-user-shield"></i>
+                    <i v-else class="fa-solid fa-building-columns"></i>
+                    {{ isMe(m) ? "Admin" : (active?.bankcode || "Bank") }}
+                  </span>
+                  <span class="time mono">{{ formatTime(m.created_at) }}</span>
+                </div>
+
+                <div class="body">{{ m.body }}</div>
+
+                <div v-if="m._pending" class="hint mono">sending…</div>
+                <div v-else-if="m._failed" class="hint bad mono">failed — retry</div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="composer">
+          <textarea
+            v-model="draft"
+            class="input"
+            placeholder="Type message to bank… (Enter to send, Shift+Enter new line)"
+            rows="2"
+            :disabled="!active"
+            @keydown.enter.prevent="onEnter"
+          ></textarea>
+
+          <button
+            class="btn primary"
+            type="button"
+            @click="send"
+            :disabled="!canSend"
+            @mouseenter="btnHover($event, true)"
+            @mouseleave="btnHover($event, false)"
+          >
+            <i class="fa-solid fa-paper-plane"></i>
+            Send
+          </button>
+        </div>
+
+        <div class="foot muted">
+          Dev auth:
+          <span class="mono">x-role: admin</span>
+          <span class="dotSep">•</span>
+          socket auth: <span class="mono">role=admin</span>
+        </div>
       </main>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { io } from "socket.io-client";
 import gsap from "gsap";
 
-/** =======================
- *  API CONFIG
- *  ======================= */
-const RAW_BASE = (import.meta?.env?.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
-const API_ROOT = /\/api$/i.test(RAW_BASE) ? RAW_BASE : `${RAW_BASE}/api`;
-const API_ORIGIN = /\/api$/i.test(RAW_BASE) ? RAW_BASE.replace(/\/api$/i, "") : RAW_BASE;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 
-const MEMBERS_API = (import.meta?.env?.VITE_MEMBERS_API || `${API_ROOT}/members`).replace(/\/$/, "");
-const CHAT_API = (import.meta?.env?.VITE_CHAT_API || `${API_ROOT}/chat`).replace(/\/$/, "");
-const FETCH_CREDENTIALS = (import.meta?.env?.VITE_FETCH_CREDENTIALS || "omit").toLowerCase();
-
-/** =======================
- *  STATE
- *  ======================= */
-const rootEl = ref(null);
-const msgWrapEl = ref(null);
-const bottomEl = ref(null);
-const textareaEl = ref(null);
-
-const banks = ref([]);
-const loadingBanks = ref(false);
+// state
+const loading = ref(false);
 const bankError = ref("");
-
-const activeBank = ref(null);
-
-const messages = ref([]);
 const msgLoading = ref(false);
 const msgError = ref("");
 
 const q = ref("");
+const banks = reactive([]); // list of conversations
+const active = ref(null); // { bankcode, conversation_id, unread_count, ... }
+const messages = reactive([]); // current room messages
+
 const draft = ref("");
-const sending = ref(false);
+const msgListEl = ref(null);
+const rootEl = ref(null);
 
-let revealTween = null;
+const socketStatus = ref("disconnected"); // connecting | connected | disconnected
+let socket = null;
 
-/** ✅ members index for mapping (bankcode -> member) */
-const membersIndex = ref(new Map());
+// best effort pending map
+const pendingMap = new Map(); // client_msg_id -> index
 
-/** =======================
- *  HELPERS
- *  ======================= */
-function normKey(v) {
-  return String(v ?? "").trim().toLowerCase();
+const filteredBanks = computed(() => {
+  const s = q.value.trim().toLowerCase();
+  if (!s) return banks;
+  return banks.filter((b) => String(b.bankcode || "").toLowerCase().includes(s));
+});
+
+const totalUnread = computed(() => banks.reduce((sum, b) => sum + Number(b.unread_count || 0), 0));
+
+const canSend = computed(() => !!active.value && socketStatus.value === "connected" && draft.value.trim().length > 0);
+
+// helpers
+function makeKey(obj) {
+  return obj?.id ? `id:${obj.id}` : `c:${obj.client_msg_id || obj._tmp || Math.random().toString(16).slice(2)}`;
 }
-
-function canonCode(v) {
-  return String(v ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\-_]+/g, "");
-}
-
-function pickArray(data) {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.members)) return data.members;
-  if (Array.isArray(data?.banks)) return data.banks;
-  if (Array.isArray(data?.rows)) return data.rows;
-  return [];
-}
-
-function resolveLogoUrl(raw) {
-  const v =
-    raw?.logo ||
-    raw?.logo_url ||
-    raw?.logoUrl ||
-    raw?.avatar ||
-    raw?.avatar_url ||
-    raw?.avatarUrl ||
-    raw?.image ||
-    raw?.image_url ||
-    raw?.imageUrl ||
-    raw?.profile_image ||
-    raw?.profileImage ||
-    "";
-
-  const s = String(v || "").trim();
-  if (!s) return "";
-  if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
-  return `${API_ORIGIN}/${s.replace(/^\.?\//, "")}`;
-}
-
-function normalizeMember(raw, i = 0) {
-  const id = raw?.id ?? raw?.member_id ?? raw?.memberId ?? raw?.user_id ?? raw?._id ?? i;
-
-  const bankcode =
-    raw?.bankcode ??
-    raw?.bank_code ??
-    raw?.bankCode ??
-    raw?.code ??
-    raw?.iaccount ??
-    raw?.iAccount ??
-    raw?.i_account ??
-    null;
-
-  const iaccount =
-    raw?.iaccount ?? raw?.iAccount ?? raw?.i_account ?? raw?.account_code ?? raw?.accountCode ?? raw?.code ?? "";
-
-  const name =
-    raw?.name ??
-    raw?.bank_name ??
-    raw?.bankName ??
-    raw?.member_name ??
-    raw?.display_name ??
-    raw?.displayName ??
-    raw?.title ??
-    "MemberBank";
-
-  const safeCode = String(bankcode || iaccount || id || "").trim();
-
-  const codesRaw = [
-    bankcode,
-    iaccount,
-    raw?.bank_code,
-    raw?.bankcode,
-    raw?.bankCode,
-    raw?.code,
-    raw?.iaccount,
-    raw?.iAccount,
-    raw?.i_account,
-    raw?.account_code,
-    raw?.accountCode,
-    raw?.member_code,
-    raw?.memberCode,
-    id,
-  ];
-
-  const codes = Array.from(
-    new Set(
-      codesRaw
-        .map((x) => String(x ?? "").trim())
-        .filter(Boolean)
-    )
-  );
-
-  return {
-    id,
-    bankcode: safeCode,
-    iaccount: String(iaccount || safeCode || "").trim(),
-    name: String(name || "").trim(),
-    logo: resolveLogoUrl(raw),
-
-    unread_count: 0,
-    last_preview: "",
-    last_at: null,
-    conversation_id: null,
-
-    _codes: codes,
-    _key: `m:${String(id)}:${safeCode}`,
-  };
-}
-
-function normalizeMetaBank(raw) {
-  const bankcode = raw?.bankcode ?? raw?.bank_code ?? raw?.code ?? raw?.iaccount ?? raw?.iAccount ?? "";
-  const member_id = raw?.member_id ?? raw?.memberId ?? raw?.user_id ?? raw?.uid ?? null;
-
-  return {
-    bankcode: String(bankcode || "").trim(),
-    member_id,
-    conversation_id: raw?.conversation_id ?? raw?.conversationId ?? raw?.conversation ?? raw?.id ?? null,
-    unread_count: Number(raw?.unread_count ?? raw?.unread ?? 0),
-    last_preview: raw?.last_preview ?? raw?.last_message ?? raw?.preview ?? "",
-    last_at: raw?.last_at ?? raw?.last_message_at ?? raw?.updated_at ?? null,
-  };
-}
-
-function normalizeMessage(raw) {
-  const created = raw.created_at ?? raw.createdAt ?? raw.time ?? raw.sent_at ?? new Date().toISOString();
-  const id = raw.id ?? raw.message_id ?? raw.mid ?? null;
-  return {
-    id,
-    conversation_id: raw.conversation_id ?? raw.conversationId ?? null,
-    sender_role: raw.sender_role ?? raw.role ?? raw.from_role ?? "",
-    sender_bankcode: raw.sender_bankcode ?? raw.bankcode ?? raw.bank_code ?? null,
-    body: raw.body ?? raw.message ?? raw.text ?? "",
-    created_at: created,
-    edited_at: raw.edited_at ?? raw.editedAt ?? null,
-    client_msg_id: raw.client_msg_id ?? raw.clientMsgId ?? null,
-    _pending: Boolean(raw._pending),
-    _key: id ? `m:${id}` : `tmp:${raw.client_msg_id || Math.random().toString(16).slice(2)}`,
-  };
-}
-
-function escapeToHtml(s) {
-  const safe = String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-  return safe.replaceAll("\n", "<br>");
-}
-
-function formatTime(d) {
-  try {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return "";
-    return dt.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "";
-  }
-}
-
 function isMe(m) {
-  return String(m?.sender_role || "").toLowerCase() === "admin";
+  return String(m.sender_role) === "admin";
 }
-
-function onImgError(e) {
-  const img = e?.target;
-  if (img) img.style.display = "none";
-}
-
-/** ✅ build index: bankcode -> member */
-function buildMembersIndex(membersArr) {
-  const mp = new Map();
-  for (const mb of membersArr || []) {
-    const keys = new Set(
-      [mb.bankcode, mb.iaccount, mb.id, ...(mb._codes || [])]
-        .map((x) => String(x ?? "").trim())
-        .filter(Boolean)
-    );
-    for (const k of keys) {
-      mp.set(normKey(k), mb);
-      mp.set(canonCode(k), mb);
-    }
-  }
-  membersIndex.value = mp;
-}
-
-function memberFromBank(b) {
-  const code = String(b?.bankcode || b?.iaccount || b?.id || "").trim();
-  if (!code) return null;
-  return membersIndex.value.get(normKey(code)) || membersIndex.value.get(canonCode(code)) || null;
-}
-
-function bankName(b) {
-  const mb = memberFromBank(b);
-  return mb?.name || b?.name || "MemberBank";
-}
-
-function bankLogo(b) {
-  const mb = memberFromBank(b);
-  return mb?.logo || b?.logo || "";
-}
-
-function getToken() {
+function formatTime(dt) {
   try {
-    return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+    if (!dt) return "-";
+    const d = new Date(dt);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" });
   } catch {
-    return "";
+    return "-";
   }
 }
-
-async function fetchJSON(url, options = {}) {
-  const token = getToken();
-
-  const headers = {
-    Accept: "application/json",
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
-
-  let res;
+async function scrollToBottom() {
+  await nextTick();
+  const el = msgListEl.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+}
+async function animateLastRow() {
+  await nextTick();
+  const el = msgListEl.value?.querySelector?.(".row:last-child");
+  if (!el) return;
+  gsap.fromTo(el, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.22, ease: "power2.out" });
+}
+function uuid() {
   try {
-    res = await fetch(url, {
-      ...options,
-      headers,
-      credentials: FETCH_CREDENTIALS === "include" ? "include" : "omit",
-    });
-  } catch (e) {
-    console.error("[fetchJSON network error]", url, e);
-    throw new Error("Network error: ติดต่อ API ไม่ได้ (เช็คว่า backend รันอยู่ไหม / CORS)");
-  }
-
-  const raw = await res.text();
-  let data = null;
-  try {
-    data = raw ? JSON.parse(raw) : null;
+    return crypto.randomUUID();
   } catch {
-    data = raw;
-  }
-
-  if (!res.ok) {
-    console.error("[fetchJSON fail]", { url, status: res.status, data });
-    const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
-    throw new Error(msg);
-  }
-
-  return data;
-}
-
-/** =======================
- *  API CALLS
- *  ======================= */
-async function apiLoadOnlyBanksWithChats() {
-  loadingBanks.value = true;
-  bankError.value = "";
-  try {
-    const [mData, metaData] = await Promise.all([
-      fetchJSON(MEMBERS_API),
-      fetchJSON(`${CHAT_API}/admin/banks`, {
-        headers: { "x-role": "admin" },
-      }),
-    ]);
-
-    const members = pickArray(mData).map(normalizeMember).filter((x) => x && x.id != null);
-
-    // ✅ build members mapping for name/logo
-    buildMembersIndex(members);
-
-    const metaArr = pickArray(metaData).map(normalizeMetaBank);
-
-    // existing merge logic (kept as-is)
-    const memberMap = new Map();
-    for (const mb of members) {
-      const keys = new Set(
-        [mb.bankcode, mb.iaccount, mb.id, ...(mb._codes || [])]
-          .map((x) => String(x ?? "").trim())
-          .filter(Boolean)
-      );
-
-      for (const k of keys) {
-        memberMap.set(normKey(k), mb);
-        memberMap.set(canonCode(k), mb);
-      }
-    }
-
-    const merged = metaArr.map((m, idx) => {
-      const k1 = normKey(m.bankcode);
-      const k2 = canonCode(m.bankcode);
-
-      const mid1 = m.member_id != null ? normKey(m.member_id) : "";
-      const mid2 = m.member_id != null ? canonCode(m.member_id) : "";
-
-      const found =
-        memberMap.get(k1) ||
-        memberMap.get(k2) ||
-        (mid1 ? memberMap.get(mid1) : null) ||
-        (mid2 ? memberMap.get(mid2) : null);
-
-      const base = found
-        ? { ...found }
-        : {
-            id: `unknown_${idx}`,
-            bankcode: String(m.bankcode || `unknown_${idx}`),
-            iaccount: String(m.bankcode || ""),
-            name: "MemberBank",
-            logo: "",
-            _key: `unknown:${idx}:${String(m.bankcode || "")}`,
-            unread_count: 0,
-            last_preview: "",
-            last_at: null,
-            conversation_id: null,
-          };
-
-      return {
-        ...base,
-        unread_count: m.unread_count ?? base.unread_count,
-        last_preview: m.last_preview ?? base.last_preview,
-        last_at: m.last_at ?? base.last_at,
-        conversation_id: m.conversation_id ?? base.conversation_id,
-        _key: base._key || `b:${String(base.id)}:${String(base.bankcode || "")}`,
-      };
-    });
-
-    merged.sort((a, b) => {
-      const ta = a.last_at ? new Date(a.last_at).getTime() : 0;
-      const tb = b.last_at ? new Date(b.last_at).getTime() : 0;
-      return tb - ta;
-    });
-
-    banks.value = merged;
-  } catch (e) {
-    bankError.value = e?.message || "Failed to load active chat banks";
-  } finally {
-    loadingBanks.value = false;
+    return `c_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 }
+function bumpConversationToTop(conversationId) {
+  const idx = banks.findIndex((b) => Number(b.conversation_id) === Number(conversationId));
+  if (idx <= 0) return;
+  const [it] = banks.splice(idx, 1);
+  banks.unshift(it);
+}
 
-async function apiEnsureConversation(bank) {
-  if (bank?.conversation_id) return Number(bank.conversation_id);
+// -------- GSAP UI helpers --------
+function btnHover(e, enter) {
+  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
+}
+function itemHover(e, enter, b) {
+  if (b && active.value?.conversation_id === b.conversation_id) return;
+  gsap.to(e.currentTarget, { y: enter ? -1 : 0, duration: 0.18, ease: "power2.out" });
+}
+function revealIn() {
+  const root = rootEl.value;
+  if (!root) return;
+  const q = gsap.utils.selector(root);
+  const nodes = q(".js-reveal");
+  gsap.killTweensOf(nodes);
+  gsap.set(nodes, { opacity: 0, y: 12 });
+  gsap.to(nodes, { opacity: 1, y: 0, stagger: 0.07, duration: 0.45, ease: "power3.out" });
+}
 
-  const bankcode = String(bank?.bankcode || bank?.iaccount || "").trim();
-  if (!bankcode) throw new Error("Missing bankcode/iAccount for this member");
-
-  const data = await fetchJSON(`${CHAT_API}/conversations/ensure`, {
-    method: "POST",
+// -------- REST --------
+async function fetchBanks() {
+  const res = await fetch(`${API_BASE}/api/chat/admin/banks`, {
     headers: { "x-role": "admin" },
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`admin/banks failed (${res.status}): ${t || res.statusText}`);
+  }
+  const data = await res.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  banks.splice(0, banks.length);
+  for (const it of items) {
+    banks.push({
+      bankcode: it.bankcode,
+      conversation_id: Number(it.conversation_id || it.id || 0),
+      unread_count: Number(it.unread_count || it.admin_unread || 0),
+      last_preview: it.last_preview || it.last_message || "",
+      last_message_at: it.last_message_at || it.last_at || null,
+      updated_at: it.updated_at || null,
+      _key: `${it.bankcode || "?"}:${it.conversation_id || it.id || Math.random()}`,
+    });
+  }
+}
+
+async function ensureConversationByBankcode(bankcode) {
+  const res = await fetch(`${API_BASE}/api/chat/conversations/ensure`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-role": "admin" },
     body: JSON.stringify({ bankcode }),
   });
-
-  const convId = data?.conversation_id ?? data?.id ?? data?.conversationId;
-  if (!convId) throw new Error("Conversation id not returned");
-  return Number(convId);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`ensure failed (${res.status}): ${t || res.statusText}`);
+  }
+  const data = await res.json();
+  const id = Number(data.conversation_id || 0);
+  if (!id) throw new Error("ensure: conversation_id missing");
+  return id;
 }
 
-async function apiLoadMessages(conversationId) {
-  msgLoading.value = true;
-  msgError.value = "";
-  try {
-    const data = await fetchJSON(`${CHAT_API}/conversations/${conversationId}/messages?limit=50`, {
-      headers: { "x-role": "admin" },
-    });
-    const arr = pickArray(data);
-    messages.value = arr.map(normalizeMessage);
+async function loadMessages(conversationId) {
+  const res = await fetch(`${API_BASE}/api/chat/conversations/${conversationId}/messages?limit=200`, {
+    headers: { "x-role": "admin" },
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`messages failed (${res.status}): ${t || res.statusText}`);
+  }
+  const data = await res.json();
+  const items = Array.isArray(data.items) ? data.items : [];
 
-    await nextTick();
-    scrollToBottom(true);
+  messages.splice(0, messages.length);
+  for (const m of items) {
+    messages.push({ ...m, _pending: false, _failed: false, _key: makeKey(m) });
+  }
+  await scrollToBottom();
+}
+
+// -------- Socket --------
+function connectSocket() {
+  if (socket) {
+    try { socket.disconnect(); } catch {}
+    socket = null;
+  }
+
+  socketStatus.value = "connecting";
+
+  socket = io(API_BASE, {
+    transports: ["websocket"],
+    auth: { role: "admin" },
+  });
+
+  socket.on("connect", () => {
+    socketStatus.value = "connected";
+    if (active.value?.conversation_id) {
+      socket.emit("chat:join", { conversation_id: active.value.conversation_id }, () => {});
+    }
+  });
+
+  socket.on("disconnect", () => {
+    socketStatus.value = "disconnected";
+  });
+
+  socket.on("chat:error", (e) => {
+    console.warn("chat:error", e);
+  });
+
+  // realtime message (เฉพาะห้องที่ admin join)
+  socket.on("chat:new_message", async (msg) => {
+    const cid = Number(msg?.conversation_id || 0);
+    if (!cid) return;
+
+    // update inbox list (preview/time + bump)
+    const bi = banks.find((b) => Number(b.conversation_id) === cid);
+    if (bi) {
+      bi.last_preview = String(msg?.body || bi.last_preview || "");
+      bi.last_message_at = msg?.created_at || bi.last_message_at || null;
+      bumpConversationToTop(cid);
+    }
+
+    // ถ้าเป็นห้องที่เปิดอยู่ -> append/replace
+    if (active.value?.conversation_id === cid) {
+      const clientId = msg?.client_msg_id ? String(msg.client_msg_id) : null;
+
+      if (clientId && pendingMap.has(clientId)) {
+        const idx = pendingMap.get(clientId);
+        if (typeof idx === "number" && messages[idx]) {
+          messages[idx] = { ...msg, _pending: false, _failed: false, _key: makeKey(msg) };
+        } else {
+          messages.push({ ...msg, _pending: false, _failed: false, _key: makeKey(msg) });
+        }
+        pendingMap.delete(clientId);
+      } else {
+        const exists = messages.some(
+          (m) => (m.id && m.id === msg.id) || (clientId && m.client_msg_id === clientId)
+        );
+        if (!exists) messages.push({ ...msg, _pending: false, _failed: false, _key: makeKey(msg) });
+      }
+
+      if (bi) bi.unread_count = 0;
+      await animateLastRow();
+      await scrollToBottom();
+      return;
+    }
+
+    // ห้องอื่น: เพิ่ม unread
+    if (bi) bi.unread_count = Number(bi.unread_count || 0) + 1;
+  });
+
+  // inbox update สำหรับ admin ทุกคน (ถ้า backend ส่ง event นี้)
+  socket.on("chat:inbox_update", (u) => {
+    const cid = Number(u?.conversation_id || 0);
+    if (!cid) return;
+
+    const bi = banks.find((b) => Number(b.conversation_id) === cid);
+    if (bi) {
+      bi.last_preview = String(u.last_preview || bi.last_preview || "");
+      bi.last_message_at = u.last_at || bi.last_message_at || null;
+      bumpConversationToTop(cid);
+
+      if (active.value?.conversation_id !== cid) bi.unread_count = Number(bi.unread_count || 0) + 1;
+      else bi.unread_count = 0;
+    } else {
+      fetchBanks().catch(() => {});
+    }
+  });
+}
+
+// -------- actions --------
+async function reloadAll(refreshActiveToo = false) {
+  bankError.value = "";
+  msgError.value = "";
+  loading.value = true;
+
+  try {
+    await fetchBanks();
+
+    if (refreshActiveToo && active.value?.conversation_id) {
+      // keep selection + clear unread
+      const cid = Number(active.value.conversation_id);
+      const bi = banks.find((b) => Number(b.conversation_id) === cid);
+      if (bi) {
+        active.value = { ...active.value, ...bi, unread_count: 0 };
+        bi.unread_count = 0;
+      }
+      await loadMessages(cid);
+      if (socket && socketStatus.value === "connected") socket.emit("chat:join", { conversation_id: cid }, () => {});
+    }
   } catch (e) {
-    msgError.value = e?.message || "Failed to load messages";
+    bankError.value = e?.message || String(e);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function openConversation(item) {
+  msgError.value = "";
+  msgLoading.value = true;
+
+  try {
+    const bankcode = String(item.bankcode || "").trim();
+    let conversation_id = Number(item.conversation_id || 0);
+
+    if (!conversation_id && bankcode) {
+      conversation_id = await ensureConversationByBankcode(bankcode);
+    }
+
+    // leave previous room (best-effort)
+    const prevCid = Number(active.value?.conversation_id || 0);
+    if (socket && socketStatus.value === "connected" && prevCid && prevCid !== conversation_id) {
+      socket.emit("chat:leave", { conversation_id: prevCid }, () => {});
+    }
+
+    active.value = { ...item, bankcode, conversation_id, unread_count: 0 };
+
+    // set list unread = 0
+    const bi =
+      banks.find((b) => b.bankcode === bankcode) ||
+      banks.find((b) => Number(b.conversation_id) === Number(conversation_id));
+
+    if (bi) {
+      bi.conversation_id = conversation_id;
+      bi.unread_count = 0;
+      bumpConversationToTop(conversation_id);
+    }
+
+    await loadMessages(conversation_id);
+
+    // join socket room
+    if (socket && socketStatus.value === "connected") {
+      socket.emit("chat:join", { conversation_id }, () => {});
+    }
+  } catch (e) {
+    msgError.value = e?.message || String(e);
   } finally {
     msgLoading.value = false;
   }
 }
 
-async function apiSendMessage(conversationId, body, clientMsgId) {
-  const data = await fetchJSON(`${CHAT_API}/conversations/${conversationId}/messages`, {
-    method: "POST",
-    headers: { "x-role": "admin" },
-    body: JSON.stringify({ body, client_msg_id: clientMsgId }),
-  });
-  const msg = data?.message ?? data;
-  return normalizeMessage(msg);
-}
-
-/** =======================
- *  UI LOGIC
- *  ======================= */
-const filteredBanks = computed(() => {
-  const s = q.value.trim().toLowerCase();
-  if (!s) return banks.value;
-  return banks.value.filter((b) => {
-    const hay = `${b.bankcode || ""} ${b.iaccount || ""} ${b.name || ""} ${b.id || ""}`.toLowerCase();
-    return hay.includes(s);
-  });
-});
-
-const totalBanksLabel = computed(() => banks.value.length || 0);
-
-async function reloadAll() {
-  await apiLoadOnlyBanksWithChats();
-  if (activeBank.value) {
-    const found = banks.value.find((x) => x.id === activeBank.value.id);
-    if (found) activeBank.value = found;
-  }
-}
-
-async function selectBank(b) {
-  activeBank.value = b;
-  draft.value = "";
-  messages.value = [];
+async function reloadActive() {
+  if (!active.value?.conversation_id) return;
   msgError.value = "";
-
+  msgLoading.value = true;
   try {
-    const convId = await apiEnsureConversation(b);
-    b.conversation_id = convId;
-    await apiLoadMessages(convId);
-    b.unread_count = 0;
-
-    await nextTick();
-    autosize(true);
+    await loadMessages(Number(active.value.conversation_id));
   } catch (e) {
-    msgError.value = e?.message || "Failed to open conversation";
+    msgError.value = e?.message || String(e);
+  } finally {
+    msgLoading.value = false;
   }
 }
 
-async function reloadMessages() {
-  if (!activeBank.value) return;
-  const convId = await apiEnsureConversation(activeBank.value);
-  await apiLoadMessages(convId);
-}
+async function send() {
+  if (!canSend.value) return;
 
-function scrollToBottom(immediate = false) {
-  const bottom = bottomEl.value;
-  if (!bottom) return;
-  bottom.scrollIntoView({ block: "end", behavior: immediate ? "auto" : "smooth" });
-}
-
-async function sendMessage() {
-  if (!activeBank.value) return;
   const text = draft.value.trim();
-  if (!text) return;
-
-  const convId = await apiEnsureConversation(activeBank.value);
-  const clientMsgId = `c_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-  const optimistic = normalizeMessage({
-    id: null,
-    conversation_id: convId,
-    sender_role: "admin",
-    body: text,
-    created_at: new Date().toISOString(),
-    client_msg_id: clientMsgId,
-    _pending: true,
-  });
-
-  messages.value.push(optimistic);
   draft.value = "";
 
-  await nextTick();
-  autosize(true);
-  scrollToBottom(false);
+  const conversation_id = Number(active.value.conversation_id);
+  const client_msg_id = uuid();
 
-  sending.value = true;
-  try {
-    const saved = await apiSendMessage(convId, text, clientMsgId);
-    const idx = messages.value.findIndex((m) => m.client_msg_id === clientMsgId || m._key === optimistic._key);
-    if (idx >= 0) messages.value[idx] = saved;
-    else messages.value.push(saved);
+  const optimistic = {
+    id: null,
+    conversation_id,
+    sender_role: "admin",
+    sender_bankcode: null,
+    body: text,
+    client_msg_id,
+    created_at: new Date().toISOString(),
+    _pending: true,
+    _failed: false,
+    _tmp: client_msg_id,
+  };
+  optimistic._key = makeKey(optimistic);
 
-    activeBank.value.last_preview = text;
-    activeBank.value.last_at = new Date().toISOString();
-  } catch (e) {
-    msgError.value = e?.message || "Send failed";
-    const idx = messages.value.findIndex((m) => m.client_msg_id === clientMsgId || m._key === optimistic._key);
-    if (idx >= 0) messages.value[idx]._pending = false;
-  } finally {
-    sending.value = false;
+  const idx = messages.push(optimistic) - 1;
+  pendingMap.set(client_msg_id, idx);
+
+  await animateLastRow();
+  await scrollToBottom();
+
+  socket?.emit("chat:send", { conversation_id, body: text, client_msg_id }, (ack) => {
+    if (!ack?.ok) {
+      const i = pendingMap.get(client_msg_id);
+      if (typeof i === "number" && messages[i]) {
+        messages[i]._pending = false;
+        messages[i]._failed = true;
+        messages[i]._key = makeKey(messages[i]);
+      }
+      pendingMap.delete(client_msg_id);
+    }
+  });
+
+  // update preview in inbox immediately (best effort)
+  const bi = banks.find((b) => Number(b.conversation_id) === conversation_id);
+  if (bi) {
+    bi.last_preview = text;
+    bi.last_message_at = new Date().toISOString();
+    bumpConversationToTop(conversation_id);
   }
 }
 
-function autosize(forceSmall = false) {
-  const el = textareaEl.value;
-  if (!el) return;
-  el.style.height = "auto";
-  const h = Math.min(140, Math.max(42, el.scrollHeight || 42));
-  el.style.height = (forceSmall ? 42 : h) + "px";
+function onEnter(e) {
+  if (e.shiftKey) return;
+  send();
 }
 
-/** =======================
- *  GSAP
- *  ======================= */
-function runReveal() {
-  const root = rootEl.value;
-  if (!root) return;
-  const nodes = root.querySelectorAll(".js-reveal");
-  if (!nodes.length) return;
-
-  revealTween?.kill?.();
-  gsap.set(nodes, { opacity: 0, y: 12 });
-
-  revealTween = gsap.to(nodes, {
-    opacity: 1,
-    y: 0,
-    duration: 0.42,
-    ease: "power3.out",
-    stagger: 0.06,
-    clearProps: "opacity,transform",
-  });
-}
-
-function cardHover(e, enter) {
-  gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
-}
-
+// lifecycle
 onMounted(async () => {
-  runReveal();
-  await reloadAll();
+  await nextTick();
+  revealIn();
+  await reloadAll(false);
+  connectSocket();
 });
 
 onBeforeUnmount(() => {
-  revealTween?.kill?.();
-  revealTween = null;
-});
-
-watch(draft, async () => {
-  await nextTick();
-  autosize(false);
+  try { socket?.disconnect(); } catch {}
+  socket = null;
 });
 </script>
 
 <style scoped>
-/* ใช้ style เดิมของคุณได้เลย (ไม่ได้แก้) */
-.mbChat {
-  display: grid;
-  gap: 14px;
-  padding: 8px 2px 2px;
+/* ใช้ theme vars จาก App.vue: --panel --stroke --txt --muted --blueA --blueB ... */
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
-/* Header */
-.mbHead {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
+.muted{ color: var(--muted); }
+.dotSep{ margin: 0 10px; opacity: .5; }
+
+.ok{ color: rgba(60,255,170,.95); }
+.bad{ color: rgba(255,120,120,.95); }
+
+.chatAdmin{
+  display:flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: calc(100vh - 40px);
+}
+
+/* header */
+.topbar{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 14px;
+
+  padding: 14px 16px;
   border-radius: 18px;
-  padding: 16px 16px;
   background: var(--panel);
   border: 1px solid var(--stroke);
   backdrop-filter: blur(14px);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 18px 44px rgba(0,0,0,.28);
 }
-.kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+
+.headline .kicker{
+  display:flex;
+  align-items:center;
+  gap:10px;
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--muted);
 }
-.kDot {
-  width: 10px;
-  height: 10px;
+.kDot{
+  width: 10px; height: 10px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.95);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), rgba(56,189,248,.95));
+  box-shadow: 0 0 18px rgba(56,189,248,.25);
 }
-.title {
-  margin: 8px 0 6px;
+
+.title{
+  margin: 6px 0 2px;
   font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.12;
+  letter-spacing: .2px;
 }
-.sub {
+.subtitle{
   margin: 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255,255,255,.72);
 }
-.muted {
-  color: var(--muted);
-}
-.mono {
-  font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-.mbHeadRight {
-  display: flex;
+
+.actions{
+  display:flex;
+  align-items:center;
   gap: 10px;
-  align-items: center;
 }
-.pill {
-  display: inline-flex;
-  align-items: center;
+
+.pill{
+  display:flex;
+  align-items:center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 999px;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.10);
 }
-/* Grid */
-.mbGrid {
-  display: grid;
-  grid-template-columns: 340px 1fr;
+.pill .dot{
+  width: 10px; height: 10px; border-radius: 999px;
+  background: rgba(255,255,255,.35);
+}
+.pill.ok .dot{ background: rgba(60,255,170,.9); box-shadow: 0 0 18px rgba(60,255,170,.18); }
+.pill.bad .dot{ background: rgba(255,93,93,.9); box-shadow: 0 0 18px rgba(255,93,93,.18); }
+
+/* buttons */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.90);
+  cursor:pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.btn:hover{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(56,189,248,.22);
+}
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+.btn.ghost{ background: rgba(0,0,0,.18); }
+.btn.primary{
+  background: linear-gradient(90deg, rgba(56,189,248,.16), rgba(99,102,241,.12));
+  border-color: rgba(56,189,248,.22);
+}
+.btn.tiny{
+  padding: 9px 10px;
+  border-radius: 12px;
+}
+.btnIcon.spin{ animation: spin .9s linear infinite; }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* layout */
+.grid{
+  display:grid;
+  grid-template-columns: 360px 1fr;
   gap: 14px;
+  align-items: start;
+}
+
+/* left panel */
+.left, .right{
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(0,0,0,.26);
+}
+
+.left{
+  display:flex;
+  flex-direction: column;
   min-height: 72vh;
 }
-/* Left */
-.left {
-  border-radius: 18px;
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+
+.leftTop{
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.14);
 }
-.panelTop {
-  padding: 14px 14px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--panel2);
-}
-.panelTitle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 900;
-  margin-bottom: 10px;
-}
-.search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-}
-.search i {
-  color: rgba(255, 255, 255, 0.65);
-}
-.searchInput {
-  width: 100%;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-}
-.x {
-  border: 0;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.88);
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.list {
-  padding: 10px;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bankItem {
-  text-align: left;
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-  padding: 12px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  color: inherit;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.bankItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(56, 189, 248, 0.18);
-  box-shadow: 0 12px 26px rgba(56, 189, 248, 0.08);
-}
-.bankItem.active {
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
-  border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 18px 36px rgba(56, 189, 248, 0.1);
-}
-.bankTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-.bankRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.bankAvatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.bankAvatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.bankAvatar span {
-  font-weight: 950;
-  color: rgba(255, 255, 255, 0.88);
-}
-.bankName .name {
-  font-weight: 950;
-  display: block;
-}
-.bankName .id {
-  display: block;
-  margin-top: 2px;
-  color: rgba(255, 255, 255, 0.62);
+
+.field .label{
   font-size: 12px;
-}
-.badge {
-  min-width: 26px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  color: rgba(255, 255, 255, 0.92);
-  font-weight: 950;
-  font-size: 12px;
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
-}
-.bankBottom {
-  margin-top: 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
-}
-.preview {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  max-width: 240px;
-}
-/* Right */
-.right {
-  border-radius: 18px;
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
-}
-.empty {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-.emptyCard {
-  width: min(520px, 100%);
-  border-radius: 18px;
-  background: var(--panel2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 20px;
-  text-align: center;
-}
-.bigIcon {
-  font-size: 34px;
+  color: var(--muted);
   margin-bottom: 6px;
 }
-.chatHead {
-  padding: 14px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--panel2);
-}
-.who {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: var(--glass);
-  border: 1px solid var(--stroke);
-}
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.whoName {
-  font-weight: 950;
-}
-.whoId {
-  margin-left: 6px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
-}
-.whoSub {
-  display: flex;
-  align-items: center;
+
+.searchRow{
+  display:flex;
   gap: 8px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
-  margin-top: 2px;
+  align-items:center;
 }
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(120, 255, 170, 0.95);
-  box-shadow: 0 0 0 6px rgba(120, 255, 170, 0.1);
-}
-.dotSep {
-  opacity: 0.5;
-}
-.msgWrap {
-  flex: 1;
-  overflow: auto;
-  padding: 14px 14px;
-}
-.msgs {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.row {
-  display: flex;
-}
-.row.me {
-  justify-content: flex-end;
-}
-.row.other {
-  justify-content: flex-start;
-}
-.bubble {
-  max-width: min(72ch, 85%);
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
-}
-.row.me .bubble {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.18);
-}
-.bubble.pending {
-  opacity: 0.72;
-}
-.body {
-  word-break: break-word;
-  line-height: 1.35;
-  font-size: 14px;
-}
-.meta {
-  margin-top: 6px;
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.62);
-}
-.bottom {
-  height: 1px;
-}
-/* Composer */
-.composer {
-  padding: 12px;
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: var(--panel2);
-}
-.inputWrap {
-  flex: 1;
-}
-.input {
+
+.input{
   width: 100%;
-  min-height: 42px;
-  max-height: 140px;
-  resize: none;
-  padding: 10px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: var(--glass);
-  color: rgba(255, 255, 255, 0.92);
+  padding: 10px 12px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.10);
+  color: rgba(255,255,255,.92);
   outline: none;
-  font-size: 14px;
+  box-sizing: border-box;
 }
-/* Buttons + state */
-.btn {
-  display: inline-flex;
-  align-items: center;
+.input:focus{
+  border-color: rgba(56,189,248,.28);
+  box-shadow: 0 0 0 4px rgba(56,189,248,.10);
+}
+
+.miniRow{
+  display:flex;
   gap: 10px;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  background: rgba(56, 189, 248, 0.12);
-  color: rgba(255, 255, 255, 0.92);
+  margin-top: 10px;
+}
+.mini{
+  flex:1;
+  border-radius: 14px;
   padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  font-weight: 950;
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(255,255,255,.08);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
-.btn:hover {
-  transform: translateY(-1px);
-  background: rgba(56, 189, 248, 0.16);
+
+/* inbox list */
+.list{
+  padding: 10px;
+  overflow: auto;
 }
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
+.list::-webkit-scrollbar{ width: 10px; }
+.list::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.08); border-radius: 999px; }
+
+.item{
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.16);
+  color: rgba(255,255,255,.9);
+  cursor:pointer;
+  margin-bottom: 10px;
+  transition: border-color .18s ease, background .18s ease;
 }
-.btn.ghost {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.82);
+.item:hover{
+  border-color: rgba(56,189,248,.18);
+  background: rgba(0,0,0,.20);
 }
-.btn.tiny {
-  padding: 8px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+.item.active{
+  border-color: rgba(56,189,248,.24);
+  background: linear-gradient(90deg, rgba(56,189,248,.12), rgba(99,102,241,.08));
 }
-.btnIcon {
-  display: inline-block;
+
+.itemTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 8px;
 }
-.spin {
-  animation: spin 0.9s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.state {
-  padding: 16px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.72);
-  display: flex;
-  align-items: center;
+.bank{
+  display:flex;
+  align-items:center;
   gap: 10px;
-  justify-content: center;
-  text-align: center;
+  font-weight: 950;
 }
-.state.err {
-  color: rgba(255, 170, 170, 0.95);
-  border-color: rgba(255, 80, 80, 0.22);
-  background: rgba(255, 80, 80, 0.08);
-}
-.state .text {
-  max-width: 70%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.spinner {
-  width: 18px;
-  height: 18px;
+.badge{
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(255, 255, 255, 0.85);
-  animation: spin 0.7s linear infinite;
+  background: rgba(255,93,93,.14);
+  border: 1px solid rgba(255,93,93,.25);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 950;
 }
-@media (max-width: 980px) {
-  .mbGrid {
-    grid-template-columns: 1fr;
-  }
-  .left {
-    max-height: 360px;
-  }
-  .right {
-    min-height: 60vh;
-  }
+.preview{
+  color: rgba(255,255,255,.75);
+  font-size: 13px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.meta{
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,.62);
+}
+
+/* right panel */
+.right{
+  display:flex;
+  flex-direction: column;
+  min-height: 72vh;
+}
+
+.roomTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.14);
+}
+.roomTitle{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 950;
+}
+.roomMeta{
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+  margin-left: auto;
+}
+
+/* messages */
+.msgs{
+  flex: 1;
+  padding: 14px;
+  overflow: auto;
+  scroll-behavior: smooth;
+}
+.msgs::-webkit-scrollbar{ width: 10px; }
+.msgs::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.08); border-radius: 999px; }
+
+.row{ display:flex; margin: 10px 0; }
+.row.me{ justify-content:flex-end; }
+.row.bank{ justify-content:flex-start; }
+
+.bubble{
+  max-width: min(760px, 86%);
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.row.me .bubble{
+  background: linear-gradient(135deg, rgba(99,102,241,.14), rgba(0,0,0,.16));
+  border-color: rgba(99,102,241,.22);
+}
+.row.bank .bubble{
+  background: linear-gradient(135deg, rgba(56,189,248,.14), rgba(0,0,0,.16));
+  border-color: rgba(56,189,248,.22);
+}
+
+.bubbleTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.who{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  font-weight: 950;
+}
+.time{ font-size: 12px; color: rgba(255,255,255,.55); }
+.body{
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.42;
+  color: rgba(255,255,255,.92);
+}
+.hint{
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+}
+.hint.bad{ color: rgba(255,120,120,.9); }
+
+/* composer */
+.composer{
+  display:flex;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.14);
+}
+
+/* state */
+.state{
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+  border: 1px dashed rgba(255,255,255,.14);
+  display:flex;
+  gap: 12px;
+  align-items:flex-start;
+  color: rgba(255,255,255,.82);
+}
+.state.big{ padding: 20px; }
+.state.err{
+  border-style: solid;
+  border-color: rgba(255,93,93,.25);
+  background: rgba(255,93,93,.06);
+}
+.stateTitle{ font-weight: 950; margin-bottom: 2px; }
+.stateMsg{ color: rgba(255,255,255,.75); }
+
+.spinner{
+  width: 14px; height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,.25);
+  border-top-color: rgba(255,255,255,.85);
+  display:inline-block;
+  animation: spin .8s linear infinite;
+}
+
+/* footer */
+.foot{
+  padding: 10px 12px 12px;
+  font-size: 12px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: rgba(0,0,0,.10);
+}
+
+@media (max-width: 980px){
+  .grid{ grid-template-columns: 1fr; }
 }
 </style>

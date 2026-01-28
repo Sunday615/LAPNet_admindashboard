@@ -397,8 +397,9 @@ const userName = "Arkhan";
 /* =========================
    API
    ========================= */
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "http://localhost:3000";
-const EMP_API = `${API_BASE}/api/emp_lapnet`;
+const API_BASE = "http://localhost:3000";
+const EMP_API = "http://localhost:3000/api/emp_lapnet";
+
 
 /* =========================
    DATA

@@ -684,8 +684,8 @@ function showToast(type, text) {
 /* =========================
    API
    ========================= */
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "http://localhost:3000";
-const DIRECTORS_API = `${API_BASE}/api/boarddirector`;
+const API_BASE = "http://localhost:3000";
+const DIRECTORS_API = "http://localhost:3000/api/boarddirector";
 
 function resolveMediaUrl(src) {
   if (!src) return "";
