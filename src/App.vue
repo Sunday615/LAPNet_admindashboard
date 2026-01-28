@@ -347,7 +347,10 @@ const viewerNavItems = [
   { key: "v_jobs", label: "ແຈ້ງການເຖິງສະມາຊິກ", to: "/v/announcement_member", fa: "fa-solid fa-bullhorn" },
   { key: "v_ann", label: "ຟອມແບບສອບຖາມ", to: "/v/formmemberview", fa: "fa-solid fa-list-check" },
   { key: "v_board", label: "ຂໍ້ຄວາມ", to: "/v/chat", fa: "fa-solid fa-message" },
+  { key: "v_members", label: "ສະມາຊິກທັງໝົດຂອງ LAPNet", to: "/v/allmembers_viewer", fa: "fa-solid fa-building-columns" },
 ];
+
+
 
 const viewerDefaultTo = computed(() => viewerNavItems[0]?.to || "/v/view_member");
 const brandHomeTo = computed(() => (isViewer.value ? viewerDefaultTo.value : "/"));

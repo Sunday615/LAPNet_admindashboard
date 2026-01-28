@@ -1,3 +1,4 @@
+<!-- src/views/ViewerOverview.vue  (Overview + Members card + Members in charts) -->
 <template>
   <section class="ov">
     <!-- Header -->
@@ -8,7 +9,7 @@
           Members Console
         </div>
         <h1 class="title">ພາບລວມ (Overview)</h1>
-        <p class="sub">Documents • Announcements • Form Templates</p>
+        <p class="sub">Documents • Announcements • Form Templates • Members</p>
       </div>
 
       <div class="headRight">
@@ -93,7 +94,7 @@
 
     <!-- Grid -->
     <div class="grid">
-      <!-- Stats -->
+      <!-- Documents -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -120,6 +121,7 @@
         </button>
       </article>
 
+      <!-- Announcements -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -173,6 +175,34 @@
         </button>
       </article>
 
+      <!-- ✅ MEMBERS -->
+      <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
+        <div class="cardHead">
+          <div class="cardTitle">
+            <i class="fa-solid fa-building-columns"></i>
+            Members
+          </div>
+          <div class="pill">Total</div>
+        </div>
+        <div class="statRow">
+          <div class="statValue">{{ totals.members }}</div>
+          <div class="statMeta">
+            <div class="statLabel">Last 7 days</div>
+            <div class="statSub">+{{ last7.members }} new</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="mini">
+          <div class="miniLabel">Latest</div>
+          <div class="miniText">{{ latestMemberTitle }}</div>
+        </div>
+
+        <!-- ✅ change route if your viewer route differs -->
+        <button class="miniBtn" type="button" @click="go('/v/allmembers_viewer')">
+          View members <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </article>
+
       <!-- Trend chart -->
       <article class="card chartWide js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
@@ -187,7 +217,7 @@
           <canvas ref="trendCanvas"></canvas>
         </div>
 
-        <div class="hint">Count by month (Documents / Announcements / Active Forms)</div>
+        <div class="hint">Count by month (Documents / Announcements / Active Forms / Members)</div>
       </article>
 
       <!-- Distribution chart -->
@@ -204,10 +234,9 @@
           <canvas ref="distCanvas"></canvas>
         </div>
 
-        <div class="hint">Total proportions (active forms only)</div>
+        <div class="hint">Total proportions</div>
       </article>
 
-      <!-- Quick actions -->
       <article class="card actions js-reveal">
         <div class="cardHead">
           <div class="cardTitle">
@@ -229,6 +258,10 @@
           <button class="qbtn" type="button" @click="go('/v/formmemberview')">
             <i class="fa-solid fa-list-check"></i>
             Forms
+          </button>
+          <button class="qbtn" type="button" @click="go('/v/allmembers_viewer')">
+            <i class="fa-solid fa-building-columns"></i>
+            Members
           </button>
           <button class="qbtn" type="button" @click="go('/v/chat')">
             <i class="fa-solid fa-message"></i>
@@ -380,7 +413,7 @@ const endpoints = {
   announcements: `${BASE}/api/announcements`,
   forms: `${BASE}/api/form-templates`,
   users: `${BASE}/api/users`,
-  members: `${BASE}/api/members`, // ✅ member bank profile + logo
+  members: `${BASE}/api/members`,
 };
 
 // ---- State
@@ -393,10 +426,13 @@ const announcements = ref([]);
 // ✅ forms that will be shown (ACTIVE ONLY)
 const forms = ref([]);
 
-const totals = reactive({ documents: 0, announcements: 0, forms: 0 });
-const last7 = reactive({ documents: 0, announcements: 0, forms: 0 });
+// ✅ members list (for card + graph)
+const members = ref([]);
 
-// ---- Profile (Account)  ✅ role removed
+const totals = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
+const last7 = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
+
+// ---- Profile (Account)
 const profileLoading = ref(false);
 const profileError = ref("");
 const profile = ref({
@@ -405,7 +441,7 @@ const profile = ref({
   member_id: null,
 });
 
-// ---- MemberBank Profile
+// ---- MemberBank Profile (logo + name)
 const memberLoading = ref(false);
 const memberError = ref("");
 const memberProfile = ref({
@@ -565,7 +601,7 @@ function isFormActive(x) {
 }
 
 // ------------------------
-// ✅ Member helpers
+// ✅ Member helpers (logo resolve + mapping)
 // ------------------------
 function resolveAssetUrl(val) {
   const s = (val ?? "").toString().trim();
@@ -595,7 +631,6 @@ function normalizeMemberRow(r) {
 }
 
 function onAvatarLogoError() {
-  // ✅ fallback to user initial by removing logo
   memberProfile.value = { ...memberProfile.value, logo: "" };
 }
 
@@ -610,7 +645,8 @@ async function fetchMemberProfileByBankcode(bankcode) {
       return;
     }
 
-    const raw = await fetchJSON(endpoints.members);
+    // ✅ use already-loaded members list first; fallback to API
+    const raw = members.value?.length ? members.value : await fetchJSON(endpoints.members);
     const mapped = (raw || []).map(normalizeMemberRow).filter((m) => m.bankcode);
 
     const found = mapped.find((m) => String(m.bankcode) === code) || null;
@@ -684,7 +720,6 @@ async function fetchUserProfile() {
     }
 
     const username = u?.username ?? u?.user_name ?? u?.name ?? u?.email ?? "-";
-
     const bankcode = pickBankcodeFromUser(u) || String(readUserFromStorage()?.bankcode ?? "").trim();
     const member_id = pickMemberIdFromUser(u) ?? pickMemberIdFromUser(readUserFromStorage() || {});
 
@@ -711,6 +746,19 @@ const recentForms = computed(() => forms.value.slice(0, 6));
 const latestDocTitle = computed(() => recentDocs.value?.[0]?.title || recentDocs.value?.[0]?.name || "-");
 const latestAnnTitle = computed(() => recentAnns.value?.[0]?.title || recentAnns.value?.[0]?.subject || "-");
 const latestFormTitle = computed(() => recentForms.value?.[0]?.name || recentForms.value?.[0]?.title || "-");
+
+const latestMemberTitle = computed(() => {
+  const m = members.value?.[0];
+  return (
+    m?.BanknameLA ||
+    m?.BankNameLA ||
+    m?.banknameLA ||
+    m?.name ||
+    m?.bank_name ||
+    m?.bankcode ||
+    "-"
+  );
+});
 
 const displayUsername = computed(() => (profile.value?.username ? String(profile.value.username) : "-"));
 const avatarText = computed(() => {
@@ -747,10 +795,12 @@ function buildCharts() {
   const docsSeries = bucketCount(documents.value);
   const annsSeries = bucketCount(announcements.value);
   const formsSeries = bucketCount(forms.value);
+  const membersSeries = bucketCount(members.value);
 
   const c1 = cssVar("--blueA", "rgba(56, 189, 248, 0.9)");
   const c2 = cssVar("--blueB", "rgba(99, 102, 241, 0.9)");
   const c3 = cssVar("--blueC", "rgba(14, 165, 233, 0.85)");
+  const c4 = cssVar("--greenA", "rgba(34, 197, 94, 0.88)");
 
   const tickColor = "rgba(255,255,255,0.72)";
   const gridColor = "rgba(255,255,255,0.08)";
@@ -760,9 +810,42 @@ function buildCharts() {
     data: {
       labels,
       datasets: [
-        { label: "Documents", data: docsSeries, borderColor: c1, backgroundColor: "rgba(56,189,248,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
-        { label: "Announcements", data: annsSeries, borderColor: c2, backgroundColor: "rgba(99,102,241,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
-        { label: "Active Forms", data: formsSeries, borderColor: c3, backgroundColor: "rgba(14,165,233,0.10)", tension: 0.35, borderWidth: 2, pointRadius: 3 },
+        {
+          label: "Documents",
+          data: docsSeries,
+          borderColor: c1,
+          backgroundColor: "rgba(56,189,248,0.10)",
+          tension: 0.35,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "Announcements",
+          data: annsSeries,
+          borderColor: c2,
+          backgroundColor: "rgba(99,102,241,0.10)",
+          tension: 0.35,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "Active Forms",
+          data: formsSeries,
+          borderColor: c3,
+          backgroundColor: "rgba(14,165,233,0.10)",
+          tension: 0.35,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "Members",
+          data: membersSeries,
+          borderColor: c4,
+          backgroundColor: "rgba(34,197,94,0.10)",
+          tension: 0.35,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
       ],
     },
     options: {
@@ -783,11 +866,11 @@ function buildCharts() {
   distChart = new Chart(distCanvas.value, {
     type: "doughnut",
     data: {
-      labels: ["Documents", "Announcements", "Active Forms"],
+      labels: ["Documents", "Announcements", "Active Forms", "Members"],
       datasets: [
         {
-          data: [totals.documents, totals.announcements, totals.forms],
-          backgroundColor: [c1, c2, c3],
+          data: [totals.documents, totals.announcements, totals.forms, totals.members],
+          backgroundColor: [c1, c2, c3, c4],
           borderColor: "rgba(255,255,255,0.10)",
           borderWidth: 1,
           cutout: "62%",
@@ -838,27 +921,30 @@ async function refresh() {
   loading.value = true;
   error.value = "";
   try {
-    const [docsRaw, annsRaw, formsRaw] = await Promise.all([
+    const [docsRaw, annsRaw, formsRaw, membersRaw] = await Promise.all([
       fetchJSON(endpoints.documents),
       fetchJSON(endpoints.announcements),
       fetchJSON(endpoints.forms),
+      fetchJSON(endpoints.members), // ✅ NEW
     ]);
-
-    // ✅ fetch profile in parallel but don't block dashboard if fails
-    fetchUserProfile();
 
     documents.value = normalizeList(docsRaw).sort((a, b) => b._date - a._date);
     announcements.value = normalizeList(annsRaw).sort((a, b) => b._date - a._date);
-
     forms.value = normalizeList(formsRaw).filter(isFormActive).sort((a, b) => b._date - a._date);
+    members.value = normalizeList(membersRaw).sort((a, b) => b._date - a._date);
 
     totals.documents = documents.value.length;
     totals.announcements = announcements.value.length;
     totals.forms = forms.value.length;
+    totals.members = members.value.length;
 
     last7.documents = documents.value.filter((x) => isWithinLastDays(x._date, 7)).length;
     last7.announcements = announcements.value.filter((x) => isWithinLastDays(x._date, 7)).length;
     last7.forms = forms.value.filter((x) => isWithinLastDays(x._date, 7)).length;
+    last7.members = members.value.filter((x) => isWithinLastDays(x._date, 7)).length;
+
+    // ✅ fetch profile (uses members list cache when mapping logo/name)
+    fetchUserProfile();
 
     buildCharts();
     revealIn();
@@ -976,9 +1062,18 @@ onBeforeUnmount(() => {
   animation: pulse 0.9s ease-in-out infinite;
 }
 @keyframes pulse {
-  0% { transform: scale(0.9); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.6; }
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
 }
 
 .profileMeta {
@@ -1007,7 +1102,6 @@ onBeforeUnmount(() => {
   line-height: 1.25;
   opacity: 0.9;
 
-  /* allow wrap / multi-line */
   white-space: normal;
   overflow: visible;
   text-overflow: unset;
@@ -1028,10 +1122,10 @@ onBeforeUnmount(() => {
 
 .bankName {
   font-weight: 950;
-  white-space: normal;      /* ✅ allow wrap */
-  overflow: visible;        /* ✅ no hidden */
-  text-overflow: unset;     /* ✅ no ellipsis */
-  word-break: break-word;   /* ✅ long words still break */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
 }
 
 .muted {
@@ -1081,7 +1175,9 @@ onBeforeUnmount(() => {
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .banner {
@@ -1137,11 +1233,23 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 
-.stat { grid-column: span 4; padding-bottom: 12px; }
-.chartWide { grid-column: span 8; }
-.chartNarrow { grid-column: span 4; }
-.actions { grid-column: span 12; }
-.list { grid-column: span 4; }
+/* ✅ 4 stats per row on desktop */
+.stat {
+  grid-column: span 3;
+  padding-bottom: 12px;
+}
+.chartWide {
+  grid-column: span 8;
+}
+.chartNarrow {
+  grid-column: span 4;
+}
+.actions {
+  grid-column: span 12;
+}
+.list {
+  grid-column: span 4;
+}
 
 .statRow {
   display: flex;
@@ -1155,17 +1263,32 @@ onBeforeUnmount(() => {
   font-weight: 950;
   letter-spacing: -1px;
 }
-.statMeta { text-align: right; }
-.statLabel { font-size: 12px; opacity: 0.72; }
-.statSub { font-size: 13px; font-weight: 900; opacity: 0.9; }
+.statMeta {
+  text-align: right;
+}
+.statLabel {
+  font-size: 12px;
+  opacity: 0.72;
+}
+.statSub {
+  font-size: 13px;
+  font-weight: 900;
+  opacity: 0.9;
+}
 
 .divider {
   height: 1px;
   margin: 0 14px;
   background: rgba(255, 255, 255, 0.10);
 }
-.mini { padding: 12px 14px 8px; }
-.miniLabel { font-size: 12px; opacity: 0.72; margin-bottom: 6px; }
+.mini {
+  padding: 12px 14px 8px;
+}
+.miniLabel {
+  font-size: 12px;
+  opacity: 0.72;
+  margin-bottom: 6px;
+}
 .miniText {
   font-size: 13px;
   font-weight: 900;
@@ -1189,16 +1312,27 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.08);
   color: rgba(255, 255, 255, 0.9);
 }
-.miniBtn:hover { background: rgba(56, 189, 248, 0.10); }
+.miniBtn:hover {
+  background: rgba(56, 189, 248, 0.10);
+}
 
-.chartWrap { height: 280px; padding: 0 14px 12px; }
-.chartWrap.small { height: 240px; }
-.hint { padding: 0 14px 14px; font-size: 12px; opacity: 0.7; }
+.chartWrap {
+  height: 280px;
+  padding: 0 14px 12px;
+}
+.chartWrap.small {
+  height: 240px;
+}
+.hint {
+  padding: 0 14px 14px;
+  font-size: 12px;
+  opacity: 0.7;
+}
 
 .actionGrid {
   padding: 0 14px 14px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 .qbtn {
@@ -1219,7 +1353,11 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.rows { list-style: none; padding: 0 10px 12px; margin: 0; }
+.rows {
+  list-style: none;
+  padding: 0 10px 12px;
+  margin: 0;
+}
 .row {
   display: flex;
   align-items: center;
@@ -1229,9 +1367,18 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   transition: background 160ms ease;
 }
-.row:hover { background: rgba(255, 255, 255, 0.05); }
-.rowTitle { font-weight: 950; font-size: 13px; }
-.rowSub { font-size: 12px; opacity: 0.68; margin-top: 2px; }
+.row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.rowTitle {
+  font-weight: 950;
+  font-size: 13px;
+}
+.rowSub {
+  font-size: 12px;
+  opacity: 0.68;
+  margin-top: 2px;
+}
 .chip {
   font-size: 12px;
   padding: 6px 10px;
@@ -1241,9 +1388,15 @@ onBeforeUnmount(() => {
   opacity: 0.9;
   white-space: nowrap;
 }
-.empty { padding: 16px 10px; opacity: 0.7; font-size: 13px; }
+.empty {
+  padding: 16px 10px;
+  opacity: 0.7;
+  font-size: 13px;
+}
 
-.skeletonList { padding: 0 14px 14px; }
+.skeletonList {
+  padding: 0 14px 14px;
+}
 .sk {
   height: 42px;
   border-radius: 12px;
@@ -1258,32 +1411,63 @@ onBeforeUnmount(() => {
   animation: shimmer 1.1s ease infinite;
 }
 @keyframes shimmer {
-  0% { background-position: 0% 0; }
-  100% { background-position: 120% 0; }
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 120% 0;
+  }
 }
 
 @media (max-width: 1100px) {
-  .stat { grid-column: span 6; }
-  .chartWide { grid-column: span 12; }
-  .chartNarrow { grid-column: span 12; }
-  .list { grid-column: span 6; }
-  .actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat {
+    grid-column: span 6;
+  }
+  .chartWide {
+    grid-column: span 12;
+  }
+  .chartNarrow {
+    grid-column: span 12;
+  }
+  .list {
+    grid-column: span 6;
+  }
+  .actionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-  .profileBox { min-width: 280px; }
-  .profileName { max-width: 200px; }
+  .profileBox {
+    min-width: 280px;
+  }
+  .profileName {
+    max-width: 200px;
+  }
 }
 
 @media (max-width: 720px) {
-  .ovHead { flex-direction: column; align-items: flex-start; }
-  .headRight { width: 100%; justify-content: space-between; }
+  .ovHead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .headRight {
+    width: 100%;
+    justify-content: space-between;
+  }
 
-  .stat, .list { grid-column: span 12; }
-  .actionGrid { grid-template-columns: 1fr; }
+  .stat,
+  .list {
+    grid-column: span 12;
+  }
+  .actionGrid {
+    grid-template-columns: 1fr;
+  }
 
   .profileBox {
     width: 100%;
     min-width: 0;
   }
-  .profileName { max-width: 260px; }
+  .profileName {
+    max-width: 260px;
+  }
 }
 </style>

@@ -117,10 +117,10 @@
               </label>
             </div>
 
-            <!-- ✅ NEW: Fintech toggle (tinyint 1/0) -->
+            <!-- ✅ UPDATED: Fintech toggle (more readable) -->
             <div class="label">
               <div class="labelTopRow">
-                <span>Fintech (tinyint)</span>
+                <span>Member Type</span>
 
                 <div class="labelActions">
                   <button
@@ -130,17 +130,30 @@
                     @click="toggleFintech"
                     @mouseenter="btnHover($event, true)"
                     @mouseleave="btnHover($event, false)"
-                    :title="fintechOn ? 'Fintech = 1 (ON)' : 'Fintech = 0 (OFF)'"
+                    :title="fintechOn ? 'Fintech = 1' : 'Fintech = 0'"
                     aria-label="Toggle fintech"
                   >
-                    <span class="fintechKnob"></span>
-                    <span class="fintechVal">{{ fintechOn ? "1" : "0" }}</span>
+                    <span class="fintechText">
+                      <i class="fa-solid" :class="fintechOn ? 'fa-building' : 'fa-building-columns'"></i>
+                      {{ fintechOn ? "Fintech Member" : "Commercial bank" }}
+                    </span>
+
+                    <span class="fintechSwitch" aria-hidden="true">
+                      <span class="fintechKnob"></span>
+                    </span>
                   </button>
                 </div>
               </div>
 
+
+             
+
+
+            
+
               <div class="fintechHint">
-                {{ fintechOn ? "Enabled → will save fintech = 1" : "Disabled → will save fintech = 0" }}
+                {{ fintechOn ? "Fintech Member" : "Commercial bank" }}
+                <span class="mono">• fintech = {{ fintechOn ? 1 : 0 }}</span>
               </div>
             </div>
 
@@ -658,9 +671,7 @@ const productFlags = computed(() => {
   const atmcashwithdraw = atm.includes(productOptionsATM[1]) ? 1 : 0;
   const atmtransfer = atm.includes(productOptionsATM[2]) ? 1 : 0;
 
-  const mobiletransfer =
-    mobile.includes(productOptionsMBbaking[0]) || mobile.includes(productOptionsMBbaking[1]) ? 1 : 0;
-
+  const mobiletransfer = mobile.includes(productOptionsMBbaking[0]) || mobile.includes(productOptionsMBbaking[1]) ? 1 : 0;
   const qrpayment = mobile.includes(productOptionsMBbaking[2]) ? 1 : 0;
 
   const crossborderproduct = (cross.length || 0) > 0 ? 1 : 0;
@@ -864,7 +875,7 @@ async function onSubmit() {
     fd.append("gradA", form.gradA);
     fd.append("gradB", form.gradB);
 
-    // ✅ NEW: send fintech tinyint(1/0)
+    // ✅ send fintech tinyint(1/0)
     fd.append("fintech", String(fintechOn.value ? 1 : 0));
 
     fd.append("CardATM", JSON.stringify({ items: form.CardATM.items || [] }));
@@ -877,7 +888,7 @@ async function onSubmit() {
     fd.append("membermobile", String(memberFlags.value.membermobile));
     fd.append("membercrossborder", String(memberFlags.value.membercrossborder));
 
-    /* ✅ NEW: send your new tinyint flags */
+    /* ✅ send your new tinyint flags */
     fd.append("atminquery", String(productFlags.value.atminquery));
     fd.append("atmcashwithdraw", String(productFlags.value.atmcashwithdraw));
     fd.append("atmtransfer", String(productFlags.value.atmtransfer));
@@ -933,7 +944,6 @@ onMounted(() => {
 
   applyPresetFromRoute();
 
-  // ✅ sidebar animations removed
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
@@ -1123,12 +1133,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes holo {
-  0% {
-    transform: translateX(-16%);
-  }
-  100% {
-    transform: translateX(16%);
-  }
+  0% { transform: translateX(-16%); }
+  100% { transform: translateX(16%); }
 }
 
 .cardTop {
@@ -1224,9 +1230,7 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.inputWrap i {
-  opacity: 0.75;
-}
+.inputWrap i { opacity: 0.75; }
 
 .inp {
   width: 100%;
@@ -1249,58 +1253,82 @@ onBeforeUnmount(() => {
 }
 
 /* =========================
-   ✅ NEW: FINTECH TOGGLE
+   ✅ UPDATED: FINTECH TOGGLE (clearer)
    ========================= */
 .fintechToggle {
-  position: relative;
-  width: 78px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.88);
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 4px 10px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
   font-weight: 950;
-  overflow: hidden;
+  min-height: 40px;
+  user-select: none;
+}
+.fintechToggle:hover {
+  border-color: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
+}
+
+.fintechText {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.fintechSwitch {
+  position: relative;
+  width: 54px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.03);
 }
 .fintechKnob {
   position: absolute;
   top: 50%;
-  left: 6px;
-  width: 26px;
-  height: 26px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.22);
+  transform: translate(0, -50%);
+  background: rgba(255, 255, 255, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
-  transition: left 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
-.fintechVal {
-  position: relative;
-  z-index: 1;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-}
+
 .fintechToggle.on {
   border-color: rgba(56, 189, 248, 0.32);
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.12));
   box-shadow: 0 16px 34px rgba(56, 189, 248, 0.12);
 }
+.fintechToggle.on .fintechSwitch {
+  border-color: rgba(56, 189, 248, 0.26);
+  background: rgba(56, 189, 248, 0.18);
+}
 .fintechToggle.on .fintechKnob {
-  left: 46px;
-  background: rgba(255, 255, 255, 0.9);
+  transform: translate(26px, -50%);
+  background: rgba(255, 255, 255, 0.92);
   border-color: rgba(255, 255, 255, 0.28);
 }
+
 .fintechHint {
   margin-top: 6px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.62);
   font-weight: 800;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 /* =========================
@@ -1316,11 +1344,7 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.colorPick {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.colorPick { display: flex; flex-direction: column; gap: 8px; }
 
 .colorLabel {
   display: inline-flex;
@@ -1357,10 +1381,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.hexInp {
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
+.hexInp { font-weight: 800; letter-spacing: 0.2px; }
 
 /* swatch preview */
 .gradSwatch {
@@ -1430,12 +1451,7 @@ onBeforeUnmount(() => {
 }
 
 /* Crossborder flags */
-.flagPair {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
+.flagPair { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 
 .flag {
   width: 22px;
@@ -1445,12 +1461,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
 }
 
-.fLabel {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: left;
-  line-height: 1.2;
-}
+.fLabel { flex: 1 1 auto; min-width: 0; text-align: left; line-height: 1.2; }
 
 /* Preview full width */
 .previewWrap {
@@ -1476,10 +1487,7 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.previewWrap > * {
-  position: relative;
-  z-index: 1;
-}
+.previewWrap > * { position: relative; z-index: 1; }
 
 .previewTop {
   display: flex;
@@ -1489,12 +1497,7 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-.previewTitle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 900;
-}
+.previewTitle { display: flex; align-items: center; gap: 10px; font-weight: 900; }
 
 .miniBtn {
   border-radius: 12px;
@@ -1517,13 +1520,7 @@ onBeforeUnmount(() => {
   align-items: start;
 }
 
-.fileHidden {
-  position: absolute;
-  width: 1px;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
+.fileHidden { position: absolute; width: 1px; height: 0; opacity: 0; pointer-events: none; }
 
 .imgBox {
   width: 160px;
@@ -1536,15 +1533,9 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
-.imgBox img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.imgBox img { width: 100%; height: 100%; object-fit: cover; }
 
-.imgBox.clickable {
-  cursor: pointer;
-}
+.imgBox.clickable { cursor: pointer; }
 
 .imgBox.clickable:hover {
   border-color: rgba(56, 189, 248, 0.3);
@@ -1561,28 +1552,13 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.imgHint {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.55);
-}
+.imgHint { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
 
-.previewMeta .pTitle {
-  font-weight: 600;
-  font-size: 14px;
-}
+.previewMeta .pTitle { font-weight: 600; font-size: 14px; }
 
-.previewMeta .pSub {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
+.previewMeta .pSub { margin-top: 4px; color: var(--muted); font-size: 12px; }
 
-.pLinks {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+.pLinks { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 
 .plink {
   display: inline-flex;
@@ -1598,16 +1574,9 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 
-.plink.muted {
-  color: rgba(255, 255, 255, 0.6);
-}
+.plink.muted { color: rgba(255, 255, 255, 0.6); }
 
-.chips {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+.chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 
 .chip {
   display: inline-flex;
@@ -1628,11 +1597,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.chipFlagPair {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
+.chipFlagPair { display: inline-flex; align-items: center; gap: 8px; }
 
 .chipFlag {
   width: 18px;
@@ -1641,9 +1606,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.chipText {
-  margin-left: 8px;
-}
+.chipText { margin-left: 8px; }
 
 /* Actions */
 .actions {
@@ -1671,9 +1634,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.28), rgba(99, 102, 241, 0.14));
 }
 
-.btn.ghost {
-  background: rgba(255, 255, 255, 0.03);
-}
+.btn.ghost { background: rgba(255, 255, 255, 0.03); }
 
 /* =========================
    ✅ OVERLAY ALERT
@@ -1752,9 +1713,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(248, 113, 113, 0.12);
 }
 
-.ovHead {
-  min-width: 0;
-}
+.ovHead { min-width: 0; }
 
 .ovTitle {
   font-size: 18px;
@@ -1783,12 +1742,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.4px;
 }
 
-.ovDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.35);
-}
+.ovDot { width: 6px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.35); }
 
 .ovX {
   width: 42px;
@@ -1802,11 +1756,7 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
-.ovBody {
-  padding: 16px;
-  position: relative;
-  z-index: 1;
-}
+.ovBody { padding: 16px; position: relative; z-index: 1; }
 
 .ovMsg {
   font-size: 14px;
@@ -1843,9 +1793,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.ovBtn.ghost {
-  background: rgba(255, 255, 255, 0.03);
-}
+.ovBtn.ghost { background: rgba(255, 255, 255, 0.03); }
 
 .ov.success .ovBtn.primary {
   border-color: rgba(56, 189, 248, 0.32);
@@ -1859,28 +1807,12 @@ onBeforeUnmount(() => {
 
 /* responsive */
 @media (max-width: 980px) {
-  .row {
-    grid-template-columns: 1fr;
-  }
-  .previewCard {
-    grid-template-columns: 1fr;
-  }
-  .imgBox {
-    width: 100%;
-    height: 200px;
-  }
-  .colorRow {
-    grid-template-columns: 1fr;
-  }
-  .gradSwatch {
-    min-height: 110px;
-  }
-  .ovBtn {
-    width: 100%;
-  }
-  .labelTopRow {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  .row { grid-template-columns: 1fr; }
+  .previewCard { grid-template-columns: 1fr; }
+  .imgBox { width: 100%; height: 200px; }
+  .colorRow { grid-template-columns: 1fr; }
+  .gradSwatch { min-height: 110px; }
+  .ovBtn { width: 100%; }
+  .labelTopRow { flex-direction: column; align-items: flex-start; }
 }
 </style>

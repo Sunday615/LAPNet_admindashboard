@@ -52,6 +52,8 @@ import viewsubmitform from "../view/createform/viewsubmitform.vue";
 
 import viewannouncementtomember from "../view/announcementtomember/viewannouncementtomember.vue";
 
+import allmemberviewer from "../view/memberdashboard/alllmembers_viewer/allmemberviewer.vue";
+
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
@@ -183,6 +185,7 @@ const routes: RouteRecordRaw[] = [
    { path: "/v/presentation", name: "v_presentation", component: powerpointview, meta: { roles: ["viewer"] } },
    { path: "/v/pdf", name: "v_pdf", component: pdfview, meta: { roles: ["viewer"] } },
    { path: "/v/txt", name: "v_txt", component: txtview, meta: { roles: ["viewer"] } },
+   { path: "/v/allmembers_viewer", name: "v_mb", component: allmemberviewer, meta: { roles: ["viewer"] } },
 
 
 
