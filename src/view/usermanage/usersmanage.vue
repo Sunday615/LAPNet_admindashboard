@@ -199,9 +199,8 @@
           </li>
           <li>Admin/Staff can still create accounts without MemberBank (optional), if you allow it in backend.</li>
           <li>
-            Make sure your API is reachable. This page tries both relative and
-            <span class="mono">http://175.0.198.10:3000</span>.
-          </li>
+  Make sure your API is reachable. This page uses <span class="mono">VITE_API_BASE_URL</span> from <span class="mono">.env</span>.
+</li>
         </ul>
       </section>
     </div>
@@ -530,11 +529,30 @@ import gsap from "gsap";
 /* -----------------------------
   API base
 ----------------------------- */
-const API_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").replace(/\/+$/, "");
-const API = (p) => (API_BASE ? `${API_BASE}${p}` : p);
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
+if (!API_BASE) console.warn("[usersmanage] Missing VITE_API_BASE_URL in .env");
 
-const USERS_ENDPOINTS = [API("/api/users"), "http://175.0.198.10:3000/api/users"];
-const MEMBERS_ENDPOINTS = [API("/api/members"), "http://175.0.198.10:3000/api/members"];
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
+
+const API = (p = "") => {
+  const s = String(p || "").trim();
+  if (!s) return API_BASE;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
+  return joinBaseAndPath(API_BASE, s);
+};
+
+const USERS_ENDPOINTS = [API("/api/users")];
+const MEMBERS_ENDPOINTS = [API("/api/members")];
 
 /* -----------------------------
   State
@@ -604,9 +622,12 @@ function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
   if (/^(http?:|data:|blob:)/i.test(s)) return s;
-  // keep your current behavior (members API is on localhost)
-  if (s.startsWith("/")) return `http://175.0.198.10:3000${s}`;
-  return `http://175.0.198.10:3000/${s.replace(/^\/+/, "")}`;
+
+  const origin = API_ORIGIN || API_BASE;
+  if (!origin) return s;
+
+  if (s.startsWith("/")) return joinBaseAndPath(origin, s);
+  return joinBaseAndPath(origin, `/${s.replace(/^\/+/, "")}`);
 }
 
 function onBankLogoError(e) {

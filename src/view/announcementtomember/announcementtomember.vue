@@ -309,32 +309,31 @@ import gsap from "gsap";
 const router = useRouter();
 
 /* -----------------------------
-  ✅ API BASE (FIXED)
-  Default = Remote API
-  - If you want proxy in dev (same-origin): set VITE_FORCE_REMOTE="0" and VITE_API_BASE=""
-  - If you want custom base: set VITE_FORCE_REMOTE="0" and VITE_API_BASE="http://localhost:3000"
+  API base (from .env only)
 ----------------------------- */
-const DEFAULT_REMOTE = "http://175.0.198.10:3000";
-const ENV_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").trim().replace(/\/+$/, "");
-const FORCE_REMOTE = String(import.meta?.env?.VITE_FORCE_REMOTE ?? "1") !== "0";
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
+if (!API_BASE) console.warn("[announcementtomember] Missing VITE_API_BASE_URL in .env");
 
-// ✅ Remote by default. If FORCE_REMOTE=0, use ENV_BASE (may be "" for proxy).
-const API_BASE = FORCE_REMOTE ? DEFAULT_REMOTE : ENV_BASE;
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
 
 const API = (p = "") => {
-  const path = String(p || "");
-  if (!path) return API_BASE || "";
-  if (path.startsWith("http")) return path;
-
-  // if API_BASE empty => use same-origin (proxy)
-  if (!API_BASE) return path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const s = String(p || "").trim();
+  if (!s) return API_BASE;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
+  return joinBaseAndPath(API_BASE, s);
 };
 
-/* -----------------------------
-  ✅ Announcements endpoint (exact)
------------------------------ */
-const ANNOUNCEMENTS_ENDPOINT = "http://175.0.198.10:3000/api/announcements";
+const ANNOUNCEMENTS_ENDPOINT = API("/api/announcements");
 
 /* -----------------------------
   Form state
@@ -432,7 +431,7 @@ function onToastAction() {
 const defaultBankLogo = "/bank-logos/default.png";
 
 // use same base (proxy/remote) but also fallback to remote
-const MEMBERS_ENDPOINTS = [API("/api/members"), `${DEFAULT_REMOTE}/api/members`];
+const MEMBERS_ENDPOINTS = [API("/api/members")];
 
 function buildFallbackMembers() {
   return Array.from({ length: 21 }, (_, i) => {
@@ -464,8 +463,12 @@ function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
   if (/^(http?:|data:|blob:)/i.test(s)) return s;
-  if (s.startsWith("/")) return `${DEFAULT_REMOTE}${s}`;
-  return `${DEFAULT_REMOTE}/${s.replace(/^\/+/, "")}`;
+
+  const origin = API_ORIGIN || API_BASE;
+  if (!origin) return s;
+
+  if (s.startsWith("/")) return joinBaseAndPath(origin, s);
+  return joinBaseAndPath(origin, `/${s.replace(/^\/+/, "")}`);
 }
 
 async function fetchJsonTry(url) {

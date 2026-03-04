@@ -291,8 +291,32 @@ import gsap from "gsap";
 import Chart from "chart.js/auto"; // ✅ graph library (Chart.js)
 
 // ====== CONFIG ======
-const API_BASE = "http://175.0.198.10:3000"; // ✅ ตามที่คุณบอกให้ยิงตรงนี้
-const STATS_URL = `${API_BASE}/api/visitor/stats`;
+/* -----------------------------
+  API base (from .env only)
+----------------------------- */
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
+if (!API_BASE) console.warn("[mainvisitors] Missing VITE_API_BASE_URL in .env");
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
+
+const API = (p = "") => {
+  const s = String(p || "").trim();
+  if (!s) return API_BASE;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
+  return joinBaseAndPath(API_BASE, s);
+};
+
+const STATS_URL = API("/api/visitor/stats");
 const windowSec = 300;
 
 // ====== STATE ======
@@ -587,7 +611,7 @@ function pushRtPoint(v) {
 
 async function loadRealtimeOnce() {
   try {
-    const data = await getJson(`${API_BASE}/api/visitor/realtime?windowSec=${encodeURIComponent(windowSec)}`);
+    const data = await getJson(API(`/api/visitor/realtime?windowSec=${encodeURIComponent(windowSec)}`));
     if (data?.activeVisitors != null) {
       realtime.value = { activeVisitors: safeNum(data.activeVisitors) };
       pushRtPoint(realtime.value.activeVisitors);
@@ -607,7 +631,7 @@ function startRealtimeSSE() {
   }
 
   try {
-    es = new EventSource(`${API_BASE}/api/visitor/realtime/stream?windowSec=${encodeURIComponent(windowSec)}`);
+    es = new EventSource(API(`/api/visitor/realtime/stream?windowSec=${encodeURIComponent(windowSec)}`));
     es.onmessage = (ev) => {
       try {
         const payload = JSON.parse(ev.data);

@@ -252,7 +252,31 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "v
 import { io } from "socket.io-client";
 import gsap from "gsap";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000").replace(/\/$/, "");
+/* -----------------------------
+  API base (from .env only)
+----------------------------- */
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
+if (!API_BASE) console.warn("[mainnotification] Missing VITE_API_BASE_URL in .env");
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
+
+const API = (p = "") => {
+  const s = String(p || "").trim();
+  if (!s) return API_BASE;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
+  return joinBaseAndPath(API_BASE, s);
+};
+
 
 // state
 const loading = ref(false);
@@ -348,7 +372,7 @@ function revealIn() {
 
 // -------- REST --------
 async function fetchBanks() {
-  const res = await fetch(`${API_BASE}/api/chat/admin/banks`, {
+  const res = await fetch(API("/api/chat/admin/banks"), {
     headers: { "x-role": "admin" },
   });
   if (!res.ok) {
@@ -373,7 +397,7 @@ async function fetchBanks() {
 }
 
 async function ensureConversationByBankcode(bankcode) {
-  const res = await fetch(`${API_BASE}/api/chat/conversations/ensure`, {
+  const res = await fetch(API("/api/chat/conversations/ensure"), {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-role": "admin" },
     body: JSON.stringify({ bankcode }),
@@ -389,7 +413,7 @@ async function ensureConversationByBankcode(bankcode) {
 }
 
 async function loadMessages(conversationId) {
-  const res = await fetch(`${API_BASE}/api/chat/conversations/${conversationId}/messages?limit=200`, {
+  const res = await fetch(API(`/api/chat/conversations/${conversationId}/messages?limit=200`), {
     headers: { "x-role": "admin" },
   });
   if (!res.ok) {

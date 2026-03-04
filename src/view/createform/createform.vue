@@ -992,8 +992,32 @@ import flatpickr from "flatpickr";
  * ==========================
  */
 const router = useRouter();
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000").replace(/\/$/, "");
-const TEMPLATE_API = `${API_BASE}/api/form-templates`;
+/* -----------------------------
+  API base (from .env only)
+----------------------------- */
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
+if (!API_BASE) console.warn("[createform] Missing VITE_API_BASE_URL in .env");
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
+
+const API = (p = "") => {
+  const s = String(p || "").trim();
+  if (!s) return API_BASE;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
+  return joinBaseAndPath(API_BASE, s);
+};
+
+const TEMPLATE_API = API("/api/form-templates");
 
 /**
  * ✅ DRAFT KEY (เดิมคุณใช้ไว้โหลดค่าเก่า)

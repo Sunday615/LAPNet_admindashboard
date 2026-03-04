@@ -462,7 +462,25 @@ const route = useRoute();
  * DELETE /api/documents/:id
  * POST   /api/documents/bulk-delete (json: { ids: [] })
  */
-const API_BASE = import.meta.env?.VITE_API_BASE || "http://175.0.198.10:3000/api";
+/* -----------------------------
+  API base (from .env only)
+----------------------------- */
+const API_ORIGIN = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+if (!API_ORIGIN) console.warn("[documentupload] Missing VITE_API_BASE_URL in .env");
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) p = p.slice(4);
+  return b ? `${b}${p}` : p;
+}
+
+// Keep the existing fetches using `${API_BASE}/documents...`
+const API_BASE = joinBaseAndPath(API_ORIGIN, "/api");
+
 
 // demo state
 const q = ref("");
