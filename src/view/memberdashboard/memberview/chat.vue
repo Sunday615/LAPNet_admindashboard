@@ -145,7 +145,7 @@ import { io } from "socket.io-client";
 import gsap from "gsap";
 
 const route = useRoute();
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000").replace(/\/$/, "");
 
 // ---------- helpers ----------
 function safeJsonParse(x) {

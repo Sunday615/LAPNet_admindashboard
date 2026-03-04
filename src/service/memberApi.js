@@ -1,4 +1,14 @@
-const API_MEMBERS = "http://localhost:3000/api/members";
+// src/services/membersService.js
+// ✅ Use Vite .env
+// VITE_API_URL=http://175.0.198.10:3000/api
+// VITE_API_BASE_URL=http://175.0.198.10:3000
+
+// Prefer API_URL (includes /api). Fallback to API_BASE_URL + "/api".
+const API_URL =
+  (import.meta.env?.VITE_API_URL || "").replace(/\/+$/, "") ||
+  ((import.meta.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "") + "/api");
+
+const API_MEMBERS = `${API_URL}/members`;
 
 function normalizeMember(x) {
   // พยายาม map field ให้ “ทน” ต่อชื่อคอลัมน์ต่างๆ
@@ -21,9 +31,11 @@ function normalizeMember(x) {
   };
 }
 
-export async function fetchMembers() {
+export async function fetchMembers({ signal } = {}) {
   const res = await fetch(API_MEMBERS, {
-    headers: { "Content-Type": "application/json" },
+    method: "GET",
+    headers: { Accept: "application/json" },
+    signal,
   });
 
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -31,6 +43,11 @@ export async function fetchMembers() {
   const data = await res.json();
 
   // รองรับทั้งแบบ array และ {data:[...]}
-  const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+  const arr = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+      ? data.data
+      : [];
+
   return arr.map(normalizeMember);
 }

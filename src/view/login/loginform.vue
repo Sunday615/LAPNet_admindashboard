@@ -97,8 +97,8 @@ const showPass = ref(false);
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
-const LOGIN_URL = "/api/auth/login";
-// const LOGIN_URL = "http://localhost:3000/api/auth/login";
+
+const LOGIN_URL = "http://localhost:3000/api/auth/login";
 
 const ADMIN_HOME = "/dashboard";
 const VIEWER_HOME = "/memberdashboard";

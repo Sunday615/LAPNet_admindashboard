@@ -102,7 +102,7 @@
                 <span>Link 1 Facebook <i class="fa-brands fa-facebook"></i></span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link1" class="inp" type="url" placeholder="https://..." />
+                  <input v-model.trim="form.link1" class="inp" type="url" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link1" class="err">{{ errors.link1 }}</div>
               </label>
@@ -111,7 +111,7 @@
                 <span>Link 2 Website <i class="fa-solid fa-globe"></i></span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link2" class="inp" type="url" placeholder="https://..." />
+                  <input v-model.trim="form.link2" class="inp" type="url" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link2" class="err">{{ errors.link2 }}</div>
               </label>
@@ -144,12 +144,6 @@
                   </button>
                 </div>
               </div>
-
-
-             
-
-
-            
 
               <div class="fintechHint">
                 {{ fintechOn ? "Fintech Member" : "Commercial bank" }}
@@ -489,7 +483,39 @@ import { useRouter, useRoute } from "vue-router";
 import gsap from "gsap";
 import axios from "axios";
 
-const api = axios.create({ baseURL: "" });
+/**
+ * ✅ Use API base from Vite .env
+ * .env:
+ *   VITE_API_BASE_URL=http://localhost:3000/
+ *
+ * Final axios baseURL will be:
+ *   {VITE_API_BASE_URL}/api
+ * Example:
+ *   http://localhost:3000/api
+ */
+function normalizeBaseUrl(raw) {
+  return String(raw || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = normalizeBaseUrl(baseUrl);
+  const p = String(path || "").trim();
+  if (!b) return p || "";
+  if (!p) return b;
+
+  const p2 = p.startsWith("/") ? p : `/${p}`;
+  return `${b}${p2}`;
+}
+
+const ENV_API_BASE = normalizeBaseUrl(import.meta?.env?.VITE_API_BASE_URL);
+const API_ORIGIN = ENV_API_BASE || normalizeBaseUrl(window?.location?.origin);
+
+// Create axios instance with env-based baseURL
+const api = axios.create({
+  baseURL: joinBaseAndPath(API_ORIGIN, "/api"),
+  timeout: 30000,
+  // withCredentials: false,
+});
 
 const router = useRouter();
 const route = useRoute();
@@ -621,7 +647,7 @@ const crossborderFlags = {
 function flagUrl(code) {
   const STYLE = "flat";
   const SIZE = 32;
-  return `https://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
+  return `http://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
 }
 
 const form = reactive({
@@ -898,11 +924,20 @@ async function onSubmit() {
 
     if (form.image) fd.append("image", form.image);
 
-    const { data } = await api.post("/api/members", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
+    /**
+     * ✅ POST to "/members" (baseURL already has "/api")
+     * => {VITE_API_BASE_URL}/api/members
+     *
+     * ✅ IMPORTANT: Do NOT force Content-Type header for FormData
+     * axios will set correct multipart boundary automatically.
+     */
+    const { data } = await api.post("/members", fd, {
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
 
     console.log("INSERT OK:", data);
+    console.log("POST URL:", api.defaults.baseURL + "/members");
     console.log("SENT fintech:", fintechOn.value ? 1 : 0);
     console.log("SENT FLAGS (memberFlags):", memberFlags.value);
     console.log("SENT FLAGS (productFlags):", productFlags.value);
@@ -919,6 +954,13 @@ async function onSubmit() {
     resetForm();
   } catch (e) {
     console.error("INSERT FAIL:", e);
+
+    // ✅ Helpful debug: show full URL used
+    try {
+      const full = (e?.config?.baseURL || "") + (e?.config?.url || "");
+      console.log("FULL REQUEST URL:", full);
+    } catch {}
+
     const msg = e?.response?.data?.message || e?.message || "Insert Failed";
     serverError.value = msg;
 

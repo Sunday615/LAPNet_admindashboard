@@ -702,7 +702,7 @@ onMounted(async () => {
    ✅ PLUS: Viewer popup on login
    ========================================================= */
 
-const ANN_API_URL = "http://localhost:3000/api/announcements";
+const ANN_API_URL = "http://175.0.198.10:3000/api/announcements";
 
 // the nav item you want to mark in sidebar
 const VIEWER_ANN_ITEM_KEY = "v_jobs";

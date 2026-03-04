@@ -360,12 +360,43 @@ const topbarEl = ref(null);
 const userName = "Arkhan";
 
 /* =========================
-   ✅ API (ENV base)
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com (or ends with /api)
    ========================= */
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
-const API_JOBS = `${API_BASE}/api/jobs`;
-const API_JOBS_LIST = `${API_BASE}/api/jobs-list`;
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
 
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_BASE = API_BASE_URL.replace(/\/api$/i, "");
+const API_JOBS = joinBaseAndPath(API_BASE_URL, "/api/jobs");
+const API_JOBS_LIST = joinBaseAndPath(API_BASE_URL, "/api/jobs-list");
 /* =========================
    ✅ Scroll lock for overlays
    ========================= */

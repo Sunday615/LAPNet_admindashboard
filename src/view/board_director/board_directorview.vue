@@ -398,6 +398,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
 import gsap from "gsap";
 
 const router = useRouter();
@@ -684,14 +685,25 @@ function showToast(type, text) {
 /* =========================
    API
    ========================= */
-const API_BASE = "http://localhost:3000";
-const DIRECTORS_API = "http://localhost:3000/api/boarddirector";
+function trimSlash(s) {
+  return String(s || "").replace(/\/+$/, "");
+}
+function resolveEndpoint(base, resource) {
+  const b = trimSlash(base);
+  if (!b) return `/api/${resource}`;
+  if (b.endsWith("/api")) return `${b}/${resource}`;
+  return `${b}/api/${resource}`;
+}
+
+const RAW_BASE = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+const API_BASE = trimSlash(RAW_BASE);
+const DIRECTORS_API = resolveEndpoint(API_BASE, "boarddirector");
 
 function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
+  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:")) return s;
   if (s.startsWith("/")) return `${API_BASE}${s}`;
   return `${API_BASE}/${s}`;
 }

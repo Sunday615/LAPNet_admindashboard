@@ -429,16 +429,41 @@ const topbarEl = ref(null);
 const userName = "Arkhan";
 
 /* =========================
-   DATA
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
    ========================= */
-const API_ANNOUNCEMENT = "http://localhost:3000/api/announcement";
-const API_ORIGIN = (() => {
-  try {
-    return new URL(API_ANNOUNCEMENT).origin;
-  } catch {
-    return "http://localhost:3000";
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
   }
-})();
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+const API_ANNOUNCEMENT = joinBaseAndPath(API_BASE_URL, "/api/announcement");
 
 // If DB returns only filename, we will prefix this folder:
 const ANNOUNCEMENT_UPLOAD_REL = "uploads/announcement"; // no leading slash on purpose
@@ -605,10 +630,10 @@ function normalizeLink(v) {
   if (!s || /^(null|undefined|-)$/i.test(s)) return "";
 
   if (/^(mailto:|tel:)/i.test(s)) return s;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^\/\//.test(s)) return `https:${s}`;
+  if (/^http?:\/\//i.test(s)) return s;
+  if (/^\/\//.test(s)) return `http:${s}`;
   if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
-  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return `https://${s}`;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return `http://${s}`;
 
   return s;
 }
@@ -725,7 +750,7 @@ function toAbsUrlMaybe(v) {
   const idx = lower.lastIndexOf("/uploads/");
   if (idx !== -1) s = s.slice(idx);
 
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^http?:\/\//i.test(s)) return s;
   if (/^announcement\//i.test(s)) s = `uploads/${s}`;
 
   const hasExt = /\.[a-z0-9]{2,6}(\?.*)?$/i.test(s);
@@ -1200,7 +1225,6 @@ onBeforeUnmount(() => {
   }
 });
 </script>
-
 <style scoped>
 /* ===== page theme (scoped, won't overlay App.vue sidebar) ===== */
 #add_news {

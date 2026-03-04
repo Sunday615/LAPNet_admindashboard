@@ -54,6 +54,8 @@ import viewannouncementtomember from "../view/announcementtomember/viewannouncem
 
 import allmemberviewer from "../view/memberdashboard/alllmembers_viewer/allmemberviewer.vue";
 
+import form_analytics from "../view/createform/form_analytics.vue";
+
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
@@ -150,6 +152,9 @@ const routes: RouteRecordRaw[] = [
   { path: "/lapnetview", name: "lapnetview", component: lapnetview, meta: { roles: ["admin"] } },
   { path: "/usersmanage", name: "usersmanage", component: usersmanage, meta: { roles: ["admin"] } },
 
+
+     { path: "/form_analytics", name: "form_analytics", component: form_analytics, meta: { roles: ["admin"] } },
+
   // (ถ้าจะให้ viewer ดู formtemplates ด้วย ให้ทำ viewer path แยกอีกอัน)
   { path: "/formtemplates", name: "formtemplates", component: formtemplete, meta: { roles: ["admin"] } },
   { path: "/adddocument", name: "adddocument", component: documentupload, meta: { roles: ["admin"] } },
@@ -186,6 +191,7 @@ const routes: RouteRecordRaw[] = [
    { path: "/v/pdf", name: "v_pdf", component: pdfview, meta: { roles: ["viewer"] } },
    { path: "/v/txt", name: "v_txt", component: txtview, meta: { roles: ["viewer"] } },
    { path: "/v/allmembers_viewer", name: "v_mb", component: allmemberviewer, meta: { roles: ["viewer"] } },
+   
 
 
 

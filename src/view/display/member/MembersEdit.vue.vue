@@ -133,7 +133,7 @@
                 <span>Link 1 Facebook <i class="fa-brands fa-facebook"></i></span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link1" class="inp" type="url" placeholder="https://..." />
+                  <input v-model.trim="form.link1" class="inp" type="url" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link1" class="err">{{ errors.link1 }}</div>
               </label>
@@ -142,7 +142,7 @@
                 <span>Link 2 Website <i class="fa-solid fa-globe"></i></span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link2" class="inp" type="url" placeholder="https://..." />
+                  <input v-model.trim="form.link2" class="inp" type="url" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link2" class="err">{{ errors.link2 }}</div>
               </label>
@@ -444,13 +444,44 @@ import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
 /* =========================
-   ROUTER + API
+   ROUTER + API (Vite .env only)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
    ========================= */
 const router = useRouter();
 const route = useRoute();
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MEMBERS_API = `${API_BASE}/api/members`;
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+const MEMBERS_API = joinBaseAndPath(API_BASE_URL, "/api/members");
 
 const memberId = computed(() => String(route.query.id || route.params.id || "").trim() || "");
 const membersApiPath = computed(() => `${MEMBERS_API}/${encodeURIComponent(memberId.value || ":id")}`);
@@ -459,9 +490,12 @@ function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
+
   if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s}`;
+
+  const origin = API_ORIGIN || API_BASE_URL || "";
+  if (s.startsWith("/")) return `${origin}${s}`;
+  return `${origin}/${s}`;
 }
 
 /* =========================
@@ -514,7 +548,7 @@ const crossborderFlags = {
 function flagUrl(code) {
   const STYLE = "flat";
   const SIZE = 32;
-  return `https://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
+  return `http://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
 }
 
 /* =========================
@@ -689,7 +723,6 @@ function parseMaybeJsonString(s) {
 }
 
 function readItemsLike(v) {
-  // supports: array | {items:[]} | JSON string of array | JSON string of {items:[]} | csv string
   if (v == null) return [];
 
   if (Array.isArray(v)) return toLines(v);
@@ -706,7 +739,6 @@ function readItemsLike(v) {
     if (isPlainObject(j) && Array.isArray(j.items)) return toLines(j.items);
     if (isPlainObject(j) && Array.isArray(j.Items)) return toLines(j.Items);
 
-    // fallback: split by comma / newline / pipe / semicolon
     return String(v)
       .split(/[\n,;|]+/g)
       .map((x) => x.trim())
@@ -717,7 +749,6 @@ function readItemsLike(v) {
 }
 
 function readColorLike(v) {
-  // supports: {primary,secondary} | {gradA,gradB} | JSON string
   if (!v) return null;
 
   if (isPlainObject(v)) {
@@ -735,23 +766,13 @@ function readColorLike(v) {
 }
 
 function unwrapMemberResponse(json) {
-  // handle many shapes safely
-  let m =
-    json?.data ??
-    json?.member ??
-    json?.result ??
-    (json?.ok ? json?.data : null) ??
-    json;
+  let m = json?.data ?? json?.member ?? json?.result ?? (json?.ok ? json?.data : null) ?? json;
 
-  // if data is {data:{...}}
   if (isPlainObject(m) && isPlainObject(m.data) && (m.data.Bankcode || m.data.bankcode || m.data.id)) {
     m = m.data;
   }
 
-  // if array
   if (Array.isArray(m)) m = m[0];
-
-  // if still wrapped like {rows:[...]}
   if (isPlainObject(m) && Array.isArray(m.rows)) m = m.rows[0];
 
   return isPlainObject(m) ? m : null;
@@ -901,7 +922,7 @@ function resetToLoaded() {
 }
 
 /* =========================
-   LOAD MEMBER (FIX: match real DB fields)
+   LOAD MEMBER
    ========================= */
 async function loadMember() {
   if (!memberId.value) return;
@@ -920,14 +941,12 @@ async function loadMember() {
 
     memberRaw.value = m;
 
-    // ✅ map fields from DB (support many key names)
     form.bankcode = pickStr(m, ["Bankcode", "bankcode", "BankCode", "code", "bank_code"], "");
     form.title = pickStr(m, ["BanknameLA", "banknameLA", "bankname_la", "title", "name_la"], "");
     form.subtitle = pickStr(m, ["BanknameEN", "banknameEN", "bankname_en", "subtitle", "name_en"], "");
     form.link1 = pickStr(m, ["LinkFB", "linkfb", "link1", "facebook", "fb"], "");
     form.link2 = pickStr(m, ["LinkWeb", "linkweb", "link2", "website", "web"], "");
 
-    // ✅ color: can be Color JSON/object OR gradA/gradB columns
     const colorObj =
       readColorLike(m?.Color) || readColorLike(m?.color) || readColorLike(m?.Colour) || readColorLike(m?.colour) || null;
 
@@ -937,14 +956,12 @@ async function loadMember() {
     form.gradA = (colorObj?.primary || gradAFromCols || "#38bdf8").trim();
     form.gradB = (colorObj?.secondary || gradBFromCols || "#6366f1").trim();
 
-    // ✅ structured product columns (support many spellings)
     const cardATMItems = readItemsLike(m?.CardATM ?? m?.cardATM ?? m?.cardatm ?? m?.ATM ?? m?.atm);
     const mbItems = readItemsLike(
       m?.Mbbanking ?? m?.Mbbankking ?? m?.mbbanking ?? m?.mbbaking ?? m?.mobile ?? m?.Mobile
     );
     const crossItems = readItemsLike(m?.Crossborder ?? m?.crossborder ?? m?.CrossBorder ?? m?.crossBorder);
 
-    // ✅ fallback: old filterproduct
     const flat = readItemsLike(m?.filterproduct ?? m?.Filterproduct ?? m?.FilterProduct ?? m?.products ?? m?.Products);
 
     const hasStructured = cardATMItems.length || mbItems.length || crossItems.length;
@@ -960,11 +977,9 @@ async function loadMember() {
       form.Crossborder.items = sp.cross;
     }
 
-    // image preview
     originalImageUrl = resolveMediaUrl(pickStr(m, ["image_url", "imageUrl", "image", "Image"], "")) || "";
     imagePreview.value = originalImageUrl;
 
-    // snapshot for reset
     loadedSnapshot = {
       bankcode: form.bankcode,
       title: form.title,
@@ -988,7 +1003,6 @@ async function loadMember() {
 
 /* =========================
    SAVE (PATCH)
-   ✅ send BOTH (camel + DB column names) so it matches your real members table
    ========================= */
 function validate() {
   setError("bankcode", form.bankcode ? "" : "Bank code is required.");
@@ -1018,7 +1032,6 @@ async function onSubmit() {
   try {
     const fd = new FormData();
 
-    // ✅ send both sets of keys (safe for different backend implementations)
     const bankcode = form.bankcode.trim();
     const title = form.title.trim();
     const subtitle = (form.subtitle || "").trim();
@@ -1027,7 +1040,6 @@ async function onSubmit() {
     const gradA = (form.gradA || "").trim();
     const gradB = (form.gradB || "").trim();
 
-    // camel keys
     fd.append("bankcode", bankcode);
     fd.append("title", title);
     fd.append("subtitle", subtitle);
@@ -1036,17 +1048,14 @@ async function onSubmit() {
     fd.append("gradA", gradA);
     fd.append("gradB", gradB);
 
-    // DB-like keys
     fd.append("Bankcode", bankcode);
     fd.append("BanknameLA", title);
     fd.append("BanknameEN", subtitle);
     fd.append("LinkFB", link1);
     fd.append("LinkWeb", link2);
 
-    // color object for DB column "Color"
     fd.append("Color", JSON.stringify({ primary: gradA, secondary: gradB }));
 
-    // ✅ structured products
     const CardATM = { items: form.CardATM.items || [] };
     const Mbbanking = { items: form.Mbbanking.items || [] };
     const Crossborder = { items: form.Crossborder.items || [] };
@@ -1055,12 +1064,10 @@ async function onSubmit() {
     fd.append("Mbbanking", JSON.stringify(Mbbanking));
     fd.append("Crossborder", JSON.stringify(Crossborder));
 
-    // ✅ union for old backend + DB-like key too
     const flat = JSON.stringify(allSelectedProducts.value || []);
     fd.append("filterproduct", flat);
     fd.append("Filterproduct", flat);
 
-    // ✅ flags tinyint(1) (send both styles)
     fd.append("memberATM", String(memberFlags.value.memberATM));
     fd.append("membermobile", String(memberFlags.value.membermobile));
     fd.append("membercrossborder", String(memberFlags.value.membercrossborder));
@@ -1073,7 +1080,7 @@ async function onSubmit() {
 
     const res = await fetch(`${MEMBERS_API}/${encodeURIComponent(memberId.value)}`, {
       method: "PATCH",
-      body: fd, // do NOT set Content-Type for FormData
+      body: fd,
     });
 
     const json = await res.json().catch(() => ({}));
@@ -1082,12 +1089,10 @@ async function onSubmit() {
     const updated = unwrapMemberResponse(json) || json?.data || json?.member || null;
     if (updated && typeof updated === "object") memberRaw.value = updated;
 
-    // refresh preview (important if backend changes paths)
     originalImageUrl =
       resolveMediaUrl(pickStr(memberRaw.value || {}, ["image_url", "imageUrl", "image", "Image"], "")) || originalImageUrl;
     clearNewFile();
 
-    // update snapshot
     loadedSnapshot = {
       bankcode: form.bankcode,
       title: form.title,
@@ -1139,7 +1144,6 @@ function chipHover(e, enter) {
   gsap.to(e.currentTarget, { scale: enter ? 1.02 : 1, duration: 0.18, ease: "power2.out" });
 }
 
-/* enter animation */
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
@@ -1159,6 +1163,7 @@ onBeforeUnmount(() => {
   lockScroll(false);
 });
 </script>
+
 
 <style scoped>
 /* =========================

@@ -462,7 +462,7 @@ const route = useRoute();
  * DELETE /api/documents/:id
  * POST   /api/documents/bulk-delete (json: { ids: [] })
  */
-const API_BASE = import.meta.env?.VITE_API_BASE || "http://localhost:3000/api";
+const API_BASE = import.meta.env?.VITE_API_BASE || "http://175.0.198.10:3000/api";
 
 // demo state
 const q = ref("");

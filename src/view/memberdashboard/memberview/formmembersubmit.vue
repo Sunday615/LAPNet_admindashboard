@@ -417,9 +417,9 @@ const router = useRouter();
 const id = computed(() => String(route.params?.id || "").trim());
 
 // ✅ endpoints
-const LIST_API = "http://localhost:3000/api/form-templates";
-const DETAIL_API = "http://localhost:3000/api/form-templates"; // ใช้ /:id
-const SUBMIT_API = "http://localhost:3000/api/form-submissions";
+const LIST_API = "http://175.0.198.10:3000/api/form-templates";
+const DETAIL_API = "http://175.0.198.10:3000/api/form-templates"; // ใช้ /:id
+const SUBMIT_API = "http://175.0.198.10:3000/api/form-submissions";
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -736,8 +736,8 @@ function hasAnchor(s) {
 function safeHref(href) {
   const h = String(href ?? "").trim();
   if (!h) return "#";
-  if (/^(https?:\/\/|mailto:|tel:)/i.test(h)) return h;
-  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return "https://" + h;
+  if (/^(http?:\/\/|mailto:|tel:)/i.test(h)) return h;
+  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return "http://" + h;
   return "#";
 }
 function stripHtmlText(s) {
@@ -786,7 +786,7 @@ function resolveImgSrc(src, bust) {
   const s = String(src || "").trim();
   if (!s) return "";
   if (/^data:/i.test(s) || /^blob:/i.test(s)) return s;
-  if (/^https?:\/\//i.test(s)) return appendCacheBust(s, bust);
+  if (/^http?:\/\//i.test(s)) return appendCacheBust(s, bust);
   if (s.startsWith("/")) return appendCacheBust(`${SERVER_ORIGIN}${s}`, bust);
   return appendCacheBust(s, bust);
 }

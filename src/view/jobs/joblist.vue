@@ -258,8 +258,43 @@ const actionsEl = ref(null);
 const departments = ["Administration", "Accounting & Finance", "IT", "Operation", "Internal Audit"];
 const levels = ["Intern", "Junior", "Mid", "Senior", "Lead", "Manager", "Director", "Other"];
 
-/** ✅ API BASE */
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com (or ends with /api)
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_BASE = API_BASE_URL.replace(/\/api$/i, "");
+const API_JOBS = joinBaseAndPath(API_BASE_URL, "/api/jobs");
 
 function nowTimestamp() {
   const d = new Date();
@@ -464,7 +499,7 @@ async function onSubmit() {
   try {
     saving.value = true;
 
-    const res = await fetch(`${API_BASE}/api/jobs`, {
+    const res = await fetch(`${API_JOBS}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

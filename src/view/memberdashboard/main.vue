@@ -407,7 +407,7 @@ const DISPLAY_YEAR = 2026;
 const AD_LABEL = "";
 
 // ---- API base
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000";
 const endpoints = {
   documents: `${BASE}/api/documents`,
   announcements: `${BASE}/api/announcements`,
@@ -606,9 +606,9 @@ function isFormActive(x) {
 function resolveAssetUrl(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
-  if (/^(https?:|data:|blob:)/i.test(s)) return s;
+  if (/^(http?:|data:|blob:)/i.test(s)) return s;
 
-  const base = String(BASE || "http://localhost:3000").replace(/\/+$/, "");
+  const base = String(BASE || "http://175.0.198.10:3000").replace(/\/+$/, "");
   if (s.startsWith("/")) return `${base}${s}`;
   return `${base}/${s.replace(/^\/+/, "")}`;
 }

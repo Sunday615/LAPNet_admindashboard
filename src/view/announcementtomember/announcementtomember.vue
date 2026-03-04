@@ -196,7 +196,7 @@
       </form>
     </div>
 
-    <!-- ✅ Modern Toast Alert -->
+    <!-- ✅ Modern Toast Alert (with View button) -->
     <div class="toastHost" aria-live="polite" aria-relevant="additions text">
       <div
         v-if="toast.open"
@@ -216,6 +216,14 @@
         <div class="toastBody">
           <div class="toastTitle">{{ toast.title }}</div>
           <div class="toastMsg">{{ toast.message }}</div>
+
+          <!-- ✅ Action button inside alert -->
+          <div class="toastActions" v-if="toast.action?.label">
+            <button class="toastActionBtn" type="button" @click="onToastAction">
+              <i class="fa-solid fa-eye"></i>
+              <span>{{ toast.action.label }}</span>
+            </button>
+          </div>
         </div>
 
         <button class="toastClose" type="button" @click="hideToast()" title="Close">
@@ -295,22 +303,38 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRouter } from "vue-router";
 import gsap from "gsap";
 
-/* -----------------------------
-  API base
-  ✅ Make submit "real" by calling the backend port (or use VITE_API_BASE).
-  - If you use Vite proxy, set VITE_API_BASE="" and it will use relative URLs.
------------------------------ */
-const API_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").replace(/\/+$/, "");
-const API = (p) => (API_BASE ? `${API_BASE}${p}` : p);
+const router = useRouter();
 
 /* -----------------------------
-  Announcements endpoints
-  ✅ Try both common mount paths
+  ✅ API BASE (FIXED)
+  Default = Remote API
+  - If you want proxy in dev (same-origin): set VITE_FORCE_REMOTE="0" and VITE_API_BASE=""
+  - If you want custom base: set VITE_FORCE_REMOTE="0" and VITE_API_BASE="http://localhost:3000"
 ----------------------------- */
-const ANNOUNCEMENTS_ENDPOINTS = [API("/api/announcements"), API("/api/membersbank/announcements")];
+const DEFAULT_REMOTE = "http://175.0.198.10:3000";
+const ENV_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").trim().replace(/\/+$/, "");
+const FORCE_REMOTE = String(import.meta?.env?.VITE_FORCE_REMOTE ?? "1") !== "0";
+
+// ✅ Remote by default. If FORCE_REMOTE=0, use ENV_BASE (may be "" for proxy).
+const API_BASE = FORCE_REMOTE ? DEFAULT_REMOTE : ENV_BASE;
+
+const API = (p = "") => {
+  const path = String(p || "");
+  if (!path) return API_BASE || "";
+  if (path.startsWith("http")) return path;
+
+  // if API_BASE empty => use same-origin (proxy)
+  if (!API_BASE) return path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
+/* -----------------------------
+  ✅ Announcements endpoint (exact)
+----------------------------- */
+const ANNOUNCEMENTS_ENDPOINT = "http://175.0.198.10:3000/api/announcements";
 
 /* -----------------------------
   Form state
@@ -333,7 +357,7 @@ const errorMsg = ref("");
 const successMsg = ref("");
 
 /* -----------------------------
-  ✅ Modern toast (success / error)
+  ✅ Modern toast (success / error) + action button
 ----------------------------- */
 const toastRef = ref(null);
 const toast = reactive({
@@ -341,24 +365,30 @@ const toast = reactive({
   type: "success", // success | error | info
   title: "",
   message: "",
-  duration: 4200,
+  duration: 5200,
+  action: null, // { label: string, path: string }
 });
 let toastTimer = null;
 
-function showToast(type, title, message, duration = 4200) {
+function showToast(type, title, message, duration = 5200, action = null) {
   clearTimeout(toastTimer);
 
   toast.type = type || "info";
   toast.title = title || (type === "success" ? "Success" : type === "error" ? "Error" : "Notice");
   toast.message = (message || "").toString();
-  toast.duration = Number(duration) || 4200;
+  toast.duration = Number(duration) || 5200;
+  toast.action = action && action.label ? action : null;
   toast.open = true;
 
   nextTick(() => {
     const el = toastRef.value;
     if (!el) return;
     gsap.killTweensOf(el);
-    gsap.fromTo(el, { autoAlpha: 0, y: -10, x: 10, scale: 0.98 }, { autoAlpha: 1, y: 0, x: 0, scale: 1, duration: 0.22, ease: "power3.out" });
+    gsap.fromTo(
+      el,
+      { autoAlpha: 0, y: -10, x: 10, scale: 0.98 },
+      { autoAlpha: 1, y: 0, x: 0, scale: 1, duration: 0.22, ease: "power3.out" }
+    );
   });
 
   toastTimer = setTimeout(() => hideToast(), toast.duration);
@@ -370,6 +400,7 @@ function hideToast(immediate = false) {
 
   if (immediate || !el) {
     toast.open = false;
+    toast.action = null;
     return;
   }
 
@@ -383,15 +414,25 @@ function hideToast(immediate = false) {
     ease: "power2.in",
     onComplete: () => {
       toast.open = false;
+      toast.action = null;
     },
   });
+}
+
+function onToastAction() {
+  const action = toast.action;
+  if (!action?.path) return;
+  hideToast(true);
+  router.push(action.path);
 }
 
 /* -----------------------------
   MemberBank (fetch from API)
 ----------------------------- */
 const defaultBankLogo = "/bank-logos/default.png";
-const MEMBERS_ENDPOINTS = [API("/api/members"), "http://localhost:3000/api/members"]; // fallback if API_BASE empty but no proxy
+
+// use same base (proxy/remote) but also fallback to remote
+const MEMBERS_ENDPOINTS = [API("/api/members"), `${DEFAULT_REMOTE}/api/members`];
 
 function buildFallbackMembers() {
   return Array.from({ length: 21 }, (_, i) => {
@@ -422,13 +463,17 @@ function pickArrayFromApi(json) {
 function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
-  if (/^(https?:|data:|blob:)/i.test(s)) return s;
-  if (s.startsWith("/")) return `http://localhost:3000${s}`;
-  return `http://localhost:3000/${s.replace(/^\/+/, "")}`;
+  if (/^(http?:|data:|blob:)/i.test(s)) return s;
+  if (s.startsWith("/")) return `${DEFAULT_REMOTE}${s}`;
+  return `${DEFAULT_REMOTE}/${s.replace(/^\/+/, "")}`;
 }
 
 async function fetchJsonTry(url) {
-  const res = await fetch(url);
+  if (!url) throw new Error("Members URL missing");
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error(txt || `Fetch failed (${res.status})`);
@@ -478,13 +523,6 @@ async function fetchMembers() {
       const ao = a.order ?? Number.POSITIVE_INFINITY;
       const bo = b.order ?? Number.POSITIVE_INFINITY;
       if (ao !== bo) return ao - bo;
-
-      const aNum = Number(a.id);
-      const bNum = Number(b.id);
-      const aHasNum = Number.isFinite(aNum) && !Number.isNaN(aNum);
-      const bHasNum = Number.isFinite(bNum) && !Number.isNaN(bNum);
-      if (aHasNum && bHasNum && aNum !== bNum) return aNum - bNum;
-
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     });
 
@@ -555,18 +593,12 @@ const membersLabel = computed(() => {
   Validation
 ----------------------------- */
 const canSubmit = computed(() => {
-  const basic =
+  return (
     title.value.trim().length > 0 &&
     body.value.trim().length > 0 &&
     selectedMemberIds.value.length > 0 &&
-    !loading.value;
-
-  if (!basic) return false;
-
-  // If using fallback list (API failed), only allow submit when "Select all" (target_all=1)
-  if (usingFallbackMembers.value && !isAllSelected.value) return false;
-
-  return true;
+    !loading.value
+  );
 });
 
 /* -----------------------------
@@ -706,30 +738,63 @@ function fileIconClass(f) {
 }
 
 /* -----------------------------
-  Submit (multipart/form-data)
+  Submit helpers
 ----------------------------- */
-function buildFormData(fileFieldName = "attachments") {
-  const fd = new FormData();
-
+function buildCommonPayload() {
   const cleanTitle = title.value.trim();
   const cleanBody = body.value.trim();
-
-  fd.append("title", cleanTitle);
-
-  fd.append("body", cleanBody);
-  fd.append("paragraph", cleanBody);
-  fd.append("detail", cleanBody);
-
-  fd.append("tags", JSON.stringify(tags.value || []));
 
   const ids = selectedMemberIds.value.slice();
   const all = isAllSelected.value;
 
-  fd.append("target_all", all ? "1" : "0");
+  const tagsArr = Array.isArray(tags.value) ? tags.value : [];
+  const tagsCsv = tagsArr.join(",");
 
   const idsPayload = all ? [] : ids;
-  fd.append("memberIds", JSON.stringify(idsPayload));
-  fd.append("member_ids", JSON.stringify(idsPayload));
+  const idsCsv = idsPayload.join(",");
+
+  return {
+    title: cleanTitle,
+    body: cleanBody,
+    paragraph: cleanBody,
+    detail: cleanBody,
+
+    tags: tagsArr,
+    tags_json: tagsArr,
+    tags_csv: tagsCsv,
+
+    target_all: all ? 1 : 0,
+    targetAll: all ? 1 : 0,
+    memberIds: idsPayload,
+    member_ids: idsPayload,
+    member_ids_csv: idsCsv,
+
+    status: "published",
+    collect_email: 0,
+  };
+}
+
+function buildFormData(fileFieldName = "attachments") {
+  const fd = new FormData();
+  const p = buildCommonPayload();
+
+  fd.append("title", p.title);
+
+  fd.append("body", p.body);
+  fd.append("paragraph", p.paragraph);
+  fd.append("detail", p.detail);
+
+  fd.append("tags", JSON.stringify(p.tags || []));
+  fd.append("tags_csv", String(p.tags_csv || ""));
+
+  fd.append("target_all", String(p.target_all));
+  fd.append("targetAll", String(p.targetAll));
+
+  fd.append("memberIds", JSON.stringify(p.memberIds || []));
+  fd.append("member_ids", JSON.stringify(p.member_ids || []));
+  fd.append("member_ids_csv", String(p.member_ids_csv || ""));
+
+  for (const id of p.memberIds || []) fd.append("memberIds[]", id);
 
   fd.append("status", "published");
   fd.append("collect_email", "0");
@@ -744,10 +809,7 @@ async function readErrorMessage(res) {
   if (ct.includes("application/json")) {
     const j = await res.json().catch(() => null);
     if (!j) return `Request failed (${res.status})`;
-
-    if (j?.message && Array.isArray(j?.missing) && j.missing.length) {
-      return `${j.message}: ${j.missing.join(", ")}`;
-    }
+    if (j?.message && Array.isArray(j?.missing) && j.missing.length) return `${j.message}: ${j.missing.join(", ")}`;
     if (j?.message) return String(j.message);
     return `Request failed (${res.status})`;
   }
@@ -769,17 +831,14 @@ function looksLikeUnexpectedField(msg) {
   return s.includes("unexpected field") || s.includes("limit_unexpected_file") || s.includes("multererror");
 }
 
+/* -----------------------------
+  ✅ Submit (JSON if no files, multipart if files)
+----------------------------- */
 async function submit() {
   errorMsg.value = "";
   successMsg.value = "";
 
   if (!canSubmit.value) {
-    if (usingFallbackMembers.value && !isAllSelected.value) {
-      errorMsg.value =
-        "Members API failed, and your selected IDs may not exist in DB. Please fix /api/members, or click “Select all” to submit as target_all.";
-      showToast("error", "Cannot submit", errorMsg.value, 6500);
-      return;
-    }
     errorMsg.value = "Please fill in Title, Paragraph, and select at least 1 member.";
     showToast("error", "Missing fields", errorMsg.value, 5200);
     return;
@@ -788,49 +847,96 @@ async function submit() {
   loading.value = true;
 
   try {
-    let lastErr = null;
+    const url = ANNOUNCEMENTS_ENDPOINT;
+    const hasFiles = files.value.length > 0;
 
-    for (const url of ANNOUNCEMENTS_ENDPOINTS) {
-      for (const fileField of ["attachments", "files"]) {
+    // 1) JSON first when no files
+    if (!hasFiles) {
+      const payload = buildCommonPayload();
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        let data = null;
         try {
-          const fd = buildFormData(fileField);
-          const res = await fetch(url, { method: "POST", body: fd });
+          data = await res.json();
+        } catch {}
 
-          if (!res.ok) {
-            const msg = await readErrorMessage(res);
+        const msg = data?.id ? `Announcement created successfully! (ID: ${data.id})` : "Announcement created successfully!";
+        successMsg.value = msg;
 
-            if (res.status === 404) {
-              lastErr = new Error(`Not found: ${url}`);
-              break;
-            }
+        showToast(
+          "success",
+          "Saved successfully",
+          msg,
+          6500,
+          { label: "View", path: "/viewannouncementtomember" }
+        );
 
-            if (res.status === 400 && looksLikeUnexpectedField(msg) && fileField === "attachments") {
-              lastErr = new Error(msg);
-              continue;
-            }
+        resetAll(false);
+        return;
+      }
 
-            throw new Error(msg);
+      const msg = await readErrorMessage(res);
+      const lower = String(msg || "").toLowerCase();
+      const shouldTryMultipart =
+        res.status === 415 ||
+        lower.includes("multipart") ||
+        lower.includes("form-data") ||
+        lower.includes("unsupported media type");
+
+      if (!shouldTryMultipart) throw new Error(msg);
+    }
+
+    // 2) Multipart (retry field name)
+    let lastErr = null;
+    const fieldCandidates = ["attachments", "files", "file"];
+
+    for (const fileField of fieldCandidates) {
+      try {
+        const fd = buildFormData(fileField);
+
+        const res = await fetch(url, {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!res.ok) {
+          const msg = await readErrorMessage(res);
+          if (res.status === 400 && looksLikeUnexpectedField(msg)) {
+            lastErr = new Error(msg);
+            continue;
           }
-
-          let data = null;
-          try {
-            data = await res.json();
-          } catch {}
-
-          const msg = data?.id
-            ? `Announcement created successfully! (ID: ${data.id})`
-            : "Announcement created successfully!";
-
-          successMsg.value = msg;
-
-          // ✅ Modern success alert
-          showToast("success", "Saved successfully", msg, 4200);
-
-          resetAll(false);
-          return;
-        } catch (e) {
-          lastErr = e;
+          throw new Error(msg);
         }
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {}
+
+        const msg = data?.id ? `Announcement created successfully! (ID: ${data.id})` : "Announcement created successfully!";
+        successMsg.value = msg;
+
+        showToast(
+          "success",
+          "Saved successfully",
+          msg,
+          6500,
+          { label: "View", path: "/viewannouncementtomember" }
+        );
+
+        resetAll(false);
+        return;
+      } catch (e) {
+        lastErr = e;
       }
     }
 
@@ -1483,7 +1589,7 @@ watch(
 }
 .toast {
   pointer-events: auto;
-  width: min(420px, calc(100vw - 28px));
+  width: min(440px, calc(100vw - 28px));
   display: grid;
   grid-template-columns: 46px 1fr 38px;
   align-items: start;
@@ -1541,6 +1647,27 @@ watch(
   line-height: 1.35;
   word-break: break-word;
 }
+.toastActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+.toastActionBtn {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(90, 180, 255, 0.16);
+  color: rgba(240, 250, 255, 0.95);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.toastActionBtn:hover {
+  background: rgba(90, 180, 255, 0.22);
+}
 .toastClose {
   width: 38px;
   height: 38px;
@@ -1593,13 +1720,12 @@ watch(
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: none; /* GSAP set to flex */
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 18px;
   background: rgba(0, 0, 0, 0.52);
   backdrop-filter: blur(10px);
-
   pointer-events: none;
 }
 .overlay.isOpen {

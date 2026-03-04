@@ -111,7 +111,7 @@ import gsap from "gsap";
 const router = useRouter();
 
 // ✅ API list endpoint (ตามที่คุณให้มา)
-const LIST_API = "http://localhost:3000/api/form-templates";
+const LIST_API = "http://175.0.198.10:3000/api/form-templates";
 
 const q = ref("");
 const loading = ref(false);

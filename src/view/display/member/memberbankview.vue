@@ -699,10 +699,10 @@ function safeUrl(input) {
 
   if (/^(javascript:|data:|vbscript:)/i.test(raw)) return null;
 
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("//")) return `https:${raw}`;
+  if (/^http?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("//")) return `http:${raw}`;
 
-  return `https://${raw.replace(/^\/+/, "")}`;
+  return `http://${raw.replace(/^\/+/, "")}`;
 }
 
 /* =========================
@@ -813,16 +813,16 @@ function formatDDMMYY(input) {
 /* =========================
    ✅ Logo from backend
    ========================= */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MEMBERS_API = `${API_BASE}/api/members`;
+const VITE_API_BASE_URL = import.meta.env.VITE_VITE_API_BASE_URL_URL || "";
+const MEMBERS_API = `${VITE_API_BASE_URL}/api/members`;
 
 function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s}`;
+  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:")) return s;
+  if (s.startsWith("/")) return `${VITE_API_BASE_URL}${s}`;
+  return `${VITE_API_BASE_URL}/${s}`;
 }
 
 function logoUrlOf(m) {
@@ -918,7 +918,7 @@ function normalizeHex(input) {
 function flagUrl(code) {
   const STYLE = "flat";
   const SIZE = 32;
-  return `https://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
+  return `http://flagsapi.com/${code}/${STYLE}/${SIZE}.png`;
 }
 
 const COUNTRY = [

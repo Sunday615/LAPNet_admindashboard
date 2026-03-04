@@ -313,11 +313,7 @@
               </div>
 
               <div v-else-if="modal.item?.media?.kind === 'pdf' && modal.item?.media?.url" class="pvPdf">
-                <iframe
-                  class="pdfFrame"
-                  :src="pdfViewerSrc(modal.item.media.url)"
-                  title="PDF Preview"
-                />
+                <iframe class="pdfFrame" :src="pdfViewerSrc(modal.item.media.url)" title="PDF Preview" />
                 <div class="pvHelp">
                   If PDF preview is blocked, click
                   <button class="linkBtn" type="button" @click="openInNewTab(modal.item.media.url)">Open file</button>.
@@ -341,6 +337,64 @@
 
               <div v-if="modal.item?.tags?.length" class="pvTags">
                 <span v-for="t in modal.item.tags" :key="t" class="tag">#{{ t }}</span>
+              </div>
+
+              <!-- ✅ MemberBank access list (match memberid -> members(bankcode) -> bankname) -->
+              <div class="pvAccess">
+                <div class="pvAccessHead">
+                  <div class="pvAccessTitle">
+                    <i class="fa-solid fa-building-columns"></i>
+                    Accessible Member Banks
+                  </div>
+                  <div class="pvAccessSub">
+                    <template v-if="modal.access.loading">
+                      Resolving access…
+                    </template>
+                    <template v-else-if="modal.access.mode === 'all'">
+                      All member banks (no specific selection)
+                    </template>
+                    <template v-else>
+                      {{ modal.access.items.length }} selected
+                    </template>
+                  </div>
+                </div>
+
+                <div v-if="modal.access.loading" class="pvAccessLoading">
+                  <div class="loaderDot sm"></div>
+                  <div class="loaderDot sm"></div>
+                  <div class="loaderDot sm"></div>
+                </div>
+
+                <div v-else-if="modal.access.error" class="pvAccessErr">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  {{ modal.access.error }}
+                </div>
+
+                <div v-else-if="modal.access.mode === 'all'" class="pvAccessAll">
+                  <span class="pill soft">
+                    <i class="fa-solid fa-users"></i>
+                    All Members
+                  </span>
+                </div>
+
+                <div v-else class="pvAccessTags">
+                  <span
+                    v-for="b in modal.access.items"
+                    :key="b.key"
+                    class="bankChip"
+                    :class="{ miss: !b.found }"
+                    :title="b.found ? b.rawName : 'Not found in /api/members'"
+                  >
+                    <i class="fa-solid" :class="b.found ? 'fa-building-columns' : 'fa-circle-question'"></i>
+                    <span class="bankName">{{ b.name }}</span>
+                    <span class="bankCode mono">{{ b.code }}</span>
+                  </span>
+                </div>
+
+                <div v-if="modal.access.note" class="pvAccessNote">
+                  <i class="fa-solid fa-circle-info"></i>
+                  {{ modal.access.note }}
+                </div>
               </div>
             </template>
 
@@ -382,24 +436,14 @@
                   <label class="label">Attachment (PDF or Image)</label>
 
                   <div class="upload">
-                    <input
-                      ref="fileEl"
-                      type="file"
-                      accept="image/*,application/pdf"
-                      @change="onPickFile"
-                    />
+                    <input ref="fileEl" type="file" accept="image/*,application/pdf" @change="onPickFile" />
 
                     <button class="btn ghost" type="button" @click="triggerFile">
                       <i class="fa-solid fa-cloud-arrow-up"></i>
                       Choose file
                     </button>
 
-                    <button
-                      v-if="form.previewUrl || form.keepUrl"
-                      class="btn soft"
-                      type="button"
-                      @click="removeMedia"
-                    >
+                    <button v-if="form.previewUrl || form.keepUrl" class="btn soft" type="button" @click="removeMedia">
                       <i class="fa-solid fa-xmark"></i>
                       Remove
                     </button>
@@ -421,9 +465,7 @@
                     </div>
 
                     <iframe class="pdfFrame small" :src="pdfViewerSrc(form.previewUrl || form.keepUrl)" title="PDF Preview" />
-                    <div class="hint">
-                      If preview blocked, click Open.
-                    </div>
+                    <div class="hint">If preview blocked, click Open.</div>
                   </div>
 
                   <div v-else-if="(form.previewUrl || form.keepUrl)" class="filePrev">
@@ -438,9 +480,7 @@
                 </div>
 
                 <div class="mActions">
-                  <button class="btn ghost" type="button" @click="closeModal" :disabled="modal.busy">
-                    Cancel
-                  </button>
+                  <button class="btn ghost" type="button" @click="closeModal" :disabled="modal.busy">Cancel</button>
                   <button class="btn" type="submit" :disabled="modal.busy">
                     <i class="fa-solid fa-floppy-disk"></i>
                     {{ modal.busy ? "Saving..." : "Save" }}
@@ -524,8 +564,9 @@ import gsap from "gsap";
 
 const router = useRouter();
 
-const API_ORIGIN = "http://localhost:3000";
-const ANN_API_URL = "http://localhost:3000/api/announcements";
+const API_ORIGIN = "http://175.0.198.10:3000";
+const ANN_API_URL = "http://175.0.198.10:3000/api/announcements";
+const MEMBERS_API_URL = "http://175.0.198.10:3000/api/members"; // ✅ used for bankcode -> bank name mapping
 
 const rootEl = ref(null);
 
@@ -539,12 +580,208 @@ const pageSize = ref(9);
 const sortMode = ref("latest"); // 'latest' | 'title'
 
 /* -----------------------
+   Members (for access list)
+   ----------------------- */
+const membersLoaded = ref(false);
+const membersLoading = ref(false);
+const membersError = ref("");
+const memberIndex = ref({
+  byCode: {}, // { [bankcodeLower]: memberObj }
+  byId: {}, // { [idStr]: memberObj }
+});
+
+function getMemberId(m) {
+  const v = m?.id ?? m?._id ?? m?.uuid ?? m?.member_id ?? m?.memberId ?? m?.iAccount ?? m?.iaccount ?? "";
+  return String(v || "").trim();
+}
+function getBankcode(m) {
+  const v = m?.bankcode ?? m?.bank_code ?? m?.code ?? m?.member_bankcode ?? m?.bankCode ?? "";
+  return String(v || "").trim();
+}
+function getBankName(m) {
+  // align with your MemberBanksViewer fields (BanknameLA/BanknameEN)
+  const v =
+    m?.BanknameLA ??
+    m?.banknameLA ??
+    m?.bankname_la ??
+    m?.BanknameEN ??
+    m?.banknameEN ??
+    m?.bankname_en ??
+    m?.bank_name ??
+    m?.name ??
+    m?.title ??
+    "";
+  return String(v || "").trim();
+}
+
+async function fetchMembers() {
+  if (membersLoading.value) return;
+  membersLoading.value = true;
+  membersError.value = "";
+  try {
+    const res = await fetch(MEMBERS_API_URL);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+
+    const byCode = {};
+    const byId = {};
+
+    for (const m of list) {
+      const code = getBankcode(m);
+      const id = getMemberId(m);
+
+      if (code) byCode[String(code).toLowerCase()] = m;
+      if (id) byId[String(id)] = m;
+    }
+
+    memberIndex.value = { byCode, byId };
+    membersLoaded.value = true;
+  } catch (e) {
+    membersError.value = e?.message || "Failed to load members";
+  } finally {
+    membersLoading.value = false;
+  }
+}
+
+async function ensureMembers() {
+  if (membersLoaded.value) return true;
+  await fetchMembers();
+  return membersLoaded.value;
+}
+
+function tryParseJsonArray(s) {
+  const t = String(s || "").trim();
+  if (!t) return null;
+  if (!(t.startsWith("[") && t.endsWith("]"))) return null;
+  try {
+    const v = JSON.parse(t);
+    return Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** ✅ Parse member ids / bankcodes from announcement raw (best-effort) */
+function parseAccessIds(raw) {
+  const r = raw || {};
+
+  const cand =
+    r?.member_ids ??
+    r?.memberIds ??
+    r?.member_id ??
+    r?.memberid ??
+    r?.memberId ??
+    r?.members ??
+    r?.member_access ??
+    r?.member_access_ids ??
+    r?.member_access_list ??
+    r?.allowed_members ??
+    r?.allowed_banks ??
+    r?.bankcodes ??
+    r?.bankcode_list ??
+    r?.bankcode ??
+    r?.bank_code ??
+    r?.access_bankcodes ??
+    r?.accessBanks ??
+    r?.targets ??
+    r?.target_members ??
+    r?.target_banks ??
+    "";
+
+  // array
+  if (Array.isArray(cand)) {
+    return Array.from(
+      new Set(
+        cand
+          .map((x) => (typeof x === "object" ? x?.bankcode ?? x?.code ?? x?.id ?? x?._id : x))
+          .map((x) => String(x || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  // object with list
+  if (cand && typeof cand === "object") {
+    const arr =
+      cand?.bankcodes ??
+      cand?.codes ??
+      cand?.ids ??
+      cand?.members ??
+      cand?.list ??
+      cand?.items ??
+      [];
+    if (Array.isArray(arr)) {
+      return Array.from(
+        new Set(arr.map((x) => String(x || "").trim()).filter(Boolean))
+      );
+    }
+  }
+
+  // string
+  const s = String(cand || "").trim();
+  if (!s) return [];
+  const jsonArr = tryParseJsonArray(s);
+  if (jsonArr) return Array.from(new Set(jsonArr.map((x) => String(x || "").trim()).filter(Boolean)));
+
+  return Array.from(
+    new Set(
+      s
+        .split(/[,\n|]/g)
+        .map((x) => String(x || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function resolveAccessBanksFromAnnouncement(a) {
+  const raw = a?._raw || {};
+  const idsOrCodes = parseAccessIds(raw);
+
+  // if none -> treat as "all"
+  if (!idsOrCodes.length) {
+    return {
+      mode: "all",
+      note: "",
+      items: [],
+    };
+  }
+
+  const byCode = memberIndex.value.byCode || {};
+  const byId = memberIndex.value.byId || {};
+
+  const items = idsOrCodes.map((token) => {
+    const t = String(token || "").trim();
+    const codeKey = t.toLowerCase();
+
+    const m = byCode[codeKey] || byId[t] || null;
+
+    const code = getBankcode(m) || t; // show the token if not found
+    const name = (m ? getBankName(m) : "") || (m ? (m?.BanknameLA || m?.banknameLA || m?.BanknameEN || m?.banknameEN) : "") || "";
+    const rawName = m ? JSON.stringify(m) : "";
+
+    return {
+      key: `${t}-${Math.random().toString(16).slice(2)}`,
+      found: !!m,
+      code,
+      name: m ? name : "",
+      rawName,
+    };
+  });
+
+  const missing = items.filter((x) => !x.found).map((x) => x.code);
+  const note = missing.length ? `Not found in members list: ${missing.slice(0, 8).join(", ")}${missing.length > 8 ? "…" : ""}` : "";
+
+  return { mode: "list", note, items };
+}
+
+/* -----------------------
    URL + media helpers
    ----------------------- */
 function toAbsUrl(u) {
   const s = String(u || "").trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  if (s.startsWith("http://") || s.startsWith("http://")) return s;
   if (s.startsWith("//")) return `${window.location.protocol}${s}`;
   if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
   return `${API_ORIGIN}/${s.replace(/^\.?\//, "")}`;
@@ -576,8 +813,6 @@ function fileName(u) {
 }
 
 function pdfViewerSrc(url) {
-  // some servers require direct url; iframe will try to render
-  // (you can also do: `${url}#toolbar=0` but keep simple)
   return url;
 }
 
@@ -646,6 +881,9 @@ function parseTags(it) {
 
   const s = String(t || "").trim();
   if (!s) return [];
+  const jsonArr = tryParseJsonArray(s);
+  if (jsonArr) return jsonArr.map((x) => String(x).trim()).filter(Boolean).slice(0, 12);
+
   return s
     .split(/[,\n]/g)
     .map((x) => x.trim().replace(/^#/, ""))
@@ -664,7 +902,6 @@ function pickVisibility(it) {
 
 /* ✅ Pick media url for PDF/Image (robust) */
 function pickMediaUrl(it) {
-  // direct candidates
   const cands = [
     it?.pdf_url,
     it?.pdf,
@@ -685,14 +922,12 @@ function pickMediaUrl(it) {
 
   if (cands.length) return String(cands[0]).trim();
 
-  // attachments array
   if (Array.isArray(it?.attachments) && it.attachments.length) {
     const a0 = it.attachments[0];
     const u = a0?.url ?? a0?.path ?? a0?.src ?? a0?.file_url ?? "";
     if (u) return String(u).trim();
   }
 
-  // files array
   if (Array.isArray(it?.files) && it.files.length) {
     const f0 = it.files[0];
     const u = f0?.url ?? f0?.path ?? f0?.src ?? "";
@@ -803,6 +1038,15 @@ const modal = ref({
   mode: "preview", // 'preview' | 'edit'
   busy: false,
   item: null,
+
+  // ✅ access list state (for preview)
+  access: {
+    loading: false,
+    error: "",
+    mode: "all", // 'all' | 'list'
+    items: [],
+    note: "",
+  },
 });
 
 const fileEl = ref(null);
@@ -828,13 +1072,59 @@ const form = ref({
   removeExisting: false,
 });
 
-function openPreview(a) {
-  modal.value = { show: true, mode: "preview", busy: false, item: a };
+async function hydrateAccessForModal(a) {
+  modal.value.access = { loading: true, error: "", mode: "all", items: [], note: "" };
+
+  try {
+    const ok = await ensureMembers();
+    if (!ok) {
+      modal.value.access = {
+        loading: false,
+        error: membersError.value || "Cannot load members list",
+        mode: "all",
+        items: [],
+        note: "",
+      };
+      return;
+    }
+
+    const resolved = resolveAccessBanksFromAnnouncement(a);
+    modal.value.access = {
+      loading: false,
+      error: "",
+      mode: resolved.mode,
+      items: resolved.items,
+      note: resolved.note,
+    };
+  } catch (e) {
+    modal.value.access = {
+      loading: false,
+      error: e?.message || "Failed to resolve member access",
+      mode: "all",
+      items: [],
+      note: "",
+    };
+  }
+}
+
+async function openPreview(a) {
+  modal.value = {
+    ...modal.value,
+    show: true,
+    mode: "preview",
+    busy: false,
+    item: a,
+    access: { loading: true, error: "", mode: "all", items: [], note: "" },
+  };
+
   gsap.fromTo(".modal", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.18, ease: "power2.out" });
+
+  // ✅ when click view: match announcement member ids with /api/members (bankcode) and show bank names
+  await hydrateAccessForModal(a);
 }
 
 function openEdit(a) {
-  modal.value = { show: true, mode: "edit", busy: false, item: a };
+  modal.value = { ...modal.value, show: true, mode: "edit", busy: false, item: a };
 
   const raw = a?._raw || {};
   form.value.id = a.id || String(getId(raw) ?? "");
@@ -858,6 +1148,7 @@ function closeModal() {
   modal.value.show = false;
   modal.value.busy = false;
   modal.value.item = null;
+  modal.value.access = { loading: false, error: "", mode: "all", items: [], note: "" };
   resetPickedFile(true);
 }
 
@@ -869,7 +1160,6 @@ function kindFromFile(f) {
   const t = String(f?.type || "").toLowerCase();
   if (t.includes("pdf")) return "pdf";
   if (t.startsWith("image/")) return "image";
-  // fallback by name
   const name = String(f?.name || "");
   const ext = extFromUrl(name);
   if (ext === "pdf") return "pdf";
@@ -913,7 +1203,6 @@ function onPickFile(e) {
 }
 
 function removeMedia() {
-  // remove both selected and existing
   resetPickedFile(false);
 }
 
@@ -930,7 +1219,7 @@ async function fetchJsonSafe(res) {
 
 async function tryUpdateWithFormData(id, baseFields, file) {
   const url = `${ANN_API_URL}/${encodeURIComponent(id)}`;
-  const fields = ["file", "image", "attachment"]; // ✅ fallback field names
+  const fields = ["file", "image", "attachment"];
 
   const methods = ["PUT", "PATCH"];
 
@@ -947,7 +1236,6 @@ async function tryUpdateWithFormData(id, baseFields, file) {
       const res = await fetch(url, { method, body: fd });
       if (res.ok) return res;
 
-      // some APIs return 200 with ok=false? (rare) ignore
       await fetchJsonSafe(res);
     }
   }
@@ -957,7 +1245,6 @@ async function tryUpdateWithFormData(id, baseFields, file) {
 async function tryUpdateJson(id, payload) {
   const url = `${ANN_API_URL}/${encodeURIComponent(id)}`;
 
-  // try PUT then PATCH
   let res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -988,7 +1275,6 @@ async function saveEdit() {
       .map((x) => x.trim().replace(/^#/, ""))
       .filter(Boolean);
 
-    // base fields
     const baseFields = {
       title: form.value.title,
       body: form.value.body || "",
@@ -999,22 +1285,17 @@ async function saveEdit() {
 
     let res = null;
 
-    // ✅ if new file selected -> FormData
     if (form.value.file) {
       res = await tryUpdateWithFormData(id, baseFields, form.value.file);
       if (!res) throw new Error("Upload failed (endpoint or field name mismatch).");
     } else {
-      // ✅ JSON update (and allow remove existing attachment)
       const payload = {
         title: baseFields.title,
         body: baseFields.body,
         tags: tagsArr,
         visibility: baseFields.visibility,
-
-        // best-effort: tell backend to clear attachment if removed
         remove_existing: baseFields.removeExisting ? 1 : 0,
 
-        // keep url if not removed (some APIs accept this)
         attachment_url: baseFields.removeExisting ? "" : (form.value.keepUrl || ""),
         file_url: baseFields.removeExisting ? "" : (form.value.keepUrl || ""),
         image_url: baseFields.removeExisting ? "" : (form.value.keepKind === "image" ? (form.value.keepUrl || "") : ""),
@@ -1061,7 +1342,6 @@ async function doDelete() {
   try {
     let res = await fetch(`${ANN_API_URL}/${encodeURIComponent(id)}`, { method: "DELETE" });
 
-    // fallback
     if (!res.ok) {
       res = await fetch(`${ANN_API_URL}/delete`, {
         method: "POST",
@@ -1088,8 +1368,7 @@ async function doDelete() {
    Nav helpers
    ----------------------- */
 function goCreate() {
-  // Adjust to your create route if different
-  router.push("/announcement");
+  router.push("/announcementtomember");
 }
 
 /* -----------------------
@@ -1133,11 +1412,7 @@ function revealCards() {
   if (!cards || !cards.length) return;
 
   gsap.killTweensOf(cards);
-  gsap.fromTo(
-    cards,
-    { opacity: 0, y: 10 },
-    { opacity: 1, y: 0, duration: 0.42, ease: "power3.out", stagger: 0.04 }
-  );
+  gsap.fromTo(cards, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.42, ease: "power3.out", stagger: 0.04 });
 }
 
 async function initReveal() {
@@ -1159,7 +1434,10 @@ onMounted(async () => {
   window.addEventListener("keydown", onGlobalKeydown);
   await nextTick();
   await initReveal();
+
+  // load announcements first (fast UI), then members (used when clicking View)
   await fetchAll();
+  fetchMembers(); // best-effort preload
 });
 
 onBeforeUnmount(() => {
@@ -1214,7 +1492,7 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.20), rgba(99, 102, 241, 0.14));
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.14));
   border: 1px solid rgba(56, 189, 248, 0.18);
   box-shadow: 0 18px 46px rgba(56, 189, 248, 0.08);
 }
@@ -1262,7 +1540,7 @@ onBeforeUnmount(() => {
   width: 30px;
   height: 30px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
@@ -1287,7 +1565,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.92);
 }
 .btn.ghost {
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.82);
 }
@@ -1303,7 +1581,7 @@ onBeforeUnmount(() => {
 }
 .btn.danger {
   border-color: rgba(255, 80, 80, 0.22);
-  background: rgba(255, 80, 80, 0.10);
+  background: rgba(255, 80, 80, 0.1);
 }
 .btn:disabled {
   opacity: 0.55;
@@ -1361,7 +1639,7 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   font-weight: 900;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.84);
   position: relative;
@@ -1388,7 +1666,7 @@ onBeforeUnmount(() => {
   padding: 12px 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.20);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.2);
   overflow: hidden;
   position: relative;
 }
@@ -1398,7 +1676,7 @@ onBeforeUnmount(() => {
   inset: -1px;
   pointer-events: none;
   opacity: 0.7;
-  background: radial-gradient(520px 260px at 10% 0%, rgba(56, 189, 248, 0.10), transparent 60%),
+  background: radial-gradient(520px 260px at 10% 0%, rgba(56, 189, 248, 0.1), transparent 60%),
     radial-gradient(520px 260px at 90% 10%, rgba(99, 102, 241, 0.08), transparent 62%);
 }
 .cardTop {
@@ -1434,7 +1712,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.82);
 }
@@ -1443,15 +1721,15 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.08);
 }
 .pill.pdf {
-  border-color: rgba(255, 80, 80, 0.20);
-  background: rgba(255, 80, 80, 0.10);
+  border-color: rgba(255, 80, 80, 0.2);
+  background: rgba(255, 80, 80, 0.1);
 }
 .pill.img {
   border-color: rgba(56, 189, 248, 0.18);
   background: rgba(56, 189, 248, 0.08);
 }
 .pill.file {
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1463,18 +1741,18 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
 .iconBtn:hover {
   border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.1);
 }
 .iconBtn.danger:hover {
   border-color: rgba(255, 80, 80, 0.22);
-  box-shadow: 0 14px 34px rgba(255, 80, 80, 0.10);
+  box-shadow: 0 14px 34px rgba(255, 80, 80, 0.1);
 }
 
 /* Image thumb */
@@ -1482,7 +1760,7 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
   position: relative;
   z-index: 1;
@@ -1517,7 +1795,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 80, 80, 0.22);
-  background: rgba(255, 80, 80, 0.10);
+  background: rgba(255, 80, 80, 0.1);
 }
 .pdfIcon i {
   font-size: 18px;
@@ -1649,10 +1927,24 @@ onBeforeUnmount(() => {
 .loaderDot:nth-child(3) {
   animation-delay: 0.24s;
 }
+.loaderDot.sm {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.06);
+}
 @keyframes ld {
-  0% { transform: translateY(0); opacity: 0.55; }
-  50% { transform: translateY(-5px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.55; }
+  0% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
 }
 
 /* Pager */
@@ -1673,7 +1965,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   padding: 8px 10px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
 }
 .muted {
@@ -1690,7 +1982,7 @@ onBeforeUnmount(() => {
 .input,
 .textarea {
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.88);
   outline: none;
@@ -1757,14 +2049,14 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
 .iconClose:hover {
   border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
+  box-shadow: 0 14px 34px rgba(56, 189, 248, 0.1);
 }
 .mBody {
   padding: 12px 14px 14px;
@@ -1788,7 +2080,7 @@ onBeforeUnmount(() => {
   margin-top: 12px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .pvImg img {
   width: 100%;
@@ -1837,7 +2129,7 @@ onBeforeUnmount(() => {
   margin-top: 12px;
   padding: 12px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   display: flex;
   align-items: center;
@@ -1872,6 +2164,91 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ✅ Access section */
+.pvAccess {
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 12px;
+}
+.pvAccessHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pvAccessTitle {
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.pvAccessSub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 800;
+  text-align: right;
+}
+.pvAccessLoading {
+  margin-top: 10px;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+.pvAccessErr {
+  margin-top: 10px;
+  color: rgba(255, 80, 80, 0.92);
+  font-weight: 900;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+.pvAccessAll {
+  margin-top: 10px;
+}
+.pvAccessTags {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bankChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+  color: rgba(255, 255, 255, 0.90);
+  font-weight: 950;
+  font-size: 12px;
+  max-width: 100%;
+}
+.bankChip .bankName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42ch;
+}
+.bankChip .bankCode {
+  opacity: 0.75;
+}
+.bankChip.miss {
+  border-color: rgba(18, 109, 255, 0.534);
+  background: rgba(19, 0, 104, 0.1);
+}
+.pvAccessNote {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
 }
 
 /* Form */
@@ -1910,7 +2287,7 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .imgPrev img {
   width: 100%;
@@ -1944,7 +2321,7 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   padding: 10px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   display: inline-flex;
   align-items: center;
@@ -2029,7 +2406,7 @@ onBeforeUnmount(() => {
   padding: 12px 12px;
   border-radius: 16px;
   background: rgba(8, 12, 28, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(14px);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
   max-width: min(460px, 92vw);
@@ -2069,7 +2446,7 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   font-weight: 900;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.82);
 }

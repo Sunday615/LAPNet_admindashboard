@@ -395,10 +395,41 @@ const loadError = ref("");
 
 const newsId = computed(() => String(route.query.id || ""));
 
-// ✅ If backend is different host, set VITE_API_BASE_URL=http://localhost:3000
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
-const NEWS_API = `${API_BASE}/api/news`;
-const OPTIMIZE_URL = `${API_BASE}/api/optimize`;
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  const path = String(apiPath || "").trim();
+  if (!base) return path;
+  if (!path) return base;
+  const baseHasApi = /\/api$/i.test(base);
+  const pathHasApi = /^\/api\//i.test(path);
+  if (baseHasApi && pathHasApi) return base + path.replace(/^\/api/i, "");
+  return base + (path.startsWith("/") ? "" : "/") + path;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+
+const NEWS_API = joinBaseAndPath(API_BASE_URL, "/api/news");
+const OPTIMIZE_URL = joinBaseAndPath(API_BASE_URL, "/api/optimize");
 
 const categories = ["Meeting", "Contract Signing", "Announcement", "Activity", "Launch Event", "Event"];
 
@@ -423,9 +454,9 @@ function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s}`;
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
+  if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
+  return `${API_ORIGIN}/${s}`;
 }
 
 function parseTags(raw) {
@@ -818,7 +849,7 @@ function resetToOriginal() {
   tagDraft.value = "";
 }
 
-// ✅ Submit entrypoint (Confirm ก่อน)
+// Submit entrypoint (with confirmation)
 async function onSubmit() {
   if (isSubmitting.value || confirm.open || loadingData.value) return;
 

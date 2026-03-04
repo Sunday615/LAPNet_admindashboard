@@ -98,7 +98,7 @@
                 <span>Link (Optional)</span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link" class="inp" type="text" placeholder="https://..." />
+                  <input v-model.trim="form.link" class="inp" type="text" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link" class="err">{{ errors.link }}</div>
               </label>
@@ -321,9 +321,43 @@ const overlayEl = ref(null);
 const ovCardEl = ref(null);
 let prevBodyOverflow = "";
 
-/** ✅ API */
-const API_URL = "http://localhost:3000/api/announcement";
-const API_BASE = "http://localhost:3000";
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_BASE = API_BASE_URL.replace(/\/api$/i, "");
+const API_URL = joinBaseAndPath(API_BASE_URL, "/api/announcement");
 
 const editId = computed(() => {
   const raw = route.query?.id ?? route.params?.id;
@@ -600,11 +634,11 @@ async function loadForEdit(id) {
 
     form.active = Number(data.active) === 1 ? 1 : 0;
 
-    // ✅ FIX: backend uses timeforshow (not range)
+    // Backend uses timeforshow (not range)
     const rr = Number(data.timeforshow ?? data.timeForShow ?? data.range ?? data.Range ?? data.hours);
     form.range = [3, 7, 24].includes(rr) ? rr : 3;
 
-    // ✅ FIX: backend uses linkpath (not link)
+    // Backend uses linkpath (not link)
     form.link = String(data.linkpath ?? data.linkPath ?? data.link ?? "").trim();
 
     timestamp.value = toSqlDatetime(data.time) || nowTimestamp();
@@ -615,7 +649,7 @@ async function loadForEdit(id) {
 
     existing.imageRel = String(data.image || data.Image || data.image_path || "").trim();
 
-    // ✅ prefer server-provided image_url (already absolute)
+    // Prefer server-provided image_url (already absolute)
     existing.imageUrl = String(data.image_url || data.imageUrl || "").trim() || toAbsUrlMaybe(existing.imageRel);
 
     imageRemoved.value = false;
@@ -683,18 +717,18 @@ async function onSubmit() {
     fd.append("active", String(form.active));
     fd.append("time", toSqlDatetime(timestamp.value) || nowTimestamp());
 
-    // ✅ send BOTH (backend accepts both)
+    // Send BOTH (backend accepts both)
     fd.append("range", String(form.range));
     fd.append("timeforshow", String(form.range));
 
-    // ✅ send BOTH (backend accepts both)
+    // Send BOTH (backend accepts both)
     fd.append("link", (form.link || "").trim());
     fd.append("linkpath", (form.link || "").trim());
 
     if (form.image) {
       fd.append("image", form.image);
     } else if (imageRemoved.value) {
-      // ✅ backend fix will read this
+      // Backend fix will read this
       fd.append("image_remove", "1");
     }
 

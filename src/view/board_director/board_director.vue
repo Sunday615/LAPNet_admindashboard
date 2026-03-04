@@ -1,4 +1,4 @@
-<!-- BoardDirectorInsert.vue (UPDATED: success alert -> View / Close, route: /board_directorview) -->
+<!-- BoardDirectorInsert.vue (FIXED: ✅ correct multipart field names for multer + endpoint) -->
 <template>
   <div class="page tech">
     <div class="glow glow-a"></div>
@@ -321,11 +321,7 @@ const committees = [
   { key: "ປະທານສະພາບໍລິຫານ", label: "ປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-crown" },
   { key: "ຮອງປະທານສະພາບໍລິຫານ", label: "ຮອງປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-chess-king" },
   { key: "ສະມາຊິກສະພາບໍລິຫານ", label: "ສະມາຊິກສະພາບໍລິຫານ", icon: "fa-solid fa-users" },
-
 ];
-
-
-
 
 const DEFAULT_COMMITTEE = committees[0]?.key || "";
 
@@ -449,16 +445,27 @@ function resetForm() {
   Object.keys(errors).forEach((k) => (errors[k] = ""));
 }
 
-/* ===================== */
-/* ✅ API URL */
-/* ===================== */
-const API_BASE = import.meta.env?.VITE_API_URL || "";
-const INSERT_URL = API_BASE ? `${API_BASE}/api/boarddirector` : "/api/boarddirector";
+/* =====================
+   ✅ API URL
+   - final: /api/boarddirector
+   ===================== */
+function trimSlash(s) {
+  return String(s || "").replace(/\/+$/, "");
+}
+function resolveEndpoint(base, resource) {
+  const b = trimSlash(base);
+  if (b.endsWith("/api")) return `${b}/${resource}`;
+  return `${b}/api/${resource}`;
+}
+
+const RAW_BASE = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+
+const API_BASE = trimSlash(RAW_BASE);
+const INSERT_URL = resolveEndpoint(API_BASE, "boarddirector");
 
 /* ✅ helper: extract inserted id from backend response (flexible) */
 function extractInsertedId(payload) {
   if (!payload) return null;
-
   const cands = [
     payload.idboarddirector,
     payload.idBoardDirector,
@@ -477,9 +484,20 @@ function extractInsertedId(payload) {
     payload?.row?.idboarddirector,
     payload?.row?.id,
   ];
-
   const found = cands.find((x) => x !== undefined && x !== null && String(x).trim() !== "");
   return found ?? null;
+}
+
+/* ✅ robust response reader (handles HTML 404 too) */
+async function readAny(res) {
+  const text = await res.text().catch(() => "");
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  return { ok: res.ok, status: res.status, text, json };
 }
 
 /* ===================== */
@@ -490,11 +508,10 @@ const toast = reactive({
   show: false,
   type: "success", // success | error
   message: "",
-  persistent: false, // success = persistent (wait user action)
+  persistent: false,
 });
 let toastTimer = null;
 
-// callbacks for success actions
 let toastOnClose = null;
 let toastOnView = null;
 
@@ -523,7 +540,6 @@ async function showToast(type, message, opts = {}) {
     );
   }
 
-  // ✅ error auto-hide, success waits for user (View / Close)
   if (!toast.persistent) {
     toastTimer = setTimeout(() => hideToast(), 3000);
   }
@@ -560,7 +576,6 @@ function hideToast(afterFn) {
   });
 }
 
-// ✅ success actions
 function toastClose() {
   hideToast(() => {
     toastOnClose?.();
@@ -585,16 +600,33 @@ async function onSubmit() {
     return;
   }
 
-  // ✅ multipart/form-data
+  /**
+   * ✅ IMPORTANT FIX (INSERT)
+   * Backend multer รับไฟล์ชื่อ: bankLogo / profileImage
+   * ดังนั้นต้องส่งไฟล์ตามนี้เท่านั้น
+   */
   const fd = new FormData();
+
+  // ✅ text fields (ส่งแบบ compat: เผื่อ backend ใช้ชื่อเก่า/ใหม่)
   fd.append("committee", form.committee);
+
+  // legacy keys
+  fd.append("bankname", form.bankName);
+  fd.append("name", form.personName);
+
+  // new keys (ถ้า backend map แบบใหม่)
   fd.append("bankName", form.bankName);
-  fd.append("role", form.role);
   fd.append("personName", form.personName);
+
+  fd.append("role", form.role);
+
+  // optional timestamp/createat
+  fd.append("createat", form.timestamp);
   fd.append("timestamp", form.timestamp);
 
-  if (form.bankLogo) fd.append("bankLogo", form.bankLogo);
-  if (form.profileImage) fd.append("profileImage", form.profileImage);
+  // ✅ file fields (MUST match multer)
+  if (form.bankLogo) fd.append("bankLogo", form.bankLogo);          // ✅ FIX
+  if (form.profileImage) fd.append("profileImage", form.profileImage); // ✅ FIX
 
   saving.value = true;
   try {
@@ -609,22 +641,30 @@ async function onSubmit() {
 
     clearTimeout(t);
 
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (_) {
-      data = null;
+    const out = await readAny(res);
+
+    const okFlag = out.json && typeof out.json.ok === "boolean" ? out.json.ok : true;
+
+    if (!out.ok || !okFlag) {
+      const htmlHint =
+        out.text && out.text.includes("<title>404")
+          ? "404 Not Found (API route not found). Check INSERT_URL / backend route."
+          : null;
+
+      const serverMsg =
+        out.json?.message ||
+        out.json?.error ||
+        out.json?.code ||
+        out.json?.name ||
+        htmlHint ||
+        `Insert failed (HTTP ${out.status})`;
+
+      throw new Error(serverMsg);
     }
 
-    if (!res.ok) {
-      throw new Error(data?.message || `Insert failed (HTTP ${res.status})`);
-    }
+    const newId = extractInsertedId(out.json);
 
-    // ✅ get new id for highlight
-    const newId = extractInsertedId(data);
-
-    // ✅ SUCCESS: show alert with View / Close
-    await showToast("success", data?.message || "Board Director saved successfully!", {
+    await showToast("success", out.json?.message || "Board Director saved successfully!", {
       persistent: true,
       onClose: () => {
         gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
@@ -632,7 +672,6 @@ async function onSubmit() {
       },
       onView: () => {
         resetForm();
-        // ✅ pass highlight id to view page
         if (newId) {
           router.push({ path: "/board_directorview", query: { highlight: String(newId) } });
         } else {
@@ -679,10 +718,11 @@ onBeforeUnmount(() => {
 });
 </script>
 
+
 <style scoped>
-/* =========================
-   TECH THEME (DARK BLUE)
-   ========================= */
+/* (styles unchanged from your file) */
+
+
 .page.tech {
   --bg0: #050914;
   --bg1: #070e23;
@@ -847,7 +887,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.08);
 }
 
-/* Layout (sidebar removed) */
+/* Layout */
 .layout {
   width: 100%;
 }
@@ -1016,9 +1056,7 @@ onBeforeUnmount(() => {
   padding: 6px 0;
 }
 
-/* =========================
-   COMMITTEE NAVBAR
-   ========================= */
+/* Committee bar */
 .committeeBar {
   display: flex;
   flex-wrap: wrap;
@@ -1323,7 +1361,6 @@ onBeforeUnmount(() => {
   font-size: 34px;
 }
 
-/* responsive */
 @media (max-width: 980px) {
   .row {
     grid-template-columns: 1fr;

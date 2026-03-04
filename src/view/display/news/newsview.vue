@@ -145,7 +145,7 @@
                     <!-- Title -->
                     <template v-else-if="isTitleCol(col)">
                       <div class="titleCell">
-                        <!-- รูปอยู่ซ้าย -->
+                        <!-- Image on the left -->
                         <img
                           v-if="heroUrlOf(n)"
                           class="thumbMini"
@@ -154,7 +154,7 @@
                           @click.stop="openOverlay(n)"
                         />
 
-                        <!-- header_news อยู่ขวา -->
+                        <!-- header_news on the right -->
                         <div class="titleText">
                           <div class="tMain">{{ formatCell(n?.[col], col) }}</div>
                         </div>
@@ -447,8 +447,44 @@ const pagerEl = ref(null);
 
 const userName = "Arkhan";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const NEWS_API = `${API_BASE}/api/news`;
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+
+const NEWS_API = joinBaseAndPath(API_BASE_URL, "/api/news");
 
 const news = ref([]);
 const loading = ref(false);
@@ -573,9 +609,14 @@ function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
+
   if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
-  return `${API_BASE}/${s}`;
+
+  // If backend base includes "/api", assets are usually served from origin root
+  const origin = API_ORIGIN || API_BASE_URL || "";
+
+  if (s.startsWith("/")) return `${origin}${s}`;
+  return `${origin}/${s}`;
 }
 
 function formatDDMMYY(input) {
@@ -717,7 +758,7 @@ function isGalleryKey(k) {
 
 function isDateTimeCol(k) {
   const s = String(k || "").toLowerCase();
-  return s === "date_time" || s === "date-time" || s === "datetime" || s === "datetime";
+  return s === "date_time" || s === "date-time" || s === "datetime";
 }
 
 function rowKey(n, i) {
@@ -734,7 +775,7 @@ function isTitleCol(k) {
 }
 
 function isNoCol(k) {
-  return String(k || "").toLowerCase() === "idnews";
+  return isIdKey(k);
 }
 
 function colLabel(k) {
@@ -752,7 +793,7 @@ function formatCell(v, col) {
   if (typeof v === "number") return String(v);
 
   if (typeof v === "string") {
-    if (isTitleCol(col)) return v; // show full title
+    if (isTitleCol(col)) return v;
     if (isDateTimeCol(col)) return formatDDMMYY(v);
     const s = v.trim();
     return s.length > 46 ? s.slice(0, 46) + "…" : s;
@@ -820,7 +861,7 @@ function flattenAny(val, path, out) {
       const lk = String(k || "").toLowerCase();
       if (lk === "password" || lk === "pwd") continue;
       if (isIdKey(k)) continue;
-      if (isTagKey(k)) continue; // keep tags only in tagBlock
+      if (isTagKey(k)) continue;
       if (isCreatedAtKey(k) || isUpdatedAtKey(k)) continue;
       if (isGalleryKey(k)) continue;
       if (isImageKey(k)) continue;
@@ -859,8 +900,8 @@ const flatEntries = computed(() => {
 
 /* =========================
    Columns (Tags column removed)
-   - ✅ remove created_at / updated_at
-   - ✅ do NOT include tags column in table
+   - Remove created_at / updated_at
+   - Do not include tags column in the table
    ========================= */
 function pickFirstExisting(keysSet, candidates) {
   for (const c of candidates) if (keysSet.has(c)) return c;
@@ -884,7 +925,8 @@ const tableCols = computed(() => {
     )
   );
 
-  const noKey = cleaned.has("idnews") ? "idnews" : pickFirstExisting(cleaned, ["news_id", "newsId", "id", "_id"]) || "idnews";
+  const noKey =
+    pickFirstExisting(cleaned, ["idnews", "news_id", "newsId", "id", "_id", "uuid"]) || "idnews";
 
   const titleKey = pickFirstExisting(cleaned, ["header_news", "title", "headline"]) || "header_news";
   const catKey = pickFirstExisting(cleaned, ["category", "type", "group"]);
@@ -893,7 +935,7 @@ const tableCols = computed(() => {
   return [noKey, titleKey, catKey, dateKey].filter(Boolean);
 });
 
-/* filter dropdown: can still include tags for filtering (no table column) */
+/* Filter dropdown can still include tags for filtering (no table column) */
 const filterKeys = computed(() => {
   if (!news.value.length) return [];
   const set = new Set();
@@ -905,7 +947,6 @@ const filterKeys = computed(() => {
       if (isImageKey(k) || isGalleryKey(k) || isSubHeaderKey(k)) return;
       if (isCreatedAtKey(k) || isUpdatedAtKey(k)) return;
 
-      // allow tags in filter
       if (isTagKey(k)) {
         set.add(k);
         return;
@@ -1007,7 +1048,7 @@ watch(page, async (p, old) => {
 });
 
 function toggleSort(col) {
-  // prevent sorting by NO (running number)
+  // Prevent sorting by the NO column
   if (isNoCol(col)) return;
 
   if (sortKey.value !== col) {
@@ -1033,6 +1074,73 @@ function clearFilters() {
 function editNews(n) {
   const id = rowKey(n, "");
   router.push({ path: "/newsedit", query: { id: String(id ?? "") } });
+}
+
+async function readResponse(res) {
+  const text = await res.text().catch(() => "");
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  return { res, text, json };
+}
+
+function buildDeletePayload(id) {
+  // Some backends accept different field names, so send multiple aliases
+  const s = String(id ?? "");
+  return { id: s, idnews: s, news_id: s, newsId: s };
+}
+
+async function deleteNewsById(id) {
+  const idEnc = encodeURIComponent(String(id ?? ""));
+  const payload = buildDeletePayload(id);
+
+  const fd = new FormData();
+  Object.entries(payload).forEach(([k, v]) => fd.append(k, v));
+
+  // Try common backend patterns
+  const attempts = [
+    // REST style
+    { url: `${NEWS_API}/${idEnc}`, opt: { method: "DELETE" } },
+
+    // Query style
+    { url: `${NEWS_API}?idnews=${idEnc}`, opt: { method: "DELETE" } },
+    { url: `${NEWS_API}?id=${idEnc}`, opt: { method: "DELETE" } },
+
+    // POST /delete (JSON)
+    {
+      url: `${NEWS_API}/delete`,
+      opt: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    },
+
+    // POST /delete (FormData)
+    { url: `${NEWS_API}/delete`, opt: { method: "POST", body: fd } },
+  ];
+
+  let last = null;
+
+  for (const a of attempts) {
+    try {
+      const out = await readResponse(await fetch(a.url, a.opt));
+
+      // If backend returns { ok:false }, treat as failed even if HTTP is 200
+      const okFlag = out.json && typeof out.json.ok === "boolean" ? out.json.ok : true;
+
+      if (out.res.ok && okFlag) return out.json ?? { ok: true };
+
+      last = new Error(out.text || (out.json?.message ? String(out.json.message) : `HTTP ${out.res.status}`));
+    } catch (e) {
+      last = e;
+    }
+  }
+
+  throw last || new Error("Delete failed");
 }
 
 async function askEdit(n) {
@@ -1093,8 +1201,7 @@ async function confirmDelete() {
     setBusy(String(id), true);
     error.value = "";
 
-    const res = await fetch(`${NEWS_API}/${encodeURIComponent(String(id))}`, { method: "DELETE" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await deleteNewsById(id);
 
     if (selected.value && String(rowKey(selected.value, "")) === String(id)) selected.value = null;
 
@@ -1104,7 +1211,7 @@ async function confirmDelete() {
     console.error(e);
     news.value = before;
     closeConfirm();
-    showToast("error", "Delete failed (backend must have DELETE /api/news/:id)");
+    showToast("error", e?.message || "Delete failed");
   } finally {
     confirmLoading.value = false;
     setBusy(String(id), false);
@@ -1150,6 +1257,8 @@ function closeImage() {
 /* Fetch */
 async function fetchNews() {
   try {
+    if (!NEWS_API) throw new Error("NEWS_API is empty (check VITE_API_BASE_URL in .env).");
+
     error.value = "";
     loading.value = true;
 
@@ -1915,7 +2024,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-/* ให้ข้อความห่อบรรทัดได้สวย */
+/* Allow text to wrap nicely */
 .tMain {
   white-space: normal;
   overflow: visible;

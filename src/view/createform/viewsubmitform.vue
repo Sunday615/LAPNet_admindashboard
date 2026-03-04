@@ -50,6 +50,20 @@
           <i class="fa-solid fa-rotate-left" />
           <span>Reset</span>
         </button>
+
+        <!-- ✅ Analytics button (use filter templateId if provided) -->
+        <button
+          class="btn btnGhost"
+          type="button"
+          :disabled="loadingList"
+          @mouseenter="btnHover($event, true)"
+          @mouseleave="btnHover($event, false)"
+          @click="goAnalyticsFromFilter"
+          title="View submissions analytics / graph"
+        >
+          <i class="fa-solid fa-chart-column" />
+          <span>Analytics</span>
+        </button>
       </div>
     </header>
 
@@ -191,6 +205,20 @@
               </button>
             </div>
 
+            <!-- ✅ Go analytics -->
+            <button
+              class="btn btnGhost"
+              type="button"
+              :disabled="loadingDetail"
+              @mouseenter="btnHover($event, true)"
+              @mouseleave="btnHover($event, false)"
+              @click="goAnalyticsSelected"
+              title="View analytics / graphs for this template"
+            >
+              <i class="fa-solid fa-chart-column" />
+              Graph
+            </button>
+
             <button
               class="btn btnGhost"
               type="button"
@@ -201,6 +229,20 @@
             >
               <i class="fa-regular fa-copy" />
               Copy JSON
+            </button>
+
+            <!-- ✅ Delete submission -->
+            <button
+              class="btn btnDanger"
+              type="button"
+              :disabled="loadingDetail || deleting"
+              @mouseenter="btnHover($event, true)"
+              @mouseleave="btnHover($event, false)"
+              @click="askDeleteSelected"
+              title="Delete this submission"
+            >
+              <i class="fa-solid fa-trash" />
+              Delete
             </button>
 
             <button
@@ -326,9 +368,9 @@
 
                       <div class="previewQRight">
                         <span class="pill ghostPill">{{ qq.type }}</span>
-                        <span class="ansStatus" :class="{ ok: hasAnswer(qq.id), empty: !hasAnswer(qq.id) }">
-                          <i class="fa-solid" :class="hasAnswer(qq.id) ? 'fa-circle-check' : 'fa-circle-minus'" />
-                          {{ hasAnswer(qq.id) ? "Answered" : "No answer" }}
+                        <span class="ansStatus" :class="{ ok: hasAnswerFor(qq, idx), empty: !hasAnswerFor(qq, idx) }">
+                          <i class="fa-solid" :class="hasAnswerFor(qq, idx) ? 'fa-circle-check' : 'fa-circle-minus'" />
+                          {{ hasAnswerFor(qq, idx) ? "Answered" : "No answer" }}
                         </span>
                       </div>
                     </div>
@@ -348,7 +390,7 @@
                     </div>
 
                     <!-- answer renderer -->
-                    <div class="ansCard" :class="{ isEmpty: !hasAnswer(qq.id) }">
+                    <div class="ansCard" :class="{ isEmpty: !hasAnswerFor(qq, idx) }">
                       <div class="ansCardHead">
                         <div class="ansLabel">
                           <i class="fa-solid fa-clipboard-check" />
@@ -356,7 +398,7 @@
                         </div>
 
                         <button
-                          v-if="isLongText(getAnswer(qq.id))"
+                          v-if="isLongText(getAnswerFor(qq, idx))"
                           type="button"
                           class="ansToggle"
                           @click="toggleExpand(qq.id)"
@@ -369,7 +411,7 @@
                       <div class="ansCardBody">
                         <!-- short -->
                         <template v-if="qq.type === 'short'">
-                          <div class="ansText">{{ asDisplay(getAnswer(qq.id)) }}</div>
+                          <div class="ansText">{{ asDisplay(getAnswerFor(qq, idx)) }}</div>
                         </template>
 
                         <!-- long -->
@@ -377,8 +419,8 @@
                           <div class="ansText preWrap">
                             {{
                               expanded[qq.id]
-                                ? asDisplay(getAnswer(qq.id))
-                                : truncateText(asDisplay(getAnswer(qq.id)), 260)
+                                ? asDisplay(getAnswerFor(qq, idx))
+                                : truncateText(asDisplay(getAnswerFor(qq, idx)), 260)
                             }}
                           </div>
                         </template>
@@ -386,16 +428,16 @@
                         <!-- option / dropdown -->
                         <template v-else-if="qq.type === 'option' || qq.type === 'dropdown'">
                           <div class="ansPillRow">
-                            <span class="ansPill">{{ asDisplay(getAnswer(qq.id)) }}</span>
+                            <span class="ansPill">{{ asDisplay(getAnswerFor(qq, idx)) }}</span>
                           </div>
                         </template>
 
                         <!-- checkbox -->
                         <template v-else-if="qq.type === 'checkbox'">
                           <div class="ansPillRow">
-                            <template v-if="asArray(getAnswer(qq.id)).length">
+                            <template v-if="asArray(getAnswerFor(qq, idx)).length">
                               <span
-                                v-for="(x, i) in asArray(getAnswer(qq.id))"
+                                v-for="(x, i) in asArray(getAnswerFor(qq, idx))"
                                 :key="`${qq.id}_cb_${i}`"
                                 class="ansPill"
                               >
@@ -409,14 +451,14 @@
                         <!-- date -->
                         <template v-else-if="qq.type === 'date'">
                           <div class="ansPillRow">
-                            <span class="ansPill">{{ asDisplay(getAnswer(qq.id)) }}</span>
+                            <span class="ansPill">{{ asDisplay(getAnswerFor(qq, idx)) }}</span>
                           </div>
                         </template>
 
                         <!-- time -->
                         <template v-else-if="qq.type === 'time'">
                           <div class="ansPillRow">
-                            <span class="ansPill">{{ asDisplay(getAnswer(qq.id)) }}</span>
+                            <span class="ansPill">{{ asDisplay(getAnswerFor(qq, idx)) }}</span>
                           </div>
                         </template>
 
@@ -428,13 +470,13 @@
                                 v-for="n in Number(qq.scoreMax || 5)"
                                 :key="`${qq.id}_sc_${n}`"
                                 class="scoreIcon"
-                                :class="{ on: Number(getAnswer(qq.id) || 0) >= n }"
+                                :class="{ on: Number(getAnswerFor(qq, idx) || 0) >= n }"
                                 :title="String(n)"
                               >
                                 <i class="fa-solid" :class="scoreFaIcon(qq.scoreIcon)"></i>
                               </span>
                             </div>
-                            <span class="scoreVal">{{ Number(getAnswer(qq.id) || 0) || "—" }}</span>
+                            <span class="scoreVal">{{ Number(getAnswerFor(qq, idx) || 0) || "—" }}</span>
                           </div>
                         </template>
 
@@ -456,7 +498,11 @@
                                     :key="`${qq.id}_${ri}_${ci}`"
                                     class="cell"
                                   >
-                                    <i class="fa-solid fa-check" v-if="isTableChecked(qq, ri, ci)" style="opacity: 0.9" />
+                                    <i
+                                      class="fa-solid fa-check"
+                                      v-if="isTableChecked(qq, idx, ri, ci)"
+                                      style="opacity: 0.9"
+                                    />
                                     <span v-else style="opacity: 0.22">•</span>
                                   </td>
                                 </tr>
@@ -467,9 +513,9 @@
 
                         <!-- upload -->
                         <template v-else-if="qq.type === 'upload'">
-                          <div class="fileGrid fileGridCompact" v-if="filesByQuestion(qq.id).length">
+                          <div class="fileGrid fileGridCompact" v-if="filesForQuestion(qq, idx).length">
                             <a
-                              v-for="f in filesByQuestion(qq.id)"
+                              v-for="f in filesForQuestion(qq, idx)"
                               :key="f.id"
                               class="fileCard"
                               :href="fileUrl(f.storagePath)"
@@ -512,7 +558,7 @@
                         <template v-else>
                           <details class="json">
                             <summary>View raw value</summary>
-                            <pre class="pre">{{ stringify(getAnswer(qq.id)) }}</pre>
+                            <pre class="pre">{{ stringify(getAnswerFor(qq, idx)) }}</pre>
                           </details>
                         </template>
                       </div>
@@ -559,7 +605,7 @@
             </div>
 
             <!-- =========================
-                 RAW MODE (your old Answers UI)
+                 RAW MODE
             ========================== -->
             <div v-else class="section">
               <div class="secTitle">
@@ -659,33 +705,71 @@
       </section>
     </main>
 
+    <!-- ✅ Delete confirm overlay -->
+    <transition name="ov">
+      <div v-if="confirmDel.open" class="overlay" @click.self="closeDelete">
+        <div ref="confirmCardRef" class="confirmCard">
+          <div class="cHead">
+            <div class="cIcon"><i class="fa-solid fa-triangle-exclamation" /></div>
+            <div class="cTitle">
+              Delete submission?
+              <div class="cSub muted">
+                This action cannot be undone.
+                <span class="dot">•</span>
+                #{{ confirmDel.id }}
+              </div>
+            </div>
+          </div>
+
+          <div class="cBody">
+            <div class="cWarn">
+              <i class="fa-solid fa-trash" />
+              Will remove this submission + its file references (depends on backend).
+            </div>
+          </div>
+
+          <div class="cActions">
+            <button class="btn btnGhost" type="button" :disabled="deleting" @click="closeDelete">
+              <i class="fa-solid fa-xmark" />
+              Cancel
+            </button>
+            <button class="btn btnDanger" type="button" :disabled="deleting" @click="doDelete">
+              <i class="fa-solid fa-trash" />
+              {{ deleting ? "Deleting..." : "Delete" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ✅ Toast -->
     <transition name="toast">
-      <div v-if="toast" class="toastMini">
-        <i class="fa-regular fa-circle-check" />
-        <span>{{ toast }}</span>
+      <div v-if="toast.msg" class="toastMini" :class="toast.type">
+        <i class="fa-regular" :class="toast.type === 'err' ? 'fa-circle-xmark' : 'fa-circle-check'" />
+        <span>{{ toast.msg }}</span>
       </div>
     </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import gsap from "gsap";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const LIST_API = `${API_BASE}/api/form-submissions`;
+const router = useRouter();
+const route = useRoute();
 
-/**
- * ✅ template API (adjust if your backend differs)
- * tries:
- *  - GET /api/form-templates/:templateId
- *  - GET /api/form-templates/by-source/:sourceFormId
- *  - GET /api/form-templates (list) then find by id / sourceFormId
- */
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000";
+const LIST_API = `${API_BASE}/api/form-submissions`;
 const TPL_API = `${API_BASE}/api/form-templates`;
+
+const WITH_CREDS = String(import.meta.env.VITE_FETCH_CREDENTIALS || "").toLowerCase() === "include";
+const CREDS = WITH_CREDS ? "include" : "same-origin";
 
 const listRef = ref(null);
 const previewRef = ref(null);
+const confirmCardRef = ref(null);
 
 const items = ref([]);
 const loadingList = ref(false);
@@ -704,10 +788,10 @@ const template = ref(null);
 const loadingTpl = ref(false);
 const errorTpl = ref("");
 
-// ✅ NEW: per-question expand state (for long answers)
+// per-question expand state (for long answers)
 const expanded = reactive({}); // { [qid]: boolean }
 
-// small cache for templates (avoid re-fetching same id)
+// cache for templates
 const tplCache = new Map(); // key -> template item
 let tplListCache = null;
 let tplListCacheAt = 0;
@@ -720,13 +804,14 @@ const filters = reactive({
   email: "",
 });
 
-const toast = ref("");
+// toast
+const toast = reactive({ msg: "", type: "ok" }); // ok | err
 let toastTimer = null;
-
-function showToast(msg) {
-  toast.value = msg;
+function showToast(msg, type = "ok") {
+  toast.msg = msg;
+  toast.type = type;
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.value = ""), 1400);
+  toastTimer = setTimeout(() => (toast.msg = ""), 1600);
 }
 
 function buildQuery() {
@@ -747,7 +832,7 @@ function safeParseAnswers(x) {
 }
 
 /* =========================
-   ✅ Template normalize
+   Template normalize
 ========================= */
 function safeJsonParse(str) {
   try {
@@ -803,6 +888,9 @@ function normalizePayload(raw) {
         description: String(q?.description ?? ""),
         required: !!q?.required,
 
+        // optional keys
+        key: q?.key ?? q?.answerKey ?? q?.name ?? null,
+
         images: Array.isArray(q?.images) ? q.images.map((im) => (typeof im === "string" ? { src: im } : im)) : [],
         options: Array.isArray(q?.options) ? q.options : [],
 
@@ -813,7 +901,6 @@ function normalizePayload(raw) {
         gridCols: Array.isArray(q?.gridCols) ? q.gridCols : (Array.isArray(q?.table?.cols) ? q.table.cols : []),
       };
 
-      // support builder "table" shape
       if (q?.table && typeof q.table === "object") {
         const mode = q.table.mode === "checkbox" ? "table_checkbox" : "table_option";
         base.type = normalizeDraftType(mode);
@@ -835,7 +922,21 @@ function normalizePayload(raw) {
 }
 
 /* =========================
-   ✅ API calls
+   API helpers
+========================= */
+async function apiGetJson(url, signal) {
+  const r = await fetch(url, {
+    signal,
+    headers: { Accept: "application/json" },
+    credentials: CREDS,
+  });
+  const data = await r.json().catch(() => null);
+  if (!r.ok || !data?.ok) throw new Error(data?.message || `HTTP ${r.status}`);
+  return data;
+}
+
+/* =========================
+   List / Detail calls
 ========================= */
 async function fetchList() {
   loadingList.value = true;
@@ -844,13 +945,7 @@ async function fetchList() {
     if (listAbort) listAbort.abort();
     listAbort = new AbortController();
 
-    const res = await fetch(`${LIST_API}?${buildQuery()}`, {
-      signal: listAbort.signal,
-      headers: { Accept: "application/json" },
-    });
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+    const data = await apiGetJson(`${LIST_API}?${buildQuery()}`, listAbort.signal);
 
     const arr = Array.isArray(data.items) ? data.items : [];
     items.value = arr.map((x) => ({
@@ -874,7 +969,6 @@ async function fetchDetail(id) {
   selected.value = null;
   files.value = [];
 
-  // reset template state
   template.value = null;
   errorTpl.value = "";
   loadingTpl.value = false;
@@ -883,13 +977,7 @@ async function fetchDetail(id) {
     if (detailAbort) detailAbort.abort();
     detailAbort = new AbortController();
 
-    const res = await fetch(`${LIST_API}/${id}`, {
-      signal: detailAbort.signal,
-      headers: { Accept: "application/json" },
-    });
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+    const data = await apiGetJson(`${LIST_API}/${id}`, detailAbort.signal);
 
     selected.value = {
       ...data.item,
@@ -897,10 +985,10 @@ async function fetchDetail(id) {
     };
     files.value = Array.isArray(data.files) ? data.files : [];
 
-    // ✅ reset expand map when change submission (avoid mixing)
+    // reset expand map
     Object.keys(expanded).forEach((k) => delete expanded[k]);
 
-    // ✅ load template for preview mode
+    // load template if in preview mode
     if (viewMode.value === "preview") {
       await fetchTemplateForSubmission(selected.value);
     } else {
@@ -918,7 +1006,8 @@ async function fetchDetail(id) {
 }
 
 /* =========================
-   ✅ Template fetch with fallback
+   Template fetch with fallback
+   - you asked to use: /api/form-templates
 ========================= */
 function tplKeyFromSubmission(s) {
   const tid = String(s?.templateId || "").trim();
@@ -926,13 +1015,6 @@ function tplKeyFromSubmission(s) {
   if (tid) return `id:${tid}`;
   if (sid) return `src:${sid}`;
   return "";
-}
-
-async function apiGetJson(url) {
-  const r = await fetch(url, { headers: { Accept: "application/json" } });
-  const data = await r.json().catch(() => null);
-  if (!r.ok || !data?.ok) throw new Error(data?.message || `HTTP ${r.status}`);
-  return data;
 }
 
 async function fetchTemplateForSubmission(s) {
@@ -958,7 +1040,7 @@ async function fetchTemplateForSubmission(s) {
   try {
     let item = null;
 
-    // 1) try by templateId
+    // ✅ 1) try /:templateId (if your backend supports)
     if (tid) {
       try {
         const data = await apiGetJson(`${TPL_API}/${encodeURIComponent(tid)}`);
@@ -966,7 +1048,7 @@ async function fetchTemplateForSubmission(s) {
       } catch {}
     }
 
-    // 2) try by sourceFormId
+    // ✅ 2) try /by-source/:sourceFormId (if supported)
     if (!item && sid) {
       try {
         const data = await apiGetJson(`${TPL_API}/by-source/${encodeURIComponent(sid)}`);
@@ -974,7 +1056,7 @@ async function fetchTemplateForSubmission(s) {
       } catch {}
     }
 
-    // 3) fallback: list all then find client-side (cached 2 minutes)
+    // ✅ 3) fallback: list all then find (cached 2 minutes)
     if (!item) {
       const now = Date.now();
       if (!tplListCache || now - tplListCacheAt > 120000) {
@@ -985,6 +1067,7 @@ async function fetchTemplateForSubmission(s) {
 
       item =
         tplListCache.find((t) => String(t?.id ?? "") === tid) ||
+        tplListCache.find((t) => String(t?.templateId ?? "") === tid) ||
         tplListCache.find((t) => String(t?.sourceFormId ?? t?.source_form_id ?? "") === sid) ||
         null;
     }
@@ -996,6 +1079,7 @@ async function fetchTemplateForSubmission(s) {
 
     const normalized = {
       ...item,
+      id: item.id ?? item.templateId ?? item.template_id ?? tid ?? null,
       sourceFormId: item.sourceFormId ?? item.source_form_id ?? null,
       payload,
     };
@@ -1012,7 +1096,7 @@ async function fetchTemplateForSubmission(s) {
 }
 
 /* =========================
-   ✅ Paging / selection
+   Paging / selection
 ========================= */
 function reload(resetPage = false) {
   if (resetPage) offset.value = 0;
@@ -1053,64 +1137,53 @@ function clearSelection() {
   Object.keys(expanded).forEach((k) => delete expanded[k]);
 }
 
-// ------- computed -------
-const answerEntries = computed(() => {
-  const a = selected.value?.answers;
-  if (!a || typeof a !== "object") return [];
-  return Object.entries(a).filter(([k]) => k !== "__email");
-});
+/* =========================
+   ✅ Answer mapping (robust)
+   - tries question.id, question.key, index, q1, q_1, etc.
+========================= */
+function answerKeysFor(qq, idx) {
+  const keys = [];
+  const push = (x) => {
+    const s = String(x ?? "").trim();
+    if (s) keys.push(s);
+  };
 
-const templateQuestions = computed(() => {
-  const qs = template.value?.payload?.questions;
-  return Array.isArray(qs) ? qs : [];
-});
+  push(qq?.id);
+  push(qq?.key);
+  push(qq?.answerKey);
+  push(qq?.name);
 
-const extraAnswerEntries = computed(() => {
-  const a = selected.value?.answers;
-  if (!a || typeof a !== "object") return [];
-  const known = new Set(templateQuestions.value.map((q) => String(q?.id ?? "")));
-  return Object.entries(a)
-    .filter(([k]) => k !== "__email")
-    .filter(([k]) => !known.has(String(k)));
-});
+  // index-based fallback
+  push(String(idx));
+  push(String(idx + 1));
+  push(`q${idx + 1}`);
+  push(`q_${idx + 1}`);
+  push(`question_${idx + 1}`);
 
-// ------- answer helpers -------
-function getAnswer(qid) {
+  // title-based (last resort)
+  const titleKey = stripHtmlText(qq?.title || "");
+  push(titleKey);
+
+  // unique
+  return [...new Set(keys)];
+}
+
+function getAnswerFor(qq, idx) {
   const a = selected.value?.answers;
   if (!a || typeof a !== "object") return null;
-  const k = String(qid ?? "");
-  return a[k];
-}
 
-function asArray(v) {
-  if (Array.isArray(v)) return v;
-  if (v == null) return [];
-  if (typeof v === "string" && v.includes(",")) {
-    return v
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
+  const keys = answerKeysFor(qq, idx);
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(a, k)) return a[k];
   }
-  return [v];
+  return null;
 }
 
-function asDisplay(v) {
-  if (v == null) return "—";
-  if (typeof v === "string") return v.trim() ? v : "—";
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  try {
-    return JSON.stringify(v, null, 2);
-  } catch {
-    return String(v);
-  }
+function filesForQuestion(qq, idx) {
+  const keys = answerKeysFor(qq, idx).map(String);
+  return (files.value || []).filter((f) => keys.includes(String(f?.questionId ?? "")));
 }
 
-function filesByQuestion(qid) {
-  const k = String(qid ?? "");
-  return (files.value || []).filter((f) => String(f?.questionId ?? "") === k);
-}
-
-/* ✅ NEW: answer status + long text helpers */
 function isEmptyAnswer(v) {
   if (v == null) return true;
   if (typeof v === "string") return !v.trim();
@@ -1118,25 +1191,13 @@ function isEmptyAnswer(v) {
   if (typeof v === "object") return Object.keys(v).length === 0;
   return false;
 }
-function hasAnswer(qid) {
-  return !isEmptyAnswer(getAnswer(qid));
-}
-function isLongText(v, n = 260) {
-  return typeof v === "string" && v.length > n;
-}
-function truncateText(s, n = 260) {
-  const txt = String(s ?? "");
-  if (txt.length <= n) return txt;
-  return txt.slice(0, n).trimEnd() + "…";
-}
-function toggleExpand(qid) {
-  const k = String(qid ?? "");
-  expanded[k] = !expanded[k];
+function hasAnswerFor(qq, idx) {
+  return !isEmptyAnswer(getAnswerFor(qq, idx));
 }
 
 /* table answers support */
-function isTableChecked(qq, ri, ci) {
-  const v = getAnswer(qq.id);
+function isTableChecked(qq, qIdx, ri, ci) {
+  const v = getAnswerFor(qq, qIdx);
   if (!v || typeof v !== "object") return false;
 
   const rowKeyA = String(ri);
@@ -1154,7 +1215,115 @@ function isTableChecked(qq, ri, ci) {
 }
 
 /* =========================
-   ✅ HTML/link helpers (safe-ish render)
+   Computed
+========================= */
+const answerEntries = computed(() => {
+  const a = selected.value?.answers;
+  if (!a || typeof a !== "object") return [];
+  return Object.entries(a).filter(([k]) => k !== "__email");
+});
+
+const templateQuestions = computed(() => {
+  const qs = template.value?.payload?.questions;
+  return Array.isArray(qs) ? qs : [];
+});
+
+const extraAnswerEntries = computed(() => {
+  const a = selected.value?.answers;
+  if (!a || typeof a !== "object") return [];
+
+  const known = new Set();
+  templateQuestions.value.forEach((q, idx) => {
+    answerKeysFor(q, idx).forEach((k) => known.add(String(k)));
+  });
+
+  return Object.entries(a)
+    .filter(([k]) => k !== "__email")
+    .filter(([k]) => !known.has(String(k)));
+});
+
+/* =========================
+   Delete submission
+   - expects backend: DELETE /api/form-submissions/:id  -> { ok:true }
+========================= */
+const confirmDel = reactive({ open: false, id: null });
+const deleting = ref(false);
+
+function askDeleteSelected() {
+  if (!selectedId.value) return;
+  confirmDel.open = true;
+  confirmDel.id = selectedId.value;
+
+  nextTick(() => {
+    const el = confirmCardRef.value;
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.fromTo(el, { y: 18, opacity: 0, scale: 0.98 }, { y: 0, opacity: 1, scale: 1, duration: 0.22, ease: "power2.out" });
+  });
+}
+function closeDelete() {
+  confirmDel.open = false;
+  confirmDel.id = null;
+}
+async function doDelete() {
+  const id = confirmDel.id;
+  if (!id) return;
+
+  deleting.value = true;
+  try {
+    const r = await fetch(`${LIST_API}/${id}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+      credentials: CREDS,
+    });
+    const data = await r.json().catch(() => null);
+    if (!r.ok || !data?.ok) throw new Error(data?.message || `HTTP ${r.status}`);
+
+    // remove from list
+    items.value = (items.value || []).filter((x) => String(x?.id) !== String(id));
+
+    // clear selection if deleted current
+    if (String(selectedId.value) === String(id)) clearSelection();
+
+    closeDelete();
+    showToast("Deleted submission", "ok");
+  } catch (e) {
+    showToast(e?.message || "Delete failed", "err");
+  } finally {
+    deleting.value = false;
+  }
+}
+
+/* =========================
+   Analytics navigation
+========================= */
+function goAnalyticsFromFilter() {
+  const tid = String(filters.templateId || "").trim();
+  router.push({
+    name: "form_analytics",
+    query: tid ? { templateId: tid } : {},
+  });
+}
+function goAnalyticsSelected() {
+  const tid = String(selected.value?.templateId || "").trim();
+  const sid = String(selected.value?.sourceFormId || "").trim();
+  const q = {};
+  if (tid) q.templateId = tid;
+  if (!tid && sid) q.sourceFormId = sid;
+  router.push({ name: "form_analytics", query: q });
+}
+
+/* =========================
+   Watch viewMode -> if user switches to preview, ensure template loaded
+========================= */
+watch(viewMode, async (m) => {
+  if (m === "preview" && selected.value) {
+    await fetchTemplateForSubmission(selected.value).catch(() => {});
+  }
+});
+
+/* =========================
+   HTML/link helpers (safe-ish render)
 ========================= */
 function escapeHtmlText(s) {
   return String(s ?? "")
@@ -1168,8 +1337,8 @@ function escapeHtmlText(s) {
 function safeHref(href) {
   const h = String(href ?? "").trim();
   if (!h) return "#";
-  if (/^(https?:\/\/|mailto:|tel:)/i.test(h)) return h;
-  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return "https://" + h;
+  if (/^(http?:\/\/|mailto:|tel:)/i.test(h)) return h;
+  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return "http://" + h;
   return "#";
 }
 
@@ -1215,7 +1384,9 @@ function scoreFaIcon(icon) {
   return "fa-star";
 }
 
-// ------- helpers -------
+/* =========================
+   misc helpers
+========================= */
 function stringify(v) {
   try {
     return JSON.stringify(v, null, 2);
@@ -1233,7 +1404,7 @@ function prettyKey(k) {
 }
 
 function isUrl(s) {
-  return /^https?:\/\/\S+/i.test(s);
+  return /^http?:\/\/\S+/i.test(s);
 }
 
 function fmtDate(x) {
@@ -1265,7 +1436,7 @@ function fileUrl(storagePath) {
 function resolveImgSrc(src) {
   const s = String(src || "").trim();
   if (!s) return "";
-  if (/^data:/i.test(s) || /^blob:/i.test(s) || /^https?:\/\//i.test(s)) return s;
+  if (/^data:/i.test(s) || /^blob:/i.test(s) || /^http?:\/\//i.test(s)) return s;
   if (s.startsWith("/")) return `${API_BASE}${s}`;
   return s;
 }
@@ -1274,31 +1445,66 @@ function isImage(mime) {
   return /^image\//i.test(String(mime || ""));
 }
 
+function asArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v == null) return [];
+  if (typeof v === "string" && v.includes(",")) {
+    return v
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+  return [v];
+}
+
+function asDisplay(v) {
+  if (v == null) return "—";
+  if (typeof v === "string") return v.trim() ? v : "—";
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  try {
+    return JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
+  }
+}
+
+function isLongText(v, n = 260) {
+  return typeof v === "string" && v.length > n;
+}
+function truncateText(s, n = 260) {
+  const txt = String(s ?? "");
+  if (txt.length <= n) return txt;
+  return txt.slice(0, n).trimEnd() + "…";
+}
+function toggleExpand(qid) {
+  const k = String(qid ?? "");
+  expanded[k] = !expanded[k];
+}
+
 async function copyJson() {
   try {
     const payload = { item: selected.value, files: files.value, template: template.value };
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    showToast("Copied!");
+    showToast("Copied!", "ok");
   } catch {
-    showToast("Copy failed");
+    showToast("Copy failed", "err");
   }
 }
 
-// ------- GSAP -------
+/* =========================
+   GSAP
+========================= */
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
 }
-
 function rowHover(e, enter) {
   const el = e.currentTarget;
   if (el.classList?.contains("active")) return;
   gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
 }
-
 function fileHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
-
 function animateListIn() {
   const root = listRef.value;
   if (!root) return;
@@ -1306,7 +1512,6 @@ function animateListIn() {
   gsap.killTweensOf(rows);
   gsap.fromTo(rows, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.02, ease: "power2.out" });
 }
-
 function animatePreviewIn() {
   const root = previewRef.value;
   if (!root) return;
@@ -1320,6 +1525,12 @@ let listAbort = null;
 let detailAbort = null;
 
 onMounted(() => {
+  // optional: read query params to auto-filter
+  const qTemplate = String(route.query?.templateId || "").trim();
+  const qEmail = String(route.query?.email || "").trim();
+  if (qTemplate) filters.templateId = qTemplate;
+  if (qEmail) filters.email = qEmail;
+
   fetchList();
 });
 </script>
@@ -1423,6 +1634,16 @@ onMounted(() => {
 }
 .btnGhost {
   background: rgba(255, 255, 255, 0.02);
+}
+.btnDanger {
+  background: rgba(255, 80, 80, 0.1);
+  border-color: rgba(255, 80, 80, 0.22);
+  color: rgba(255, 235, 235, 0.95);
+}
+.btnDanger:hover {
+  border-color: rgba(255, 80, 80, 0.35);
+  box-shadow: 0 12px 26px rgba(255, 80, 80, 0.12);
+  background: rgba(255, 80, 80, 0.14);
 }
 
 .afsGrid {
@@ -1714,7 +1935,6 @@ onMounted(() => {
   line-height: 1.45;
 }
 
-/* ✅ IMPROVE: file grid more breathable */
 .fileGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1830,6 +2050,10 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.92);
   font-weight: 900;
 }
+.toastMini.err {
+  border-color: rgba(255, 80, 80, 0.22);
+  background: rgba(40, 10, 14, 0.78);
+}
 
 .toast-enter-active,
 .toast-leave-active {
@@ -1851,15 +2075,12 @@ onMounted(() => {
   }
 }
 
-/* =========================
-   ✅ preview mode UI (clear Q/A)
-========================= */
+/* preview mode UI */
 .modeTabs {
   display: inline-flex;
   gap: 8px;
   align-items: center;
 }
-
 .tabBtn {
   height: 40px;
   padding: 0 10px;
@@ -1892,7 +2113,6 @@ onMounted(() => {
   display: grid;
   gap: 10px;
 }
-
 .phTop {
   display: flex;
   align-items: flex-start;
@@ -1942,7 +2162,6 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 900;
 }
-
 .emailPreviewRead {
   display: grid;
   gap: 6px;
@@ -2031,7 +2250,6 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* ✅ NEW: Answer card (readable) */
 .ansCard {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2064,7 +2282,6 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.86);
   font-size: 12px;
 }
-
 .ansText {
   font-size: 14px;
   font-weight: 700;
@@ -2075,13 +2292,11 @@ onMounted(() => {
 .preWrap {
   white-space: pre-wrap;
 }
-
 .ansMuted {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.62);
   font-weight: 800;
 }
-
 .ansToggle {
   border: 0;
   background: transparent;
@@ -2114,7 +2329,6 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* ✅ NEW: answered badge */
 .ansStatus {
   display: inline-flex;
   align-items: center;
@@ -2197,12 +2411,10 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.85);
 }
 
-/* :deep anchor in preview safe html */
 :deep(a) {
   color: rgba(170, 200, 255, 0.95);
 }
 
-/* raw mode nicer */
 .rawPre {
   margin: 0;
   padding: 10px;
@@ -2218,5 +2430,83 @@ onMounted(() => {
 .rawValue {
   font-weight: 700;
   line-height: 1.65;
+}
+
+/* ✅ overlay confirm */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(10px);
+}
+.confirmCard {
+  width: min(520px, 94vw);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 16, 34, 0.82);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.cHead {
+  padding: 14px 14px 10px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 80, 80, 0.22);
+  background: rgba(255, 80, 80, 0.1);
+  color: rgba(255, 235, 235, 0.95);
+  flex: 0 0 auto;
+}
+.cTitle {
+  font-weight: 900;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.cSub {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.cBody {
+  padding: 12px 14px;
+}
+.cWarn {
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 80, 80, 0.18);
+  background: rgba(255, 80, 80, 0.06);
+  color: rgba(255, 235, 235, 0.92);
+  font-weight: 800;
+  font-size: 12px;
+}
+.cActions {
+  padding: 12px 14px 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ov-enter-active,
+.ov-leave-active {
+  transition: opacity 160ms ease;
+}
+.ov-enter-from,
+.ov-leave-to {
+  opacity: 0;
 }
 </style>

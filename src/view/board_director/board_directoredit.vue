@@ -1,10 +1,5 @@
 <!-- BoardDirectorEdit.vue
-  ✅ ใช้ template เดิมจาก Insert แต่ปรับเป็นหน้า EDIT
-  - route: /boarddirectoredit?id=123
-  - GET:  /api/boarddirector/:id   (มี fallback เป็น /api/boarddirector?id=)
-  - PUT:  /api/boarddirector/:id   (fallback PATCH ถ้า PUT ไม่ได้)
-  - multipart/form-data (อัปโหลดรูปใหม่ได้ / หรือใช้รูปเดิมได้)
-  - fields ให้ตรง table: (idboarddirector, name, role, profile, bankname, committee, createat, banklogo)
+
 -->
 <template>
   <div class="page tech">
@@ -360,7 +355,7 @@ const router = useRouter();
 const route = useRoute();
 
 /** ✅ เปลี่ยน path นี้ให้ตรงกับหน้า list/view ของคุณ */
-const LIST_PATH = "/board_directorview"; // <<<<<< เปลี่ยนได้ถ้าหน้าจริงไม่ใช่นี้
+const LIST_PATH = "/board_directorview";
 let redirectTimer = null;
 
 const headEl = ref(null);
@@ -375,7 +370,44 @@ const saving = ref(false);
 
 let abortCtrl = null;
 
-// ✅ toast state
+/* ===================== */
+/* ✅ API base (FIX: กัน /api/api) */
+/* ===================== */
+function trimSlash(s) {
+  return String(s || "").replace(/\/+$/, "");
+}
+function resolveEndpoint(base, resource) {
+  const b = trimSlash(base);
+  if (!b) return `/api/${resource}`;
+  if (b.endsWith("/api")) return `${b}/${resource}`;
+  return `${b}/api/${resource}`;
+}
+
+const RAW_BASE = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+
+const API_BASE = trimSlash(RAW_BASE);
+
+// ✅ boarddirector endpoint
+const BASE_URL = resolveEndpoint(API_BASE, "boarddirector");
+
+// ✅ media base: ถ้า API_BASE ลงท้าย /api ให้ตัดออก (รูปอยู่ที่ root)
+const MEDIA_BASE = API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE;
+
+/* ✅ robust response reader (กัน HTML/404 ที่ json() พัง) */
+async function readAny(res) {
+  const text = await res.text().catch(() => "");
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  return { ok: res.ok, status: res.status, text, json };
+}
+
+/* ===================== */
+/* ✅ toast state */
+/* ===================== */
 const toastEl = ref(null);
 const toast = reactive({
   show: false,
@@ -384,25 +416,21 @@ const toast = reactive({
 });
 let toastTimer = null;
 
-/* ✅ API base */
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "";
-const BASE_URL = API_BASE ? `${API_BASE}/api/boarddirector` : "/api/boarddirector";
-
+/* ===================== */
+/* ✅ id (รองรับหลาย key) */
+/* ===================== */
 const id = computed(() => {
-  const v = route.query?.id;
+  const v = route.query?.id ?? route.query?.idboarddirector ?? route.params?.id;
   return v === undefined || v === null ? "" : String(v);
 });
 
 /* ===================== */
-/* COMMITTEES (ใช้ของเดิมจาก insert) */
+/* COMMITTEES */
 /* ===================== */
 const committees = [
   { key: "ປະທານສະພາບໍລິຫານ", label: "ປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-crown" },
   { key: "ຮອງປະທານສະພາບໍລິຫານ", label: "ຮອງປະທານສະພາບໍລິຫານ", icon: "fa-solid fa-chess-king" },
   { key: "ສະມາຊິກສະພາບໍລິຫານ", label: "ສະມາຊິກສະພາບໍລິຫານ", icon: "fa-solid fa-users" },
-
-
-  
 ];
 
 function committeeLabel(key) {
@@ -416,12 +444,13 @@ function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
-  if (API_BASE) {
-    if (s.startsWith("/")) return `${API_BASE}${s}`;
-    return `${API_BASE}/${s}`;
-  }
-  return s.startsWith("/") ? s : `/${s}`;
+  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:")) return s;
+
+  // ✅ ให้รูปอิง MEDIA_BASE (ไม่ใช่ /api)
+  const base = MEDIA_BASE || "";
+  if (!base) return s.startsWith("/") ? s : `/${s}`;
+  if (s.startsWith("/")) return `${base}${s}`;
+  return `${base}/${s}`;
 }
 
 function parseCommitteeValue(val) {
@@ -436,6 +465,25 @@ function unwrapApiOne(payload) {
   if (payload?.row && typeof payload.row === "object") return payload.row;
   if (typeof payload === "object") return payload;
   return null;
+}
+
+function tryFindInList(payload, targetId) {
+  const tid = String(targetId || "").trim();
+  if (!tid) return null;
+
+  const list =
+    (Array.isArray(payload) && payload) ||
+    (Array.isArray(payload?.data) && payload.data) ||
+    (Array.isArray(payload?.rows) && payload.rows) ||
+    null;
+
+  if (!list) return null;
+
+  return (
+    list.find((x) => String(x?.idboarddirector ?? x?.id ?? x?.ID ?? "").trim() === tid) ||
+    list.find((x) => String(x?.idboarddirector ?? "").trim() === tid) ||
+    null
+  );
 }
 
 function goBack() {
@@ -457,10 +505,10 @@ const form = reactive({
   personName: "",
   role: "",
   createat: "",
-  bankLogo: null,
-  profileImage: null,
-  bankLogoPath: "",
-  profilePath: "",
+  bankLogo: null, // File
+  profileImage: null, // File
+  bankLogoPath: "", // existing path from DB
+  profilePath: "", // existing path from DB
 });
 
 const errors = reactive({
@@ -661,35 +709,71 @@ async function fetchOne() {
     if (abortCtrl) abortCtrl.abort();
     abortCtrl = new AbortController();
 
-    let res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
-      method: "GET",
-      signal: abortCtrl.signal,
-      headers: { Accept: "application/json" },
-    });
+    // ✅ ลองหลายแบบ (กัน backend มี pattern ต่างกัน)
+    const candidates = [
+      `${BASE_URL}/${encodeURIComponent(id.value)}`,
+      `${BASE_URL}?id=${encodeURIComponent(id.value)}`,
+      `${BASE_URL}?idboarddirector=${encodeURIComponent(id.value)}`,
+    ];
 
-    if (!res.ok) {
-      res = await fetch(`${BASE_URL}?id=${encodeURIComponent(id.value)}`, {
+    let foundPayload = null;
+    let lastOut = null;
+
+    for (const url of candidates) {
+      const res = await fetch(url, {
         method: "GET",
         signal: abortCtrl.signal,
         headers: { Accept: "application/json" },
       });
+      const out = await readAny(res);
+      lastOut = out;
+
+      if (!out.ok) continue;
+
+      // ถ้าได้ list มา ให้ filter ด้วย id
+      const directOne = unwrapApiOne(out.json);
+      const inList = tryFindInList(out.json, id.value);
+      foundPayload = inList || directOne || null;
+
+      if (foundPayload) break;
     }
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // ✅ fallback สุดท้าย: GET ทั้ง list แล้ว filter
+    if (!foundPayload) {
+      const res = await fetch(`${BASE_URL}`, {
+        method: "GET",
+        signal: abortCtrl.signal,
+        headers: { Accept: "application/json" },
+      });
+      const out = await readAny(res);
+      lastOut = out;
 
-    const data = await res.json();
-    const one = unwrapApiOne(data);
-    if (!one) throw new Error("No record found");
+      if (out.ok) {
+        foundPayload = tryFindInList(out.json, id.value) || null;
+      }
+    }
+
+    if (!foundPayload) {
+      const hint =
+        lastOut?.text && lastOut.text.includes("<title>404")
+          ? "404 Not Found (route not found / wrong BASE_URL)"
+          : lastOut?.json?.message || lastOut?.json?.error || lastOut?.text || "No record found";
+      throw new Error(hint);
+    }
+
+    const one = foundPayload;
 
     const snap = {
-      idboarddirector: String(one.idboarddirector ?? id.value),
+      idboarddirector: String(one.idboarddirector ?? one.id ?? id.value),
       committee: parseCommitteeValue(one.committee) || (committees[0]?.key || ""),
-      bankName: String(one.bankname ?? ""),
-      personName: String(one.name ?? ""),
+      bankName: String(one.bankname ?? one.bankName ?? one.bank_name ?? ""),
+      personName: String(one.name ?? one.personName ?? ""),
       role: String(one.role ?? ""),
-      createat: String(one.createat ?? ""),
-      bankLogoPath: String(one.banklogo ?? ""),
-      profilePath: String(one.profile ?? ""),
+      createat: String(one.createat ?? one.createdAt ?? ""),
+
+      // ✅ image paths (รองรับหลาย key)
+      bankLogoPath: String(one.banklogo ?? one.bankLogo ?? one.bank_logo ?? ""),
+      profilePath: String(one.profile ?? one.profileImage ?? one.profile_image ?? ""),
     };
 
     applySnapshot(snap);
@@ -730,80 +814,92 @@ async function onSubmit() {
 
   const fd = new FormData();
 
+  // ✅ text fields (compat)
   fd.append("idboarddirector", String(form.idboarddirector || id.value));
   fd.append("committee", form.committee);
+
   fd.append("bankname", form.bankName);
   fd.append("name", form.personName);
+
+  fd.append("bankName", form.bankName);
+  fd.append("personName", form.personName);
+
   fd.append("role", form.role);
 
   if (form.createat) fd.append("createat", form.createat);
 
-  if (form.bankLogo) fd.append("banklogo", form.bankLogo);
-  else fd.append("banklogo", form.bankLogoPath || "");
+  // ✅ ถ้าไม่อัปโหลดใหม่ ส่ง path เดิมเป็น text field (บาง backend ใช้ไว้คงค่า)
+  if (!form.bankLogo) fd.append("banklogo", form.bankLogoPath || "");
+  if (!form.profileImage) fd.append("profile", form.profilePath || "");
 
-  if (form.profileImage) fd.append("profile", form.profileImage);
-  else fd.append("profile", form.profilePath || "");
+  // ✅ file fields (MUST match multer)
+  if (form.bankLogo) fd.append("bankLogo", form.bankLogo);
+  if (form.profileImage) fd.append("profileImage", form.profileImage);
 
   saving.value = true;
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 20000);
 
-    let res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
-      method: "PUT",
-      body: fd,
-      signal: controller.signal,
-    });
+    const tryReq = async (url, method) => {
+      const res = await fetch(url, { method, body: fd, signal: controller.signal });
+      const out = await readAny(res);
+      return { res, out };
+    };
 
+    // ✅ 1) PUT /:id
+    let { res, out } = await tryReq(`${BASE_URL}/${encodeURIComponent(id.value)}`, "PUT");
+
+    // ✅ 2) PATCH /:id
     if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 415)) {
-      res = await fetch(`${BASE_URL}/${encodeURIComponent(id.value)}`, {
-        method: "PATCH",
-        body: fd,
-        signal: controller.signal,
-      });
+      ({ res, out } = await tryReq(`${BASE_URL}/${encodeURIComponent(id.value)}`, "PATCH"));
+    }
+
+    // ✅ 3) PUT ?id=
+    if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 415)) {
+      ({ res, out } = await tryReq(`${BASE_URL}?id=${encodeURIComponent(id.value)}`, "PUT"));
+    }
+
+    // ✅ 4) PATCH ?id=
+    if (!res.ok && (res.status === 404 || res.status === 405 || res.status === 415)) {
+      ({ res, out } = await tryReq(`${BASE_URL}?id=${encodeURIComponent(id.value)}`, "PATCH"));
     }
 
     clearTimeout(t);
 
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (_) {
-      data = null;
-    }
-
     if (!res.ok) {
-      throw new Error(data?.message || `Update failed (HTTP ${res.status})`);
+      const htmlHint =
+        out.text && out.text.includes("<title>404")
+          ? "404 Not Found (API route not found). Check BASE_URL / backend route."
+          : null;
+
+      throw new Error(out.json?.message || out.json?.error || htmlHint || `Update failed (HTTP ${res.status})`);
     }
 
-    await showToast("success", data?.message || "Board Director updated successfully!");
+    await showToast("success", out.json?.message || "Board Director updated successfully!");
 
-    // refresh snapshot
-    if (data) {
-      const one = unwrapApiOne(data) || null;
-      if (one) {
-        const snap = {
-          idboarddirector: String(one.idboarddirector ?? form.idboarddirector ?? id.value),
-          committee: parseCommitteeValue(one.committee) || form.committee,
-          bankName: String(one.bankname ?? form.bankName),
-          personName: String(one.name ?? form.personName),
-          role: String(one.role ?? form.role),
-          createat: String(one.createat ?? form.createat),
-          bankLogoPath: String(one.banklogo ?? form.bankLogoPath),
-          profilePath: String(one.profile ?? form.profilePath),
-        };
-        loadedSnapshot.value = snap;
-        applySnapshot(snap);
-      } else {
-        loadedSnapshot.value = snapshotCurrent();
-      }
+    // refresh snapshot (ถ้า backend ส่ง record กลับมา)
+    const one = unwrapApiOne(out.json) || null;
+    if (one) {
+      const snap = {
+        idboarddirector: String(one.idboarddirector ?? form.idboarddirector ?? id.value),
+        committee: parseCommitteeValue(one.committee) || form.committee,
+        bankName: String(one.bankname ?? one.bankName ?? form.bankName),
+        personName: String(one.name ?? one.personName ?? form.personName),
+        role: String(one.role ?? form.role),
+        createat: String(one.createat ?? form.createat),
+        bankLogoPath: String(one.banklogo ?? one.bankLogo ?? form.bankLogoPath),
+        profilePath: String(one.profile ?? one.profileImage ?? form.profilePath),
+      };
+      loadedSnapshot.value = snap;
+      applySnapshot(snap);
     } else {
       loadedSnapshot.value = snapshotCurrent();
     }
 
     gsap.to(actionsEl.value, { y: -2, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out" });
 
-    /** ✅ NEW: redirect กลับหน้า view/list แล้ว highlight แถวที่แก้ */
+    // redirect to list/view
     if (redirectTimer) clearTimeout(redirectTimer);
     redirectTimer = setTimeout(() => {
       router.push({
@@ -856,10 +952,9 @@ onBeforeUnmount(() => {
   revoke(profileUrl);
 });
 </script>
+
 <style scoped>
-/* =========================
-   TECH THEME (DARK BLUE) - SAME AS INSERT
-   ========================= */
+/* (styles unchanged from your file) */
 .page.tech {
   --bg0: #050914;
   --bg1: #070e23;

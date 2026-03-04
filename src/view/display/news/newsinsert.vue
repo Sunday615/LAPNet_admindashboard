@@ -156,12 +156,7 @@
               <span>ເນື້ອໃນຂ່າວສານ</span>
               <div class="textareaWrap js-reveal">
                 <i class="fa-regular fa-pen-to-square"></i>
-                <textarea
-                  v-model.trim="form.content"
-                  class="textarea"
-                  rows="8"
-                  placeholder="Write news content..."
-                ></textarea>
+                <textarea v-model.trim="form.content" class="textarea" rows="8" placeholder="Write news content..."></textarea>
               </div>
               <div v-if="errors.content" class="err">{{ errors.content }}</div>
             </div>
@@ -233,14 +228,7 @@
                 @drop.prevent="onGalleryDrop"
                 @click="triggerPickGallery"
               >
-                <input
-                  ref="galleryFileEl"
-                  class="fileHidden"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  @change="onPickGallery"
-                />
+                <input ref="galleryFileEl" class="fileHidden" type="file" accept="image/*" multiple @change="onPickGallery" />
 
                 <div class="galleryDropInner">
                   <div class="dropIcon"><i class="fa-regular fa-images"></i></div>
@@ -278,13 +266,7 @@
               <div class="galleryGrid js-reveal" v-if="galleryPreviews.length">
                 <div v-for="(src, idx) in galleryPreviews" :key="src" class="gItem">
                   <img :src="src" alt="gallery preview" />
-                  <button
-                    class="gRemove"
-                    type="button"
-                    :disabled="isOptimizingGallery"
-                    @click="removeGalleryAt(idx)"
-                    title="Remove"
-                  >
+                  <button class="gRemove" type="button" :disabled="isOptimizingGallery" @click="removeGalleryAt(idx)" title="Remove">
                     <i class="fa-solid fa-xmark"></i>
                   </button>
                   <div class="gIdx">#{{ idx + 1 }}</div>
@@ -322,7 +304,7 @@
       </section>
     </main>
 
-    <!-- ✅ Confirm Popup (Confirm/Cancel ก่อน Save) -->
+    <!-- ✅ Confirm Popup -->
     <Teleport to="body">
       <div v-if="confirm.open" ref="confirmOverlayEl" class="popOverlay" @click.self="closeConfirm">
         <div ref="confirmModalEl" class="popModal">
@@ -372,7 +354,7 @@
       </div>
     </Teleport>
 
-    <!-- ✅ Result Popup (Success/Error หลัง Save) -->
+    <!-- ✅ Result Popup -->
     <Teleport to="body">
       <div v-if="popup.open" ref="popOverlayEl" class="popOverlay" @click.self="closePopup">
         <div ref="popModalEl" class="popModal">
@@ -400,25 +382,13 @@
             </router-link>
 
             <button
-              v-if="popup.type === 'success'"
               class="btn primary"
               type="button"
               @click="closePopup"
               @mouseenter="btnHover($event, true)"
               @mouseleave="btnHover($event, false)"
             >
-              ປິດ
-            </button>
-
-            <button
-              v-else
-              class="btn primary"
-              type="button"
-              @click="closePopup"
-              @mouseenter="btnHover($event, true)"
-              @mouseleave="btnHover($event, false)"
-            >
-              <i class="fa-solid fa-rotate-right"></i> Try again
+              {{ popup.type === "success" ? "ປິດ" : "Try again" }}
             </button>
           </div>
 
@@ -456,10 +426,48 @@ const isOptimizingMain = ref(false);
 const isOptimizingGallery = ref(false);
 const isSubmitting = ref(false);
 
-// ✅ If backend is different host, set VITE_API_BASE_URL=http://localhost:3000
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const NEWS_INSERT_URL = API_BASE ? `${API_BASE}/api/news/insert` : "/api/news/insert";
-const OPTIMIZE_URL = API_BASE ? `${API_BASE}/api/optimize` : "/api/optimize";
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  const path = String(apiPath || "").trim();
+  if (!base) return path;
+  if (!path) return base;
+  const baseHasApi = /\/api$/i.test(base);
+  const pathHasApi = /^\/api\//i.test(path);
+  if (baseHasApi && pathHasApi) return base + path.replace(/^\/api/i, "");
+  if (!baseHasApi && !pathHasApi && /^\/uploads\//i.test(path)) return base + path;
+  return base + (path.startsWith("/") ? "" : "/") + path;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for assets; if base ends with "/api" remove it for "/uploads/..."
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+
+// News endpoints
+const NEWS_BASE = joinBaseAndPath(API_BASE_URL, "/api/news").replace(/\/+$/, "");
+
+// Try POST /api/news first; if 404 then fallback to /api/news/insert
+const NEWS_POST_URLS = [NEWS_BASE, `${NEWS_BASE}/insert`];
+
+// Optimize endpoint
+const OPTIMIZE_API = joinBaseAndPath(API_BASE_URL, "/api/optimize").replace(/\/+$/, "");
 
 const categories = ["Meeting", "Contract Signing", "Announcement", "Activity", "Launch Event", "Event"];
 
@@ -562,7 +570,7 @@ async function confirmSave() {
   }
 }
 
-// ---------- ✅ Result Popup (Tech) ----------
+// ---------- ✅ Result Popup ----------
 const popup = reactive({
   open: false,
   type: "success", // success | error
@@ -599,11 +607,6 @@ function closePopup() {
   tl.to(popModalEl.value, { opacity: 0, y: 10, scale: 0.985, duration: 0.18 }, 0)
     .to(popOverlayEl.value, { opacity: 0, duration: 0.18 }, 0)
     .add(() => (popup.open = false));
-}
-
-function closePopupAndBack() {
-  closePopup();
-  setTimeout(() => router.back(), 220);
 }
 
 // ---------- Tags ----------
@@ -665,13 +668,12 @@ function setGalleryPreviews(files) {
 }
 
 // ---------- ✅ Optimize (SAFE) ----------
-// If /api/optimize is 404/501/any error -> return original file (no crash)
 async function optimizeWithSharp(file, preset) {
   try {
     const fd = new FormData();
     fd.append("file", file);
 
-    const res = await fetch(`${OPTIMIZE_URL}?preset=${encodeURIComponent(preset)}`, {
+    const res = await fetch(`${OPTIMIZE_API}?preset=${encodeURIComponent(preset)}`, {
       method: "POST",
       body: fd,
     });
@@ -700,7 +702,7 @@ async function onPickMain(e) {
   try {
     const out = await optimizeWithSharp(file, "main");
     form.heroImage = out;
-    form.sideImage = out; // UI only
+    form.sideImage = out;
     setMainPreview(out);
   } finally {
     isOptimizingMain.value = false;
@@ -751,18 +753,6 @@ async function onGalleryDrop(e) {
   await addGalleryFiles(files);
 }
 
-function removeGalleryAt(idx) {
-  if (idx < 0 || idx >= form.gallery.length) return;
-  form.gallery.splice(idx, 1);
-  setGalleryPreviews(form.gallery);
-}
-
-function clearGallery() {
-  form.gallery = [];
-  setGalleryPreviews([]);
-  if (galleryFileEl.value) galleryFileEl.value.value = "";
-}
-
 // ---------- Validate ----------
 function setError(key, msg) {
   errors[key] = msg || "";
@@ -777,7 +767,6 @@ function validate() {
   return !Object.values(errors).some(Boolean);
 }
 
-// ---------- Actions ----------
 function goBack() {
   router.back();
 }
@@ -791,13 +780,14 @@ function resetForm() {
   form.tags = [];
   form.content = "";
   clearMainImage();
-  clearGallery();
+  form.gallery = [];
+  setGalleryPreviews([]);
   datePicker?.clear();
   Object.keys(errors).forEach((k) => (errors[k] = ""));
   tagDraft.value = "";
 }
 
-// ✅ Submit entrypoint (เปิด Confirm ก่อน)
+// ✅ Submit entrypoint
 async function onSubmit() {
   if (isSubmitting.value || confirm.open) return;
 
@@ -811,8 +801,8 @@ async function onSubmit() {
   await showConfirm();
 }
 
-// ✅ Insert to DB (logic จริง)
-async function doSubmitReal() {
+// Build FormData (so retries are easy)
+function buildNewsFormData() {
   const date_time = buildDateTime(form.date, form.timestamp);
 
   const fd = new FormData();
@@ -826,14 +816,48 @@ async function doSubmitReal() {
   fd.append("hero_img", form.heroImage);
   for (const f of form.gallery) fd.append("gallery_files[]", f);
 
+  return fd;
+}
+
+// POST with fallback: on 404, try the next URL
+async function postWithFallback(urls) {
+  let lastText = "";
+  let lastStatus = 0;
+  let lastUrl = "";
+
+  for (const url of urls) {
+    lastUrl = url;
+    const res = await fetch(url, { method: "POST", body: buildNewsFormData() });
+
+    if (res.ok) return res;
+
+    lastStatus = res.status;
+    lastText = await res.text().catch(() => "");
+
+    // Retry only on 404
+    if (res.status !== 404) break;
+  }
+
+  const short =
+    (lastText || "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 220) || "";
+
+  // If the server returns an HTML 404 page (e.g., Apache), surface a readable message
+  throw new Error(
+    short ||
+      `Insert failed: HTTP ${lastStatus} (${lastUrl}). Check the endpoint and VITE_API_BASE_URL in your .env.`
+  );
+}
+
+// Insert to DB (actual submit flow)
+async function doSubmitReal() {
   isSubmitting.value = true;
   try {
-    const res = await fetch(NEWS_INSERT_URL, { method: "POST", body: fd });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(text || `Insert failed: HTTP ${res.status}`);
-    }
+    // Try POST /api/news first; if 404 then POST /api/news/insert
+    const res = await postWithFallback(NEWS_POST_URLS);
 
     const data = await res.json().catch(() => ({}));
     console.log("INSERT OK:", data);
@@ -861,7 +885,6 @@ function onKey(e) {
 onMounted(() => {
   window.addEventListener("keydown", onKey);
 
-  // entrance animation (no sidebar)
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
@@ -909,6 +932,9 @@ onBeforeUnmount(() => {
   datePicker = null;
 });
 </script>
+
+
+
 
 <style scoped>
 /* =========================

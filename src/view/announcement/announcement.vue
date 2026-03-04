@@ -104,7 +104,7 @@
                 <span>Link (ຖ້າມີ)</span>
                 <div class="inputWrap">
                   <i class="fa-solid fa-link"></i>
-                  <input v-model.trim="form.link" class="inp" type="text" placeholder="https://..." />
+                  <input v-model.trim="form.link" class="inp" type="text" placeholder="http://..." />
                 </div>
                 <div v-if="errors.link" class="err">{{ errors.link }}</div>
               </label>
@@ -338,12 +338,12 @@ const cardEl = ref(null);
 const actionsEl = ref(null);
 const fileEl = ref(null);
 
-/* ✅ Overlay refs */
+/* Overlay refs */
 const overlayEl = ref(null);
 const ovCardEl = ref(null);
 let prevBodyOverflow = "";
 
-/* ✅ Overlay state (NO countdown / NO auto redirect) */
+/* Overlay state (no countdown / no auto redirect) */
 const overlay = reactive({
   show: false,
   type: "success", // success | error
@@ -424,19 +424,50 @@ function onKey(e) {
   if (e.key === "Escape" && overlay.show) closeOverlay();
 }
 
-/**
- * ✅ API config
- * - แนะนำ: ตั้ง VITE_API_ORIGIN เช่น http://localhost:3000 หรือ http://192.168.x.x:3000
- */
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "http://localhost:3000";
-const API_URL = `${API_ORIGIN}/api/announcement`;
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/i, "");
+const API_URL = joinBaseAndPath(API_BASE_URL, "/api/announcement");
 const API_BASE = API_ORIGIN;
 
-/* ✅ edit mode by query (?id=) or params (:id) */
+/* Edit mode by query (?id=) or params (:id) */
 const announcementId = computed(() => String(route.query?.id ?? route.params?.id ?? "").trim());
 const isEditMode = computed(() => !!announcementId.value);
 
-/* ✅ timestamp helpers */
+/* Timestamp helpers */
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
@@ -447,7 +478,7 @@ function nowTimestamp() {
   )}:${pad2(d.getSeconds())}`;
 }
 
-// ✅ timestamp state (ref) + auto update each second
+// Timestamp state (ref) + auto update each second
 const timestamp = ref(nowTimestamp());
 let tsTimer = null;
 
@@ -455,7 +486,7 @@ function refreshTimestamp() {
   timestamp.value = nowTimestamp();
 }
 
-/* ✅ form state */
+/* Form state */
 const form = reactive({
   title: "",
   description: "",
@@ -475,14 +506,14 @@ const errors = reactive({
 
 const saving = ref(false);
 
-/* ✅ image preview state */
+/* Image preview state */
 const imagePreview = ref(""); // new selected file preview (object url)
 let lastObjectUrl = "";
 
 const existingImageUrl = ref(""); // existing image from backend (absolute url)
 const removeExistingImage = ref(false); // optional signal (backend must support)
 
-/* helpers */
+/* Helpers */
 function goBack() {
   router.back();
 }
@@ -537,7 +568,7 @@ function pickImagePathFromResponse(data) {
 }
 
 function parseAnnouncementFromGetResponse(payload) {
-  // รองรับหลายรูปแบบ: {data:{...}} / {...} / {announcement:{...}}
+  // Supports multiple shapes: {data:{...}} / {...} / {announcement:{...}}
   if (!payload) return null;
   if (payload?.data && typeof payload.data === "object") return payload.data;
   if (payload?.announcement && typeof payload.announcement === "object") return payload.announcement;
@@ -553,11 +584,11 @@ function validate() {
 
   setError("link", isValidUrlMaybe(form.link) ? "" : "Link must be a valid URL (http/https).");
 
-  // ✅ image required only on CREATE
+  // Image required only on CREATE
   if (!isEditMode.value) {
     setError("image", form.image ? "" : "Image is required.");
   } else {
-    // on edit: ok if either existing image still there OR new image selected
+    // On edit: ok if either existing image still there OR new image selected
     const hasAny = !!form.image || (!!existingImageUrl.value && !removeExistingImage.value);
     setError("image", hasAny ? "" : "Please upload an image (no existing image found).");
   }
@@ -566,7 +597,7 @@ function validate() {
   return !Object.values(errors).some(Boolean);
 }
 
-/* file pick */
+/* File pick */
 function triggerPickImage() {
   fileEl.value?.click();
 }
@@ -580,7 +611,7 @@ function onPickFile(e) {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // choosing a new file cancels remove-existing
+  // Choosing a new file cancels remove-existing
   removeExistingImage.value = false;
 
   form.image = file;
@@ -611,7 +642,7 @@ function resetForm() {
   form.range = 3;
   form.link = "";
 
-  // reset image states
+  // Reset image states
   form.image = null;
   imagePreview.value = "";
   existingImageUrl.value = "";
@@ -627,7 +658,7 @@ function resetForm() {
   refreshTimestamp();
 }
 
-/* ✅ Load existing data when editing */
+/* Load existing data when editing */
 async function fetchExistingAnnouncement() {
   if (!isEditMode.value) return;
 
@@ -641,17 +672,17 @@ async function fetchExistingAnnouncement() {
     const row = parseAnnouncementFromGetResponse(payload);
     if (!row) throw new Error("Invalid response from server");
 
-    // map fields
+    // Map fields
     form.title = row.title ?? row.header ?? row.name ?? "";
     form.description = row.description ?? row.detail ?? "";
     form.active = Number(row.active ?? row.is_active ?? row.enabled ?? 1) === 1 ? 1 : 0;
     form.range = Number(row.range ?? 3) || 3;
     form.link = row.link ?? "";
 
-    // timestamp: show db time if exists, else now
+    // Timestamp: show db time if exists, else now
     timestamp.value = String(row.time || "").trim() || nowTimestamp();
 
-    // existing image
+    // Existing image
     const imgPath =
       row.image_url ||
       row.imageurl ||
@@ -664,7 +695,7 @@ async function fetchExistingAnnouncement() {
     existingImageUrl.value = normalizeImageUrl(imgPath);
     removeExistingImage.value = false;
 
-    // clear new file
+    // Clear new file
     form.image = null;
     imagePreview.value = "";
     if (fileEl.value) fileEl.value.value = "";
@@ -700,12 +731,12 @@ async function onSubmit() {
     fd.append("range", String(form.range));
     fd.append("link", (form.link || "").trim());
 
-    // ✅ optional: signal remove existing image (backend must support)
+    // Optional: signal remove existing image (backend must support)
     if (isEditMode.value && removeExistingImage.value) {
       fd.append("remove_image", "1");
     }
 
-    // ✅ upload only when user chose new file
+    // Upload only when user chose new file
     if (form.image) {
       fd.append("image", form.image);
     }
@@ -734,20 +765,20 @@ async function onSubmit() {
 
     const data = await res.json().catch(() => null);
 
-    // ✅ best-effort: show what backend returned
+    // Best-effort: show what backend returned
     const savedImagePath = pickImagePathFromResponse(data);
     const savedImageUrl = normalizeImageUrl(savedImagePath);
 
-    // update existing image state after save
+    // Update existing image state after save
     if (savedImageUrl) {
       existingImageUrl.value = savedImageUrl;
       removeExistingImage.value = false;
     } else if (isEditMode.value && removeExistingImage.value) {
-      // if backend removed but didn't return url
+      // If backend removed but didn't return url
       existingImageUrl.value = "";
     }
 
-    // clear new file preview after successful save
+    // Clear new file preview after successful save
     if (lastObjectUrl) {
       URL.revokeObjectURL(lastObjectUrl);
       lastObjectUrl = "";
@@ -800,7 +831,7 @@ onMounted(async () => {
   refreshTimestamp();
   tsTimer = setInterval(refreshTimestamp, 1000);
 
-  // entrance animation (no sidebar)
+  // Entrance animation (no sidebar)
   gsap.set(".js-card", { opacity: 0, y: 14, scale: 0.985 });
   gsap.set(".js-reveal", { opacity: 0, y: 10 });
 
@@ -808,7 +839,7 @@ onMounted(async () => {
   tl.to(".js-card", { opacity: 1, y: 0, scale: 1, duration: 0.55 }, 0)
     .to(".js-reveal", { opacity: 1, y: 0, stagger: 0.06, duration: 0.45 }, 0.06);
 
-  // ✅ if edit, fetch existing row
+  // If edit, fetch existing row
   await fetchExistingAnnouncement();
 });
 

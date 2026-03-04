@@ -1009,7 +1009,7 @@
               class="input"
               type="url"
               dir="ltr"
-              placeholder="https://example.com"
+              placeholder="http://example.com"
               @keydown.enter.prevent="applyLinkPrompt"
             />
 
@@ -1078,7 +1078,7 @@ gsap.registerPlugin(Flip);
 /**
  * ✅ ไม่เปลี่ยน URL ตามที่ขอ
  */
-const BASE_URL = import.meta.env.VITE_FORM_TPL_API || "http://localhost:3000/api/form-templates";
+const BASE_URL = import.meta.env.VITE_FORM_TPL_API || "http://175.0.198.10:3000/api/form-templates";
 
 const DRAFT_KEY = "lapnet_create_form_draft";
 const router = useRouter();
@@ -1113,7 +1113,7 @@ const imgBust = reactive({});
 
 const SERVER_ORIGIN = (() => {
   try {
-    if (/^https?:\/\//i.test(BASE_URL)) return new URL(BASE_URL).origin;
+    if (/^http?:\/\//i.test(BASE_URL)) return new URL(BASE_URL).origin;
   } catch {
     // ignore
   }
@@ -1141,7 +1141,7 @@ function resolveImgSrc(src, bust) {
   if (!s) return "";
   if (/^data:/i.test(s)) return s;
   if (/^blob:/i.test(s)) return s;
-  if (/^https?:\/\//i.test(s)) return appendCacheBust(s, bust);
+  if (/^http?:\/\//i.test(s)) return appendCacheBust(s, bust);
   if (s.startsWith("/")) return appendCacheBust(`${SERVER_ORIGIN}${s}`, bust);
   return appendCacheBust(s, bust);
 }
@@ -1384,6 +1384,35 @@ function fmtDate(iso) {
   }
 }
 
+// ✅ generate NEW sourceFormId (digits) for duplicate
+// - ใช้ "epoch seconds + random" เพื่อให้เลขไม่ยาวเกิน (โอกาสใส่ DB เป็น INT ก็ยังรอด)
+function genDuplicateSourceFormId(existingIds = new Set()) {
+  // try a few times to avoid collisions
+  for (let i = 0; i < 25; i++) {
+    const base = Math.floor(Date.now() / 1000); // ~10 digits (<= 2,147,483,647 until year 2038)
+    const rand = Math.floor(Math.random() * 1000); // 0..999
+    const id = String(base + rand); // still digits
+    if (!existingIds.has(id)) return id;
+  }
+  // fallback
+  return String(Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000));
+}
+
+function makeCopyName(name) {
+  const base = String(name || "Untitled template").trim() || "Untitled template";
+  // avoid stacking "(Copy) (Copy)"
+  if (/\(copy\)\s*$/i.test(base)) return base;
+  return `${base} (Copy)`;
+}
+
+function makeCopyTitle(title) {
+  const base = String(title || "").trim();
+  if (!base) return "Untitled form (Copy)";
+  if (/\(copy\)\s*$/i.test(base)) return base;
+  return `${base} (Copy)`;
+}
+
+
 // =====================
 // ✅ HTML/link helpers (safe render in Preview)
 // =====================
@@ -1400,9 +1429,9 @@ function safeHref(href) {
   const h = String(href ?? '').trim();
   if (!h) return '#';
   // allow http(s), mailto, tel
-  if (/^(https?:\/\/|mailto:|tel:)/i.test(h)) return h;
-  // if user typed example.com -> make https
-  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return 'https://' + h;
+  if (/^(http?:\/\/|mailto:|tel:)/i.test(h)) return h;
+  // if user typed example.com -> make http
+  if (/^[\w.-]+\.[A-Za-z]{2,}(\/|$)/.test(h)) return 'http://' + h;
   return '#';
 }
 
@@ -1946,7 +1975,7 @@ function openLinkPrompt(kind, opts = {}) {
   linkPrompt.label = String(opts.label || "");
 
   const cur = getLinkTargetHtml(linkPrompt.kind, linkPrompt.qid, linkPrompt.oi);
-  linkPrompt.url = extractHref(cur) || "https://";
+  linkPrompt.url = extractHref(cur) || "http://";
   linkPrompt.show = true;
 
   nextTick(() => {
@@ -2334,9 +2363,72 @@ function openInCreateFormFromModal() {
    ✅ Duplicate / Delete / Clear / Import / Export
 ========================= */
 
-function duplicateTemplate(_t) {
-  showToast("Duplicate needs a NEW sourceFormId (unique).", "danger");
+async function duplicateTemplate(t) {
+  if (!t?.id) return;
+
+  try {
+    // ✅ โหลดของสดจาก API (กันเคส list เก่ากว่าใน DB)
+    let src = t;
+    try {
+      const item = await apiGetById(t.id);
+      if (item) {
+        src = {
+          id: item.id ?? t.id,
+          sourceFormId: item.sourceFormId ?? item.source_form_id ?? t.sourceFormId ?? null,
+          name: item.name ?? t.name ?? "Untitled template",
+          note: item.note ?? t.note ?? "",
+          payload: normalizePayload(typeof item.payload === "string" ? safeJsonParse(item.payload) : item.payload || {}),
+          activetoggle: Number(item.activetoggle ?? t.activetoggle ?? 0) ? 1 : 0,
+        };
+      }
+    } catch {
+      // ignore -> fallback to list data
+    }
+
+    // ✅ สร้าง sourceFormId ใหม่ (ต้องเป็น digits)
+    const existing = new Set(
+      (templates.value || [])
+        .map((x) => String(x?.sourceFormId || ""))
+        .filter(Boolean)
+    );
+
+    const newSourceFormId = genDuplicateSourceFormId(existing);
+
+    // ✅ clone payload
+    const payload = deepClone(src.payload);
+    if (!payload?.meta) {
+      payload.meta = { title: "", description: "", collectEmail: false, allowEditAfterSubmit: false };
+    }
+
+    // ✅ (optional) ใส่ Copy ให้ title ใน preview
+    payload.meta.title = makeCopyTitle(payload.meta.title);
+
+    // ✅ new template fields
+    const name = makeCopyName(src.name);
+    const note = String(src.note || "").trim();
+
+    // ✅ แนะนำให้ duplicate เป็น OFF ก่อน (กันเปิดใช้งานซ้ำโดยไม่ตั้งใจ)
+    const activetoggle = 0;
+
+    await apiUpsert({
+      sourceFormId: newSourceFormId,
+      source_form_id: newSourceFormId,
+      name,
+      note,
+      payload,
+      activetoggle,
+    });
+
+    await refreshTemplates();
+
+    showToast("Duplicated");
+    showNiceAlert("Duplicated!", "Template duplicated successfully", "success");
+  } catch (e) {
+    showToast(e?.message || "Duplicate failed", "danger");
+    showNiceAlert("Duplicate failed", e?.message || "Please try again", "danger");
+  }
 }
+
 
 async function deleteTemplate(id) {
   try {

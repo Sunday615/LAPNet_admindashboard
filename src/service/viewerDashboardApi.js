@@ -1,8 +1,15 @@
 // src/services/viewerDashboardApi.js
-const DEFAULT_BASE = "http://localhost:3000";
 
-export const API_BASE =
-  (import.meta?.env?.VITE_API_BASE_URL || DEFAULT_BASE).replace(/\/$/, "");
+// ✅ Use .env API BASE only (Vite)
+// VITE_API_BASE_URL=http://175.0.198.10:3000
+
+const DEFAULT_BASE = "http://175.0.198.10:3000";
+
+// Base host (no /api here)
+export const API_BASE = (import.meta.env?.VITE_API_BASE_URL || DEFAULT_BASE).replace(/\/+$/, "");
+
+// API root
+const API_API = `${API_BASE}/api`;
 
 function normalizeList(payload) {
   if (Array.isArray(payload)) return payload;
@@ -12,8 +19,13 @@ function normalizeList(payload) {
   return [];
 }
 
-async function getJson(url) {
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+async function getJson(url, { signal } = {}) {
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Request failed (${res.status}) ${url}${text ? `\n${text}` : ""}`);
@@ -21,17 +33,17 @@ async function getJson(url) {
   return res.json();
 }
 
-export async function fetchDocuments() {
-  const json = await getJson(`${API_BASE}/api/documents`);
+export async function fetchDocuments(opts) {
+  const json = await getJson(`${API_API}/documents`, opts);
   return normalizeList(json);
 }
 
-export async function fetchAnnouncements() {
-  const json = await getJson(`${API_BASE}/api/announcements`);
+export async function fetchAnnouncements(opts) {
+  const json = await getJson(`${API_API}/announcements`, opts);
   return normalizeList(json);
 }
 
-export async function fetchForms() {
-  const json = await getJson(`${API_BASE}/api/form-templates`);
+export async function fetchForms(opts) {
+  const json = await getJson(`${API_API}/form-templates`, opts);
   return normalizeList(json);
 }

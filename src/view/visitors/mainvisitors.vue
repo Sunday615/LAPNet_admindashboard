@@ -291,7 +291,7 @@ import gsap from "gsap";
 import Chart from "chart.js/auto"; // ✅ graph library (Chart.js)
 
 // ====== CONFIG ======
-const API_BASE = "http://localhost:3000"; // ✅ ตามที่คุณบอกให้ยิงตรงนี้
+const API_BASE = "http://175.0.198.10:3000"; // ✅ ตามที่คุณบอกให้ยิงตรงนี้
 const STATS_URL = `${API_BASE}/api/visitor/stats`;
 const windowSec = 300;
 

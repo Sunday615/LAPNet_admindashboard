@@ -200,7 +200,7 @@
           <li>Admin/Staff can still create accounts without MemberBank (optional), if you allow it in backend.</li>
           <li>
             Make sure your API is reachable. This page tries both relative and
-            <span class="mono">http://localhost:3000</span>.
+            <span class="mono">http://175.0.198.10:3000</span>.
           </li>
         </ul>
       </section>
@@ -533,8 +533,8 @@ import gsap from "gsap";
 const API_BASE = ((import.meta?.env?.VITE_API_BASE ?? "") + "").replace(/\/+$/, "");
 const API = (p) => (API_BASE ? `${API_BASE}${p}` : p);
 
-const USERS_ENDPOINTS = [API("/api/users"), "http://localhost:3000/api/users"];
-const MEMBERS_ENDPOINTS = [API("/api/members"), "http://localhost:3000/api/members"];
+const USERS_ENDPOINTS = [API("/api/users"), "http://175.0.198.10:3000/api/users"];
+const MEMBERS_ENDPOINTS = [API("/api/members"), "http://175.0.198.10:3000/api/members"];
 
 /* -----------------------------
   State
@@ -603,10 +603,10 @@ function pickArrayFromApi(json) {
 function resolveBankLogo(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
-  if (/^(https?:|data:|blob:)/i.test(s)) return s;
+  if (/^(http?:|data:|blob:)/i.test(s)) return s;
   // keep your current behavior (members API is on localhost)
-  if (s.startsWith("/")) return `http://localhost:3000${s}`;
-  return `http://localhost:3000/${s.replace(/^\/+/, "")}`;
+  if (s.startsWith("/")) return `http://175.0.198.10:3000${s}`;
+  return `http://175.0.198.10:3000/${s.replace(/^\/+/, "")}`;
 }
 
 function onBankLogoError(e) {

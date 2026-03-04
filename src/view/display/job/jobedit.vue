@@ -348,8 +348,44 @@ const actionsEl = ref(null);
 const departments = ["Administration", "Accounting & Finance", "IT", "Operation", "Internal Audit"];
 const levels = ["Intern", "Junior", "Mid", "Senior", "Lead", "Manager", "Director", "Other"];
 
-/** ✅ API BASE */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com (or ends with /api)
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) {
+    p = p.slice(4);
+  }
+
+  return `${base}${p}`;
+}
+
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+
+// Use origin for static assets; if base ends with "/api" remove it for "/uploads/..."
+const API_BASE = API_BASE_URL.replace(/\/api$/i, "");
+const API_JOBS_LIST = joinBaseAndPath(API_BASE_URL, "/api/jobs-list");
+const API_JOBS = joinBaseAndPath(API_BASE_URL, "/api/jobs");
 
 /** ✅ job id from route (prefer query) */
 const jobId = computed(() => {
@@ -676,14 +712,14 @@ async function fetchJobById(id) {
   const enc = encodeURIComponent(String(id));
 
   const paths = [
-    `${API_BASE}/api/jobs-list/${enc}`,
-    `${API_BASE}/api/jobs-list?id=${enc}`,
-    `${API_BASE}/api/jobs-list/job?id=${enc}`,
+    `${API_JOBS_LIST}/${enc}`,
+    `${API_JOBS_LIST}?id=${enc}`,
+    `${API_JOBS_LIST}/job?id=${enc}`,
 
     // fallback old
-    `${API_BASE}/api/jobs/${enc}`,
-    `${API_BASE}/api/jobs?id=${enc}`,
-    `${API_BASE}/api/jobs/job?id=${enc}`,
+    `${API_JOBS}/${enc}`,
+    `${API_JOBS}?id=${enc}`,
+    `${API_JOBS}/job?id=${enc}`,
   ];
 
   let lastErr = null;
@@ -780,8 +816,8 @@ async function onSubmit() {
 
     // ✅ Prefer jobs-list endpoint
     const urls = [
-      `${API_BASE}/api/jobs-list/${enc}`,
-      `${API_BASE}/api/jobs/${enc}`, // fallback
+      `${API_JOBS_LIST}/${enc}`,
+      `${API_JOBS}/${enc}`, // fallback
     ];
 
     let lastRes = null;

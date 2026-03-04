@@ -211,8 +211,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-const API_URL = "http://localhost:3000/api/announcements";
-const USERS_URL = "http://localhost:3000/api/users/";
+const API_URL = "http://175.0.198.10:3000/api/announcements";
+const USERS_URL = "http://175.0.198.10:3000/api/users/";
 
 /* ✅ Year format: Anno Domini */
 const AD_LABEL = "";
@@ -339,7 +339,7 @@ function pdfEmbedUrl(url) {
 function resolveAssetUrl(url) {
   if (!url) return "";
   const s = String(url);
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:"))
+  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:") || s.startsWith("blob:"))
     return s;
 
   const origin = new URL(API_URL).origin;

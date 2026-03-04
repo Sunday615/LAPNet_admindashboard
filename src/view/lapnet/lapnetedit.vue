@@ -244,9 +244,33 @@ const fileEl = ref(null);
 const departments = ["CEO", "COO", "Administration", "Finance & Accounting", "IT", "Operation", "Internal Audit"];
 const rowItems = ["ຜູ້ອຳນວຍການ", "ຮອງຜູ້ອຳນວຍການ", "ຫົວຫນ້າພະແນກ", "ຮອງຫົວໜ້າພະແນກ", "ວິຊາການ"];
 
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || "http://localhost:3000";
-const EMP_API = `${API_BASE}/api/emp_lapnet`;
+/* =========================
+   API base from .env ONLY (Vite)
+   Required in .env:
+   - VITE_API_BASE_URL=https://your-domain.com
+   ========================= */
+function readEnvApiBaseUrl() {
+  const v = import.meta?.env?.VITE_API_BASE_URL;
+  return typeof v === "string" ? v.trim() : "";
+}
+function normalizeBaseUrl(u) {
+  return String(u || "").trim().replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, apiPath) {
+  const base = normalizeBaseUrl(baseUrl);
+  let p = String(apiPath || "").trim();
+  if (!p) return base;
+  if (!p.startsWith("/")) p = `/${p}`;
+  if (base.toLowerCase().endsWith("/api") && p.toLowerCase().startsWith("/api/")) p = p.slice(4);
+  return `${base}${p}`;
+}
 
+const API_BASE_URL = normalizeBaseUrl(readEnvApiBaseUrl());
+if (!API_BASE_URL) {
+  console.error("Missing VITE_API_BASE_URL in .env (API base is required).");
+}
+const API_BASE = API_BASE_URL.replace(/\/api$/i, "");
+const EMP_API = joinBaseAndPath(API_BASE_URL, "/api/emp_lapnet");
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
@@ -318,7 +342,7 @@ function normalizePath(src) {
 function resolveMediaUrl(src) {
   const s0 = normalizePath(src);
   if (!s0) return "";
-  if (s0.startsWith("http://") || s0.startsWith("https://") || s0.startsWith("data:") || s0.startsWith("blob:")) return s0;
+  if (s0.startsWith("http://") || s0.startsWith("http://") || s0.startsWith("data:") || s0.startsWith("blob:")) return s0;
   if (s0.startsWith("/")) return `${API_BASE}${s0}`;
   return `${API_BASE}/${s0}`;
 }

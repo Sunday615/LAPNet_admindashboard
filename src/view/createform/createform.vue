@@ -873,7 +873,7 @@
               class="input overlayInput"
               type="url"
               dir="ltr"
-              placeholder="https://example.com"
+              placeholder="http://example.com"
               @keydown.enter.prevent="applyOverlay"
             />
             <div class="hintTiny">
@@ -992,7 +992,7 @@ import flatpickr from "flatpickr";
  * ==========================
  */
 const router = useRouter();
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000").replace(/\/$/, "");
 const TEMPLATE_API = `${API_BASE}/api/form-templates`;
 
 /**
@@ -1323,7 +1323,7 @@ async function onRichDrop(e) {
   }
 }
 function isLikelyImageUrl(url) {
-  return /^https?:\/\/.+\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i.test(url);
+  return /^http?:\/\/.+\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i.test(url);
 }
 function removeQuestionImage(qid, imgId) {
   const q = questions.value.find((x) => x.id === qid);

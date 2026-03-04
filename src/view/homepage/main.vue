@@ -1,5 +1,6 @@
+<!-- src/views/AdminDashboard.vue  (FULL) -->
 <template>
-  <div ref="dashEl">
+  <div ref="dashEl" class="dash">
     <!-- ✅ TOP BAR: Search + Notifications + Chat + Admin Profile -->
     <div ref="topBarEl" class="dashTop js-reveal">
       <!-- Search -->
@@ -228,6 +229,7 @@
       </div>
     </div>
 
+    <!-- ✅ GRID -->
     <div class="statGrid">
       <!-- Member -->
       <div
@@ -261,9 +263,7 @@
           <span v-else>{{ memberTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ MEMBERS_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ MEMBERS_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -300,9 +300,7 @@
           <span v-else>{{ announcementTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ ANNOUNCE_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ ANNOUNCE_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -339,9 +337,7 @@
           <span v-else>{{ newsTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ NEWS_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ NEWS_API.replace(NEWS_BASE, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -378,9 +374,7 @@
           <span v-else>{{ jobTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ JOBS_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ JOBS_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -417,9 +411,7 @@
           <span v-else>{{ boardTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ BOARD_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ BOARD_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -456,9 +448,7 @@
           <span v-else>{{ lapnetEmpTotal }}</span>
         </div>
 
-        <div class="statHint">
-          {{ EMP_LAPNET_API.replace(API_BASE, "") }}
-        </div>
+        <div class="statHint">{{ EMP_LAPNET_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
@@ -643,7 +633,6 @@
                     :src="newsThumbSrc(n)"
                     :alt="pick(n, 'header_news', 'headerNews', 'news_title', 'title') || 'news'"
                   />
-
                   <div v-else class="newsThumbEmpty"><i class="fa-regular fa-image"></i></div>
                 </div>
 
@@ -742,7 +731,9 @@
 
                 <div class="boardInfo">
                   <div class="boardCommittee">
-                    {{ pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee" }}
+                    {{
+                      pick(b, "commitee", "committee", "committee_name", "committeeName", "committeeTitle") || "Committee"
+                    }}
                   </div>
 
                   <div class="boardNameRow">
@@ -864,7 +855,7 @@
                 <div class="sideInfo">
                   <div class="sideName">
                     <span class="miniChip subtle empNoChip">No. {{ lapnetStartIndex + idx + 1 }}</span>
-                    {{ pick(emp, "name", "empName", "emp_name") || "-" }}
+                    {{ pick(emp, "name", "emp_name", "empName") || "-" }}
                   </div>
 
                   <div class="sideRole">
@@ -911,7 +902,172 @@
         </div>
       </div>
 
-      <!-- Calendar card template ของคุณเดิมสามารถอยู่ด้านล่างได้ -->
+      <!-- ✅ CALENDAR (FULL) -->
+      <div class="calendarCard js-reveal">
+        <div class="calTop">
+          <div class="calTitle">
+            <span class="calBadge"><i class="fa-solid fa-calendar-days"></i></span>
+            <div>
+              <div class="calH">Calendar</div>
+              <div class="calSub">Quick notes / reminders (saved in localStorage)</div>
+            </div>
+          </div>
+
+          <div class="calNav">
+            <button class="calNavBtn" type="button" @click="prevMonth" title="Previous month">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div class="calMonth">
+              <b>{{ calMonthLabel }}</b>
+              <span class="muted">•</span>
+              <span class="muted">{{ calYear }}</span>
+            </div>
+
+            <button class="calNavBtn" type="button" @click="nextMonth" title="Next month">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="calGridWrap">
+          <div class="calWeekHead">
+            <div v-for="d in weekDays" :key="d" class="calWeekCell">{{ d }}</div>
+          </div>
+
+          <div class="calGrid">
+            <button
+              v-for="cell in calCells"
+              :key="cell.key"
+              class="calCell"
+              type="button"
+              :class="{
+                blank: cell.blank,
+                today: cell.key === todayKey,
+                selected: cell.key === selectedDateKey,
+                hasEvent: hasEvents(cell.key),
+              }"
+              :disabled="cell.blank"
+              @click="selectDay(cell.key)"
+            >
+              <span class="calNum">{{ cell.blank ? "" : cell.day }}</span>
+              <span v-if="hasEvents(cell.key) && !cell.blank" class="calDot"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="calBottom">
+          <div class="calSide">
+            <div class="calSideHead">
+              <div class="calSideTitle">
+                <i class="fa-regular fa-clock"></i>
+                Events on <b class="mono">{{ selectedDateKey }}</b>
+              </div>
+
+              <button class="calClearBtn" type="button" @click="clearDayEvents" :disabled="!dayEvents.length">
+                Clear day
+              </button>
+            </div>
+
+            <div v-if="!dayEvents.length" class="calEmpty">
+              <i class="fa-regular fa-note-sticky"></i>
+              No events for this day.
+            </div>
+
+            <div v-else class="calEvents">
+              <div v-for="ev in dayEvents" :key="ev.id" class="calEvent">
+                <div class="calEventMain">
+                  <div class="calEventTitle">{{ ev.title }}</div>
+                  <div class="calEventMeta">
+                    <span class="miniChip subtle" v-if="ev.time">
+                      <i class="fa-regular fa-clock"></i> {{ ev.time }}
+                    </span>
+                    <span class="miniChip subtle" v-if="ev.note">
+                      <i class="fa-regular fa-message"></i> {{ ev.note }}
+                    </span>
+                  </div>
+                </div>
+
+                <button class="calDelBtn" type="button" title="Delete" @click="askDeleteEvent(ev)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="calForm">
+            <div class="calFormHead">
+              <div class="calFormTitle">
+                <i class="fa-solid fa-plus"></i>
+                Add event
+              </div>
+              <button class="calTodayBtn" type="button" @click="jumpToday">
+                Today
+              </button>
+            </div>
+
+            <div class="calFields">
+              <div class="field">
+                <div class="label">Title</div>
+                <input v-model.trim="newEventTitle" class="input" placeholder="e.g., Deploy release / Meeting" />
+              </div>
+
+              <div class="fieldRow">
+                <div class="field">
+                  <div class="label">Time</div>
+                  <input v-model.trim="newEventTime" class="input" placeholder="HH:MM" />
+                </div>
+                <div class="field">
+                  <div class="label">Note</div>
+                  <input v-model.trim="newEventNote" class="input" placeholder="optional" />
+                </div>
+              </div>
+
+              <button class="btnPrimary" type="button" @click="addCalEvent" :disabled="!newEventTitle">
+                <i class="fa-solid fa-floppy-disk"></i> Save
+              </button>
+            </div>
+
+            <div class="calHint">
+              <i class="fa-solid fa-circle-info"></i>
+              Saved to <b>localStorage</b> only (admin browser).
+            </div>
+          </div>
+        </div>
+
+        <span class="chartGlow" />
+        <span class="cardSheen" />
+      </div>
+    </div>
+
+    <!-- ✅ Confirm overlay (calendar delete) -->
+    <div v-if="confirmOpen" class="overlay" @click.self="closeConfirm">
+      <div class="modal">
+        <div class="modalTop">
+          <div class="modalTitle">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Confirm
+          </div>
+          <button class="xBtn" type="button" @click="closeConfirm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="modalBody">
+          Delete event: <b class="mono">{{ confirmTarget?.title }}</b> ?
+        </div>
+
+        <div class="modalActions">
+          <button class="btnGhost" type="button" @click="closeConfirm">Cancel</button>
+          <button class="btnDanger" type="button" @click="confirmDelete">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ Toasts -->
+    <div class="toastWrap">
+      <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
+        <i :class="t.icon"></i>
+        <div class="toastMsg">{{ t.msg }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -970,15 +1126,12 @@ function goLapnetEmp() {
   router.push("/lapnetview");
 }
 function goChat() {
-  // ✅ change this path to your real chat page if different
   router.push("/chat");
 }
 function goAdminProfile() {
-  // ✅ change route as needed
   router.push("/admin/profile");
 }
 function goAdminSettings() {
-  // ✅ change route as needed
   router.push("/admin/settings");
 }
 function logout() {
@@ -1014,17 +1167,20 @@ const chartCanvasEl = ref(null);
 let chartInst = null;
 
 /* API base */
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const MEMBERS_API = `${API_BASE}/api/members`;
-const BOARD_API = `${API_BASE}/api/boarddirector`;
+const VITE_API_BASE_URL = import.meta.env.VITE_VITE_API_BASE_URL_URL || "";
+const FETCH_CREDENTIALS = import.meta.env.VITE_FETCH_CREDENTIALS || ""; // "include" if you need cookies
+
+const MEMBERS_API = `${VITE_API_BASE_URL}/api/members`;
+const BOARD_API = `${VITE_API_BASE_URL}/api/boarddirector`;
 
 // ✅ force News Preview (and News total) to fetch from the exact URL you gave
-const NEWS_API = `http://localhost:3000/api/news`;
-const NEWS_BASE = `http://localhost:3000`; // used for news image resolving (if API returns relative image paths)
+const NEWS_API = `http://175.0.198.10:3000/api/news`;
+const NEWS_BASE = `http://175.0.198.10:3000`;
 
-const JOBS_API = `${API_BASE}/api/jobs`;
-const ANNOUNCE_API = `${API_BASE}/api/announcement`;
-const EMP_LAPNET_API = `${API_BASE}/api/emp_lapnet`;
+// ✅ announcements endpoint (plural)
+const ANNOUNCE_API = `${VITE_API_BASE_URL}/api/announcement`;
+const JOBS_API = `${VITE_API_BASE_URL}/api/jobs`;
+const EMP_LAPNET_API = `${VITE_API_BASE_URL}/api/emp_lapnet`;
 
 /* Raw items */
 const memberItems = ref([]);
@@ -1067,6 +1223,20 @@ function boardLogoSrc(b) {
   return resolveImageUrl(raw) || BOARD_LOGO_FALLBACK;
 }
 
+/* auth header helper */
+function getToken() {
+  try {
+    return (
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("auth_token") ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
 /* fetch helper */
 async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
   try {
@@ -1076,7 +1246,14 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
     if (abortCtrlRef.value) abortCtrlRef.value.abort();
     abortCtrlRef.value = new AbortController();
 
-    const res = await fetch(url, { signal: abortCtrlRef.value.signal });
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const opts = { signal: abortCtrlRef.value.signal, headers };
+    if (FETCH_CREDENTIALS) opts.credentials = FETCH_CREDENTIALS;
+
+    const res = await fetch(url, opts);
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
@@ -1097,26 +1274,28 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
               ? data.news
               : Array.isArray(data?.jobs)
                 ? data.jobs
-                : Array.isArray(data?.announcement)
-                  ? data.announcement
-                  : Array.isArray(data?.boarddirectors)
-                    ? data.boarddirectors
-                    : Array.isArray(data?.boarddirector)
-                      ? data.boarddirector
-                      : Array.isArray(data?.directors)
-                        ? data.directors
-                        : Array.isArray(data?.emp_lapnet)
-                          ? data.emp_lapnet
-                          : Array.isArray(data?.employees)
-                            ? data.employees
-                            : [];
+                : Array.isArray(data?.announcements)
+                  ? data.announcements
+                  : Array.isArray(data?.announcement)
+                    ? data.announcement
+                    : Array.isArray(data?.boarddirectors)
+                      ? data.boarddirectors
+                      : Array.isArray(data?.boarddirector)
+                        ? data.boarddirector
+                        : Array.isArray(data?.directors)
+                          ? data.directors
+                          : Array.isArray(data?.emp_lapnet)
+                            ? data.emp_lapnet
+                            : Array.isArray(data?.employees)
+                              ? data.employees
+                              : [];
 
     itemsRef.value = list;
     return list;
   } catch (err) {
     if (err?.name === "AbortError") return null;
     const isLocalhost = url.includes("localhost") || url.includes("127.0.0.1");
-    errorRef.value = isLocalhost ? `Failed to load (check API_BASE / CORS)` : `Failed to load`;
+    errorRef.value = isLocalhost ? `Failed to load (check VITE_API_BASE_URL / CORS / auth)` : `Failed to load`;
     console.error("[fetchList]", url, err);
     return null;
   } finally {
@@ -1231,9 +1410,9 @@ function resolveImageUrl(v, baseOverride) {
   if (!v) return "";
   let s = String(v).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
+  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
 
-  const baseRaw = baseOverride || API_BASE;
+  const baseRaw = baseOverride || VITE_API_BASE_URL;
   const base = String(baseRaw || "").replace(/\/$/, "");
   if (!base) return s;
 
@@ -1322,7 +1501,13 @@ const boardMatches = computed(() => {
   return (boardItems.value || [])
     .filter((x) => matchObj(x, qNorm.value))
     .slice(0, 6)
-    .map((x) => mapResult(x, ["name", "director_name", "full_name"], ["committee", "commitee", "role", "department"], ["id", "director_id", "board_id"]));
+    .map((x) =>
+      mapResult(x, ["name", "director_name", "full_name"], ["committee", "commitee", "role", "department"], [
+        "id",
+        "director_id",
+        "board_id",
+      ])
+    );
 });
 
 const newsMatches = computed(() => {
@@ -1360,18 +1545,15 @@ const lapnetMatches = computed(() => {
 const searchGroups = computed(() => [
   { key: "members", label: "Members", icon: "fa-solid fa-building-columns", items: memberMatches.value, route: "/members" },
   { key: "board", label: "Board", icon: "fa-solid fa-user-tie", items: boardMatches.value, route: "/Board_directorview" },
-  { key: "news", label: "News", icon: "fa-solid fa-newspaper", items: newsMatches.value, route: "/news" },
+  { key: "news", label: "News", icon: "fa-solid fa-newspaper", items: newsMatches.value, route: "/newsviewer" },
   { key: "jobs", label: "Jobs", icon: "fa-solid fa-user-plus", items: jobMatches.value, route: "/jobview" },
   { key: "announcement", label: "Announcement", icon: "fa-solid fa-bullhorn", items: announceMatches.value, route: "/announcementviewer" },
   { key: "lapnet", label: "Employees", icon: "fa-solid fa-users", items: lapnetMatches.value, route: "/lapnetview" },
 ]);
 
-const searchTotal = computed(() =>
-  searchGroups.value.reduce((acc, g) => acc + (g.items?.length || 0), 0)
-);
+const searchTotal = computed(() => searchGroups.value.reduce((acc, g) => acc + (g.items?.length || 0), 0));
 
 function goToCategorySearch(path) {
-  // ✅ send query param (your pages can optionally use it)
   const q = searchQuery.value?.trim();
   if (q) router.push({ path, query: { q } });
   else router.push(path);
@@ -1385,7 +1567,6 @@ function onSearchEnter() {
   const groups = searchGroups.value.filter((g) => g.items.length);
   if (!groups.length) return;
 
-  // jump to most relevant: first group with matches
   goToCategorySearch(groups[0].route);
 }
 
@@ -1474,14 +1655,15 @@ function toggleProfileMenu() {
 
 function markAllNotifRead() {
   notifications.value = (notifications.value || []).map((x) => ({ ...x, read: true }));
+  toast("Marked all notifications as read", "ok");
 }
 function markAllChatRead() {
   chatNotifs.value = (chatNotifs.value || []).map((x) => ({ ...x, read: true }));
+  toast("Marked all chat notifications as read", "ok");
 }
 
 function openNotification(n) {
   notifications.value = (notifications.value || []).map((x) => (x.id === n.id ? { ...x, read: true } : x));
-  // ✅ optional: route somewhere depending on type
 }
 
 function openChat(c) {
@@ -1535,7 +1717,9 @@ function onDocClick(e) {
   if (!inProfile) showProfileMenu.value = false;
 }
 
-/* Graph */
+/* ---------------------------
+   ✅ Graph (Chart.js)
+---------------------------- */
 const ranges = [
   { key: "7d", label: "7D", days: 7 },
   { key: "30d", label: "30D", days: 30 },
@@ -2031,13 +2215,17 @@ function fmtDateTime(d) {
   }
 }
 
-/* Calendar (kept) */
+/* ---------------------------
+   ✅ Calendar (FULL)
+---------------------------- */
 const CAL_STORAGE_KEY = "lapnet_admin_calendar_events_v1";
+const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const nowCal = new Date();
 const calMonth = ref(nowCal.getMonth());
 const calYear = ref(nowCal.getFullYear());
 const selectedDateKey = ref(toKey(nowCal));
+const todayKey = toKey(nowCal);
 
 const calEvents = ref([]);
 const calLoaded = ref(false);
@@ -2056,7 +2244,7 @@ function loadCalendar() {
     }
     calEvents.value = data
       .filter((x) => x && typeof x === "object" && typeof x.dateKey === "string" && typeof x.title === "string")
-      .slice(0, 2000);
+      .slice(0, 3000);
   } catch {
     calEvents.value = [];
   }
@@ -2071,7 +2259,153 @@ function persistCalendar() {
 watch(calEvents, persistCalendar, { deep: true });
 
 function selectDay(key) {
+  if (!key) return;
   selectedDateKey.value = key;
+}
+
+function hasEvents(key) {
+  if (!key) return false;
+  return (calEvents.value || []).some((e) => e.dateKey === key);
+}
+
+const dayEvents = computed(() =>
+  (calEvents.value || [])
+    .filter((e) => e.dateKey === selectedDateKey.value)
+    .slice()
+    .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")))
+);
+
+const calMonthLabel = computed(() => {
+  try {
+    return new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(calYear.value, calMonth.value, 1));
+  } catch {
+    return "Month";
+  }
+});
+
+function buildCalCells(y, m) {
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+  const out = [];
+  for (let i = 0; i < startDow; i++) {
+    out.push({ blank: true, key: `b-${y}-${m}-${i}`, day: "" });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(y, m, d);
+    out.push({ blank: false, key: toKey(dt), day: d });
+  }
+
+  // fill to full weeks
+  while (out.length % 7 !== 0) out.push({ blank: true, key: `t-${y}-${m}-${out.length}`, day: "" });
+  return out;
+}
+
+const calCells = computed(() => buildCalCells(calYear.value, calMonth.value));
+
+function prevMonth() {
+  const m = calMonth.value - 1;
+  if (m < 0) {
+    calMonth.value = 11;
+    calYear.value -= 1;
+  } else calMonth.value = m;
+}
+function nextMonth() {
+  const m = calMonth.value + 1;
+  if (m > 11) {
+    calMonth.value = 0;
+    calYear.value += 1;
+  } else calMonth.value = m;
+}
+function jumpToday() {
+  const d = new Date();
+  calMonth.value = d.getMonth();
+  calYear.value = d.getFullYear();
+  selectedDateKey.value = toKey(d);
+  toast("Jumped to today", "info");
+}
+
+/* calendar add/delete */
+const newEventTitle = ref("");
+const newEventTime = ref("");
+const newEventNote = ref("");
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function addCalEvent() {
+  const title = newEventTitle.value.trim();
+  if (!title) return;
+
+  const ev = {
+    id: uid(),
+    dateKey: selectedDateKey.value,
+    title,
+    time: newEventTime.value.trim(),
+    note: newEventNote.value.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  calEvents.value = [ev, ...(calEvents.value || [])];
+  newEventTitle.value = "";
+  newEventTime.value = "";
+  newEventNote.value = "";
+  toast("Saved event", "ok");
+}
+
+function clearDayEvents() {
+  if (!dayEvents.value.length) return;
+  calEvents.value = (calEvents.value || []).filter((e) => e.dateKey !== selectedDateKey.value);
+  toast("Cleared day events", "ok");
+}
+
+/* confirm delete overlay */
+const confirmOpen = ref(false);
+const confirmTarget = ref(null);
+
+function askDeleteEvent(ev) {
+  confirmTarget.value = ev;
+  confirmOpen.value = true;
+}
+function closeConfirm() {
+  confirmOpen.value = false;
+  confirmTarget.value = null;
+}
+function confirmDelete() {
+  const target = confirmTarget.value;
+  if (!target) return closeConfirm();
+  calEvents.value = (calEvents.value || []).filter((e) => e.id !== target.id);
+  toast("Deleted event", "ok");
+  closeConfirm();
+}
+
+/* ---------------------------
+   ✅ Toasts
+---------------------------- */
+const toasts = ref([]);
+function toast(msg, type = "info") {
+  const id = uid();
+  const icon =
+    type === "ok"
+      ? "fa-solid fa-circle-check"
+      : type === "danger"
+        ? "fa-solid fa-triangle-exclamation"
+        : "fa-solid fa-circle-info";
+
+  const item = { id, msg, type, icon };
+  toasts.value = [item, ...toasts.value].slice(0, 5);
+
+  // animate in
+  nextTick(() => {
+    const el = document.querySelector(`.toastWrap .toast:nth-child(1)`);
+    if (el) gsap.fromTo(el, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: "power2.out" });
+  });
+
+  setTimeout(() => {
+    toasts.value = (toasts.value || []).filter((t) => t.id !== id);
+  }, 3200);
 }
 
 /* hover */
@@ -2113,7 +2447,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* (เดิมทั้งหมด + เพิ่มของใหม่ด้านบน) */
+/* --------------------------------
+   Base (inherits your theme vars)
+--------------------------------- */
+.dash {
+  width: 100%;
+}
 
 /* ✅ TOP BAR */
 .dashTop {
@@ -2123,7 +2462,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   margin: 2px 0 12px;
 
-  /* ✅ FIX: ensure topbar + overlays always on top */
+  /* keep overlays always above cards */
   position: relative;
   z-index: 9999;
 }
@@ -2194,8 +2533,6 @@ onBeforeUnmount(() => {
   top: calc(100% + 10px);
   left: 0;
   right: 0;
-
-  /* ✅ FIX: raise overlay above everything */
   z-index: 9999;
 
   border-radius: 18px;
@@ -2466,596 +2803,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-
-  /* ✅ FIX: raise overlay above everything */
   z-index: 9999;
-
-  width: 320px;
-  border-radius: 18px;
-  padding: 12px;
-  background: rgba(8, 14, 34, 0.92);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-}
-
-/* (ที่เหลือเดิมทั้งหมด ไม่แตะ) */
-.menuTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.menuTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 950;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.menuBtn {
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 950;
-  font-size: 12px;
-  cursor: pointer;
-}
-.menuBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.menuEmpty {
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 850;
-}
-
-.menuList {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.menuItem {
-  width: 100%;
-  text-align: left;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-}
-.menuItem:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-.menuItem.unread {
-  border-color: rgba(56, 189, 248, 0.18);
-  background: rgba(56, 189, 248, 0.06);
-}
-
-.menuItemMain {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.menuItemTitle {
-  font-weight: 950;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.menuItemBody {
-  font-weight: 850;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.68);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.menuItemTime {
-  margin-top: 2px;
-  font-weight: 850;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.55);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0.9);
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
-  margin-top: 4px;
-  flex: 0 0 auto;
-}
-
-.menuFoot {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-}
-.menuLink {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.86);
-  border-radius: 999px;
-  padding: 8px 10px;
-  font-weight: 950;
-  font-size: 12px;
-  cursor: pointer;
-}
-.menuLink:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.profileTop {
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.profileBig {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.profileBigName {
-  font-weight: 950;
-  color: rgba(255, 255, 255, 0.92);
-}
-.profileBigSub {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 850;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.menuAction {
-  align-items: center;
-  gap: 10px;
-}
-.menuAction i {
-  width: 18px;
-  opacity: 0.9;
-}
-.menuAction.danger {
-  border-color: rgba(239, 68, 68, 0.2);
-}
-.menuAction.danger:hover {
-  border-color: rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.08);
-}
-
-/* small tag */
-.subSearchTag {
-  font-weight: 950;
-  color: rgba(56, 189, 248, 0.9);
-}
-
-/* ✅ Keep your existing CSS below (unchanged) */
-
-/* Clickable focus */
-.statCard.clickable {
-  cursor: pointer;
-}
-
-.statCard.clickable:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1), 0 18px 44px rgba(0, 0, 0, 0.28);
-  border-color: rgba(56, 189, 248, 0.28);
-}
-
-/* Stats Grid + Cards */
-.statGrid {
-  --sideBlockMaxH: 430px;
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 12px;
-  padding: 6px 0 14px;
-}
-
-.statCard,
-.chartCard,
-.calendarCard,
-.sideCard {
-  position: relative;
-  overflow: hidden;
-  border-radius: 18px;
-  padding: 14px 14px 12px;
-  background: var(--glass);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(12px);
-}
-
-/* ... (ที่เหลือ CSS เดิมทั้งหมดของคุณอยู่ต่อได้เหมือนเดิม) ... */
-
-/* responsive */
-@media (max-width: 1100px) {
-  .statCard { grid-column: span 6; }
-  .statCard.wide { grid-column: span 6; }
-  .leftCol { grid-column: span 12; }
-  .sideCol { grid-column: span 12; }
-  .legHint { margin-left: 0; width: 100%; }
-  .dashTop { flex-direction: column; align-items: stretch; }
-  .topActions { justify-content: flex-end; }
-  .menuPanel { right: 0; left: auto; }
-}
-
-@media (max-width: 920px) {
-  .statCard { grid-column: span 12; }
-  .statCard.wide { grid-column: span 12; }
-  .chartActions { width: 100%; justify-content: space-between; }
-}
-
-.dashTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 2px 0 12px;
-}
-
-.topActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.topRefresh {
-  width: 40px;
-  height: 40px;
-}
-
-/* ✅ Search */
-.searchWrap {
-  position: relative;
-  flex: 1;
-  max-width: 740px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
-}
-
-.searchIcon {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 14px;
-}
-
-.searchInput {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.92);
-  font-weight: 900;
-  font-size: 13px;
-}
-
-.searchInput::placeholder {
-  color: rgba(255, 255, 255, 0.45);
-  font-weight: 850;
-}
-
-.searchClear {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-}
-.searchClear:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  color: rgba(255, 255, 255, 0.92);
-  transform: translateY(-1px);
-}
-
-.searchPanel {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  right: 0;
-  z-index: 50;
-  border-radius: 18px;
-  padding: 12px;
-  background: rgba(8, 14, 34, 0.92);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-  max-height: 420px;
-  overflow: auto;
-}
-
-.searchPanelTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.searchPanelTitle {
-  color: rgba(255, 255, 255, 0.82);
-  font-weight: 900;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.searchPanelMeta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pillMini {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: 900;
-  font-size: 12px;
-}
-
-.pillBtn {
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.82);
-  font-weight: 900;
-  font-size: 12px;
-  cursor: pointer;
-}
-.pillBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.searchEmpty {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 850;
-}
-
-.searchGroups {
-  margin-top: 10px;
-  display: grid;
-  gap: 10px;
-}
-
-.searchGroup {
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  overflow: hidden;
-}
-
-.searchGroupHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.searchGroupTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 950;
-  font-size: 12px;
-}
-
-.groupCount {
-  margin-left: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: rgba(56, 189, 248, 0.06);
-  color: rgba(255, 255, 255, 0.88);
-  font-weight: 950;
-}
-
-.seeAllBtn {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.85);
-  border-radius: 999px;
-  padding: 8px 10px;
-  font-weight: 950;
-  font-size: 12px;
-  cursor: pointer;
-}
-.seeAllBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.searchItems {
-  padding: 8px;
-  display: grid;
-  gap: 8px;
-}
-
-.searchItem {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  text-align: left;
-  padding: 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-}
-.searchItem:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.searchItemTitle {
-  font-weight: 950;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.searchItemSub {
-  margin-top: 2px;
-  font-weight: 850;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.searchPanelHint {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.58);
-  font-weight: 850;
-  font-size: 12px;
-}
-
-/* ✅ Icons + Menus */
-.menuWrap {
-  position: relative;
-}
-
-.iconBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.82);
-  cursor: pointer;
-  position: relative;
-}
-.iconBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  color: rgba(255, 255, 255, 0.92);
-  transform: translateY(-1px);
-}
-
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: rgba(239, 68, 68, 0.95);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 950;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.profileBtn {
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px 0 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  font-weight: 950;
-}
-.profileBtn:hover {
-  border-color: rgba(56, 189, 248, 0.18);
-  transform: translateY(-1px);
-}
-
-.profileName {
-  font-size: 12px;
-  font-weight: 950;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.18);
-  display: grid;
-  place-items: center;
-}
-.avatar.big {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-}
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatarTxt {
-  font-size: 12px;
-  font-weight: 950;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.menuPanel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 60;
   width: 320px;
   border-radius: 18px;
   padding: 12px;
@@ -3235,26 +2983,12 @@ onBeforeUnmount(() => {
   background: rgba(239, 68, 68, 0.08);
 }
 
-/* small tag */
 .subSearchTag {
   font-weight: 950;
   color: rgba(56, 189, 248, 0.9);
 }
 
-/* ✅ Keep your existing CSS below (unchanged) */
-
-/* Clickable focus */
-.statCard.clickable {
-  cursor: pointer;
-}
-
-.statCard.clickable:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.1), 0 18px 44px rgba(0, 0, 0, 0.28);
-  border-color: rgba(56, 189, 248, 0.28);
-}
-
-/* Stats Grid + Cards */
+/* Grid base */
 .statGrid {
   --sideBlockMaxH: 430px;
   display: grid;
@@ -3271,7 +3005,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: 18px;
   padding: 14px 14px 12px;
-  background: var(--glass);
+  background: var(--glass, rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(12px);
@@ -3281,8 +3015,6 @@ onBeforeUnmount(() => {
   grid-column: span 3;
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease, transform 180ms ease;
 }
-
-/* wide */
 .statCard.wide {
   grid-column: span 6;
 }
@@ -3354,7 +3086,6 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
 }
-
 .statRefresh:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
@@ -3503,13 +3234,11 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
-
 .segBtn:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
   transform: translateY(-1px);
 }
-
 .segBtn.active {
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.12));
   border-color: rgba(56, 189, 248, 0.22);
@@ -3526,7 +3255,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 140ms ease;
 }
-
 .chartRefreshBtn:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
@@ -3557,13 +3285,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
-
 .chip:hover {
   transform: translateY(-1px);
   border-color: rgba(56, 189, 248, 0.22);
   background: rgba(255, 255, 255, 0.03);
 }
-
 .chip.active {
   border-color: rgba(56, 189, 248, 0.28);
   background: rgba(56, 189, 248, 0.06);
@@ -3604,12 +3330,11 @@ onBeforeUnmount(() => {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: var(--panel2);
-  border: 1px solid var(--stroke);
+  background: var(--panel2, rgba(255,255,255,0.02));
+  border: 1px solid var(--stroke, rgba(255,255,255,0.08));
   color: rgba(255, 255, 255, 0.78);
   font-weight: 850;
 }
-
 .metaPill.subtle { opacity: 0.85; }
 
 .errorPill {
@@ -3617,7 +3342,6 @@ onBeforeUnmount(() => {
   color: rgba(239, 68, 68, 0.95);
 }
 
-/* Chart.js wrapper */
 .chartCanvasWrap {
   margin-top: 12px;
   position: relative;
@@ -3649,7 +3373,6 @@ onBeforeUnmount(() => {
   background: rgba(7, 14, 35, 0.55);
   backdrop-filter: blur(10px);
 }
-
 .chartOverlay.error {
   color: rgba(239, 68, 68, 0.95);
   background: rgba(7, 14, 35, 0.65);
@@ -3702,7 +3425,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 12px;
 }
-
 .sideCard {
   background: rgba(255, 255, 255, 0.024);
   border-color: rgba(255, 255, 255, 0.08);
@@ -3765,7 +3487,6 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
 }
-
 .sideRefresh:hover {
   border-color: rgba(56, 189, 248, 0.18);
   color: rgba(255, 255, 255, 0.92);
@@ -3805,7 +3526,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
   cursor: pointer;
 }
-
 .sideLink:hover {
   border-color: rgba(56, 189, 248, 0.18);
   transform: translateY(-1px);
@@ -3827,10 +3547,28 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
-
 .sideState.errState {
   border-color: rgba(239, 68, 68, 0.25);
   color: rgba(239, 68, 68, 0.95);
+}
+
+/* Mini chip */
+.miniChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 900;
+  font-size: 11px;
+}
+.miniChip.subtle {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .sideList { display: grid; gap: 10px; }
@@ -3847,7 +3585,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
-
 .sideItem:hover {
   transform: translateY(-1px);
   border-color: rgba(56, 189, 248, 0.18);
@@ -3864,9 +3601,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
 }
-
 .sideAvatar img { width: 100%; height: 100%; object-fit: cover; }
-
 .sideAvatarEmpty { color: rgba(255, 255, 255, 0.7); font-size: 14px; }
 
 .sideInfo { display: flex; flex-direction: column; gap: 4px; }
@@ -3879,31 +3614,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
 }
+.empNoChip { padding: 4px 8px; }
 
 .sideRole { font-weight: 850; color: rgba(255, 255, 255, 0.68); font-size: 12px; }
-
 .sideChips { display: flex; flex-wrap: wrap; gap: 6px; }
 
-.miniChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: rgba(56, 189, 248, 0.06);
-  color: rgba(255, 255, 255, 0.86);
-  font-weight: 900;
-  font-size: 11px;
-}
-
-.miniChip.subtle {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-/* Board card design */
+/* Board card */
 .sideCard.boardCard { background: rgba(255, 255, 255, 0.026); border-color: rgba(255, 255, 255, 0.09); }
 
 .boardHero {
@@ -3931,17 +3647,10 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
-
 .boardItem:hover {
   transform: translateY(-1px);
   border-color: rgba(99, 102, 241, 0.22);
   background: rgba(255, 255, 255, 0.03);
-}
-
-.boardItem:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.12), 0 18px 44px rgba(0, 0, 0, 0.28);
-  border-color: rgba(99, 102, 241, 0.28);
 }
 
 .boardLogo {
@@ -3949,104 +3658,95 @@ onBeforeUnmount(() => {
   height: 52px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
   display: grid;
   place-items: center;
 }
+.boardLogo img { width: 100%; height: 100%; object-fit: cover; }
 
-.boardLogo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.02); }
-
-.boardInfo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.boardInfo { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .boardCommittee {
   font-weight: 950;
-  letter-spacing: 0.2px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.92);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.boardNameRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.boardNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
 
 .boardName {
   font-weight: 950;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.92);
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  white-space: nowrap;
 }
 
 .boardRolePill {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid rgba(99, 102, 241, 0.22);
   background: rgba(99, 102, 241, 0.08);
   color: rgba(255, 255, 255, 0.9);
   font-weight: 950;
   font-size: 11px;
-  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .boardMetaRow { display: flex; flex-wrap: wrap; gap: 6px; }
 
-.boardChevron { color: rgba(255, 255, 255, 0.45); justify-self: end; }
-.boardItem:hover .boardChevron { color: rgba(255, 255, 255, 0.78); }
+.boardChevron {
+  opacity: 0.8;
+}
 
 /* Pagination */
 .boardPager {
   margin-top: 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
 }
 
 .pagerBtn {
   width: 36px;
   height: 36px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
-  transition: transform 140ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+.pagerBtn:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+.pagerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.pagerBtn:hover:enabled { border-color: rgba(99, 102, 241, 0.22); transform: translateY(-1px); }
-.pagerBtn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.pagerInfo { font-weight: 950; font-size: 12px; color: rgba(255, 255, 255, 0.78); }
-
-/* Match heights: Lapnet + News preview */
-.sideCard.lapnetCard,
-.sideCard.newsPreviewCard {
-  max-height: var(--sideBlockMaxH);
-  display: flex;
-  flex-direction: column;
+.pagerInfo {
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 900;
+  font-size: 12px;
 }
 
-/* allow internal scrolling */
-.sideCard.lapnetCard .sideBody { overflow: auto; padding-bottom: 4px; }
-.newsPreviewBody { margin-top: 10px; position: relative; z-index: 1; overflow: auto; padding-bottom: 4px; }
-
+/* News preview list */
 .newsList { display: grid; gap: 10px; }
-
 .newsItem {
   display: grid;
-  grid-template-columns: 64px 1fr 18px;
+  grid-template-columns: 76px 1fr 18px;
   gap: 10px;
   align-items: center;
   padding: 10px;
@@ -4056,36 +3756,464 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
-
-.newsItem:hover { transform: translateY(-1px); border-color: rgba(56, 189, 248, 0.18); background: rgba(255, 255, 255, 0.03); }
+.newsItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
 
 .newsThumb {
-  width: 64px;
-  height: 44px;
+  width: 76px;
+  height: 52px;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.2);
   display: grid;
   place-items: center;
 }
-
 .newsThumb img { width: 100%; height: 100%; object-fit: cover; }
-
-.newsThumbEmpty { color: rgba(255, 255, 255, 0.55); font-size: 14px; }
+.newsThumbEmpty { color: rgba(255, 255, 255, 0.7); font-size: 14px; }
 
 .newsInfo { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-
 .newsTitle {
   font-weight: 950;
-  color: rgba(255, 255, 255, 0.92);
   font-size: 13px;
-  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.92);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.newsMeta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ✅ Calendar card */
+.calendarCard {
+  grid-column: span 12;
+  background: rgba(255, 255, 255, 0.024);
+  border-color: rgba(255, 255, 255, 0.09);
 }
 
-.newsMeta { display: flex; flex-wrap: wrap; gap: 6px; }
+.calTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.calTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.calBadge {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.calH { font-weight: 950; letter-spacing: 0.2px; }
+.calSub { margin-top: 2px; font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 850; }
+
+.calNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calNavBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+.calNavBtn:hover {
+  border-color: rgba(56,189,248,0.18);
+  transform: translateY(-1px);
+}
+
+.calMonth {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.85);
+  font-weight: 950;
+  font-size: 12px;
+}
+.muted { opacity: 0.7; }
+
+.calGridWrap {
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.015);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.calWeekHead {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.calWeekCell {
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: 950;
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+}
+
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calCell {
+  height: 44px;
+  border: none;
+  outline: none;
+  background: transparent;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+  position: relative;
+}
+.calCell:nth-child(7n) { border-right: none; }
+.calCell.blank {
+  cursor: default;
+  opacity: 0.4;
+}
+.calCell:hover:not(.blank) {
+  background: rgba(56,189,248,0.06);
+}
+.calCell.selected:not(.blank) {
+  background: rgba(56,189,248,0.10);
+  box-shadow: inset 0 0 0 1px rgba(56,189,248,0.22);
+}
+.calCell.today:not(.blank) {
+  box-shadow: inset 0 0 0 1px rgba(99,102,241,0.24);
+}
+.calCell.hasEvent:not(.blank) .calNum {
+  font-weight: 950;
+}
+.calNum { font-weight: 850; font-size: 12px; }
+.calDot {
+  position: absolute;
+  bottom: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(34,197,94,0.95);
+  box-shadow: 0 0 0 5px rgba(34,197,94,0.12);
+}
+
+.calBottom {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.calSide, .calForm {
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  padding: 12px;
+}
+
+.calSideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.calSideTitle {
+  font-weight: 950;
+  color: rgba(255,255,255,0.9);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.calClearBtn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.85);
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.calClearBtn:hover:not(:disabled) {
+  border-color: rgba(56,189,248,0.18);
+  transform: translateY(-1px);
+}
+.calClearBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.calEmpty {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.7);
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calEvents { margin-top: 10px; display: grid; gap: 10px; }
+
+.calEvent {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+}
+.calEventTitle {
+  font-weight: 950;
+  color: rgba(255,255,255,0.92);
+}
+.calEventMeta { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.calDelBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  border: 1px solid rgba(239,68,68,0.18);
+  background: rgba(239,68,68,0.06);
+  color: rgba(255,255,255,0.9);
+  cursor: pointer;
+}
+.calDelBtn:hover {
+  border-color: rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.10);
+  transform: translateY(-1px);
+}
+
+.calFormHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.calFormTitle {
+  font-weight: 950;
+  color: rgba(255,255,255,0.9);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.calTodayBtn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99,102,241,0.22);
+  background: rgba(99,102,241,0.08);
+  color: rgba(255,255,255,0.9);
+  font-weight: 950;
+  font-size: 12px;
+  cursor: pointer;
+}
+.calTodayBtn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99,102,241,0.3);
+}
+
+.calFields { margin-top: 10px; display: grid; gap: 10px; }
+.field .label {
+  font-weight: 900;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 6px;
+}
+.input {
+  width: 100%;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.92);
+  outline: none;
+  padding: 0 12px;
+  font-weight: 900;
+  font-size: 12px;
+}
+.input:focus {
+  border-color: rgba(56,189,248,0.18);
+  box-shadow: 0 0 0 6px rgba(56,189,248,0.08);
+}
+.fieldRow {
+  display: grid;
+  grid-template-columns: 0.45fr 0.55fr;
+  gap: 10px;
+}
+
+.btnPrimary {
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(56,189,248,0.22);
+  background: linear-gradient(90deg, rgba(56,189,248,0.16), rgba(99,102,241,0.10));
+  color: rgba(255,255,255,0.95);
+  font-weight: 950;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btnPrimary:disabled { opacity: 0.55; cursor: not-allowed; }
+.btnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(56,189,248,0.32);
+}
+
+.calHint {
+  margin-top: 10px;
+  color: rgba(255,255,255,0.58);
+  font-weight: 850;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ✅ Overlay + modal */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.modal {
+  width: min(520px, 92vw);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(8,14,34,0.92);
+  box-shadow: 0 40px 120px rgba(0,0,0,0.65);
+  padding: 12px;
+}
+.modalTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.modalTitle {
+  font-weight: 950;
+  color: rgba(255,255,255,0.92);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.xBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+.xBtn:hover { transform: translateY(-1px); border-color: rgba(56,189,248,0.18); }
+
+.modalBody {
+  padding: 12px 2px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 850;
+}
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.btnGhost, .btnDanger {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-weight: 950;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.9);
+}
+.btnGhost:hover { transform: translateY(-1px); border-color: rgba(56,189,248,0.18); }
+
+.btnDanger {
+  border-color: rgba(239,68,68,0.22);
+  background: rgba(239,68,68,0.08);
+}
+.btnDanger:hover { transform: translateY(-1px); border-color: rgba(239,68,68,0.35); }
+
+/* ✅ Toasts */
+.toastWrap {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 100001;
+  display: grid;
+  gap: 10px;
+}
+.toast {
+  width: min(360px, 92vw);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(8,14,34,0.92);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 900;
+}
+.toast i { opacity: 0.95; }
+.toast.ok { border-color: rgba(34,197,94,0.25); }
+.toast.danger { border-color: rgba(239,68,68,0.25); }
+.toastMsg { min-width: 0; }
 
 /* responsive */
 @media (max-width: 1100px) {
@@ -4093,15 +4221,15 @@ onBeforeUnmount(() => {
   .statCard.wide { grid-column: span 6; }
   .leftCol { grid-column: span 12; }
   .sideCol { grid-column: span 12; }
-  .legHint { margin-left: 0; width: 100%; }
   .dashTop { flex-direction: column; align-items: stretch; }
   .topActions { justify-content: flex-end; }
   .menuPanel { right: 0; left: auto; }
+  .calBottom { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 920px) {
   .statCard { grid-column: span 12; }
   .statCard.wide { grid-column: span 12; }
   .chartActions { width: 100%; justify-content: space-between; }
+  .fieldRow { grid-template-columns: 1fr; }
 }
 </style>
