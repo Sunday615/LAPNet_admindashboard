@@ -411,15 +411,31 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+const API_BASE = resolveApiBase();
+
+
 const route = useRoute();
 const router = useRouter();
 
 const id = computed(() => String(route.params?.id || "").trim());
 
 // ✅ endpoints
-const LIST_API = "http://175.0.198.10:3000/api/form-templates";
-const DETAIL_API = "http://175.0.198.10:3000/api/form-templates"; // ใช้ /:id
-const SUBMIT_API = "http://175.0.198.10:3000/api/form-submissions";
+const LIST_API = joinBaseAndPath(API_BASE, "/api/form-templates");
+const DETAIL_API = joinBaseAndPath(API_BASE, "/api/form-templates"); // use /:id // ใช้ /:id
+const SUBMIT_API = joinBaseAndPath(API_BASE, "/api/form-submissions");
 
 const loading = ref(false);
 const submitting = ref(false);

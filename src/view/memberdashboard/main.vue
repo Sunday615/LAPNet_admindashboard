@@ -406,14 +406,28 @@ const headEl = ref(null);
 const DISPLAY_YEAR = 2026;
 const AD_LABEL = "";
 
-// ---- API base
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000";
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  // Avoid duplicate "/api" when base already ends with "/api"
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+const API_BASE = resolveApiBase();
+
 const endpoints = {
-  documents: `${BASE}/api/documents`,
-  announcements: `${BASE}/api/announcements`,
-  forms: `${BASE}/api/form-templates`,
-  users: `${BASE}/api/users`,
-  members: `${BASE}/api/members`,
+  documents: joinBaseAndPath(API_BASE, "/api/documents"),
+  announcements: joinBaseAndPath(API_BASE, "/api/announcements"),
+  forms: joinBaseAndPath(API_BASE, "/api/form-templates"),
+  users: joinBaseAndPath(API_BASE, "/api/users"),
+  members: joinBaseAndPath(API_BASE, "/api/members"),
 };
 
 // ---- State
@@ -608,7 +622,9 @@ function resolveAssetUrl(val) {
   if (!s) return "";
   if (/^(http?:|data:|blob:)/i.test(s)) return s;
 
-  const base = String(BASE || "http://175.0.198.10:3000").replace(/\/+$/, "");
+  const origin = API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE;
+  const base = String(origin || "").replace(/\/+$/, "");
+  if (!base) return s;
   if (s.startsWith("/")) return `${base}${s}`;
   return `${base}/${s.replace(/^\/+/, "")}`;
 }

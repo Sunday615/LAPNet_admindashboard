@@ -211,8 +211,24 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-const API_URL = "http://175.0.198.10:3000/api/announcements";
-const USERS_URL = "http://175.0.198.10:3000/api/users/";
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+const API_BASE = resolveApiBase();
+
+
+const API_URL = joinBaseAndPath(API_BASE, "/api/announcements");
+const USERS_URL = joinBaseAndPath(API_BASE, "/api/users/");
 
 /* ✅ Year format: Anno Domini */
 const AD_LABEL = "";
@@ -342,7 +358,7 @@ function resolveAssetUrl(url) {
   if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:") || s.startsWith("blob:"))
     return s;
 
-  const origin = new URL(API_URL).origin;
+  const origin = (API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE) || window.location.origin;
   if (!s.startsWith("/")) return `${origin}/${s}`;
   return `${origin}${s}`;
 }

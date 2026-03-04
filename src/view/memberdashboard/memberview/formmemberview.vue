@@ -108,10 +108,26 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "v
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+const API_BASE = resolveApiBase();
+
+
 const router = useRouter();
 
 // ✅ API list endpoint (ตามที่คุณให้มา)
-const LIST_API = "http://175.0.198.10:3000/api/form-templates";
+const LIST_API = joinBaseAndPath(API_BASE, "/api/form-templates");
 
 const q = ref("");
 const loading = ref(false);

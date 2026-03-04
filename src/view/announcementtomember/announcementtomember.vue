@@ -753,7 +753,8 @@ function buildCommonPayload() {
   const tagsArr = Array.isArray(tags.value) ? tags.value : [];
   const tagsCsv = tagsArr.join(",");
 
-  const idsPayload = all ? [] : ids;
+  // Always send member ids, even when selecting all (store explicit targets in DB).
+  const idsPayload = ids;
   const idsCsv = idsPayload.join(",");
 
   return {
@@ -796,8 +797,7 @@ function buildFormData(fileFieldName = "attachments") {
   fd.append("memberIds", JSON.stringify(p.memberIds || []));
   fd.append("member_ids", JSON.stringify(p.member_ids || []));
   fd.append("member_ids_csv", String(p.member_ids_csv || ""));
-
-  for (const id of p.memberIds || []) fd.append("memberIds[]", id);
+  // Do not duplicate large lists via memberIds[]; JSON is enough for backend parsing.
 
   fd.append("status", "published");
   fd.append("collect_email", "0");

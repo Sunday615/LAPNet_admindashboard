@@ -494,11 +494,32 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import gsap from "gsap";
 
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+function apiOriginFromBase(baseUrl) {
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  return b.endsWith("/api") ? b.slice(0, -4) : b;
+}
+const API_BASE = resolveApiBase();
+const API_ORIGIN = apiOriginFromBase(API_BASE);
+
+
 /** =========================
  * ✅ CONFIG
  * ========================= */
-const API_ORIGIN = "http://175.0.198.10:3000";
-const MEMBERS_API_URL = "http://175.0.198.10:3000/api/members";
+
+const MEMBERS_API_URL = joinBaseAndPath(API_BASE, "/api/members");
 
 /** =========================
  * state
@@ -521,7 +542,7 @@ const selectedIds = ref(new Set());
 function toAbsUrl(u) {
   const s = String(u || "").trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("http://")) return s;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
   if (s.startsWith("//")) return `${window.location.protocol}${s}`;
   if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
   return `${API_ORIGIN}/${s.replace(/^\.?\//, "")}`;

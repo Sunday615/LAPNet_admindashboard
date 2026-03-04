@@ -273,8 +273,21 @@ const route = useRoute();
  * Viewer mode uses only:
  * GET /api/documents
  */
-const API_BASE = import.meta.env?.VITE_API_BASE || "http://175.0.198.10:3000/api";
-
+// ---- API base (.env only)
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+function joinBaseAndPath(baseUrl, path) {
+  const p = String(path || "");
+  if (!baseUrl) return p;
+  const b = String(baseUrl || "").replace(/\/+$/, "");
+  const pp = p.startsWith("/") ? p : `/${p}`;
+  if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
+  return b + pp;
+}
+const API_BASE = resolveApiBase();
+const DOCS_API_URL = joinBaseAndPath(API_BASE, "/api/documents");
 // demo state
 const q = ref("");
 
@@ -637,7 +650,7 @@ async function loadDocuments() {
     qs.set("sortKey", sortKey.value);
     qs.set("sortDir", sortDir.value);
 
-    const res = await fetch(`${API_BASE}/documents?${qs.toString()}`, { method: "GET", headers: { ...getAuthHeaders() } });
+    const res = await fetch(`${DOCS_API_URL}?${qs.toString()}`, { method: "GET", headers: { ...getAuthHeaders() } });
     if (!res.ok) throw new Error(`Failed to load documents (${res.status})`);
 
     const data = await res.json();

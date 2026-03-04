@@ -567,12 +567,7 @@ const router = useRouter();
 /* -----------------------------
   API base (from .env only)
 ----------------------------- */
-function resolveApiBase() {
-  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
-  return raw.replace(/\/+$/, "");
-}
-
-const API_BASE = resolveApiBase();
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
 if (!API_BASE) console.warn("[viewannouncementtomember] Missing VITE_API_BASE_URL in .env");
 
@@ -587,17 +582,37 @@ function joinBaseAndPath(baseUrl, path) {
 }
 
 const API = (p = "") => {
-  // Hard-block relative URL when env is missing to avoid accidentally calling localhost/dev server.
-  if (!API_BASE) return "";
-
   const s = String(p || "").trim();
   if (!s) return API_BASE;
   if (/^https?:\/\//i.test(s)) return s;
+  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
   return joinBaseAndPath(API_BASE, s);
 };
 
-const ANN_API_URL = API("/api/announcements");
-const MEMBERS_API_URL = API("/api/members"); // Used for bankcode -> bank name mapping
+// -----------------------------
+// API endpoints (with fallback)
+// -----------------------------
+// Note: Your backend file is in routes/membersbank/announcements.js.
+// Some projects mount it as /api/announcements, others as /api/membersbank/announcements.
+const ANN_PATH_CANDIDATES = ["/api/announcements", "/api/membersbank/announcements"];
+const MEMBERS_PATH_CANDIDATES = ["/api/members", "/api/membersbank", "/api/memberbank"]; // best-effort
+
+const usedEndpoints = ref({ announcements: "", members: "" });
+
+function buildCandidateUrls(paths) {
+  return (paths || []).map((p) => API(p)).filter(Boolean);
+}
+
+const ANN_URL_CANDIDATES = buildCandidateUrls(ANN_PATH_CANDIDATES);
+const MEMBERS_URL_CANDIDATES = buildCandidateUrls(MEMBERS_PATH_CANDIDATES);
+
+function getAnnouncementsCollectionUrl() {
+  return usedEndpoints.value.announcements || ANN_URL_CANDIDATES[0] || "";
+}
+
+function getMembersCollectionUrl() {
+  return usedEndpoints.value.members || MEMBERS_URL_CANDIDATES[0] || "";
+}
 
 const rootEl = ref(null);
 
@@ -649,18 +664,17 @@ async function fetchMembers() {
   if (membersLoading.value) return;
   membersLoading.value = true;
   membersError.value = "";
-
-  if (!MEMBERS_API_URL) {
+  if (!API_BASE) {
     membersLoading.value = false;
     membersLoaded.value = false;
-    membersError.value = "Missing API base URL (VITE_API_BASE_URL). Cannot load members.";
+    membersError.value = "Missing VITE_API_BASE_URL in .env";
     return;
   }
   try {
-    const res = await fetch(MEMBERS_API_URL);
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    const r = await fetchListWithFallback(MEMBERS_URL_CANDIDATES, "Members");
+    if (!r.ok) throw new Error(r.error || "Failed to load members");
+    usedEndpoints.value.members = r.url || getMembersCollectionUrl();
+    const list = r.list || [];
 
     const byCode = {};
     const byId = {};
@@ -819,7 +833,8 @@ function resolveAccessBanksFromAnnouncement(a) {
 function toAbsUrl(u) {
   const s = String(u || "").trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("http://")) return s;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  if (s.startsWith("blob:") || s.startsWith("data:")) return s;
   if (s.startsWith("//")) return `${window.location.protocol}${s}`;
   if (s.startsWith("/")) return `${API_ORIGIN}${s}`;
   return `${API_ORIGIN}/${s.replace(/^\.?\//, "")}`;
@@ -979,24 +994,97 @@ function makeKey(it, i) {
   return getId(it) ?? `${i}-${Math.random().toString(16).slice(2)}`;
 }
 
+function normalizeListPayload(data) {
+  if (Array.isArray(data)) return data;
+  const cand =
+    data?.data ??
+    data?.rows ??
+    data?.items ??
+    data?.announcements ??
+    data?.list ??
+    data?.payload ??
+    data?.result ??
+    data?.results ??
+    null;
+  return Array.isArray(cand) ? cand : [];
+}
+
+async function readJsonOrText(res) {
+  const text = await res.text().catch(() => "");
+  if (!text) return { json: null, text: "" };
+  try {
+    return { json: JSON.parse(text), text };
+  } catch {
+    return { json: null, text };
+  }
+}
+
+async function fetchListWithFallback(urls, label) {
+  const opts = {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    credentials: "include",
+    cache: "no-store",
+  };
+
+  let lastErr = "";
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, opts);
+      const { json, text } = await readJsonOrText(res);
+
+      if (res.ok) {
+        const list = normalizeListPayload(json);
+        return { ok: true, url, list, raw: json };
+      }
+
+      // Retry other candidates only for "not found / method" cases
+      const msg = json?.message || json?.error || text || `${res.status} ${res.statusText}`;
+      lastErr = `(${res.status}) ${msg}`;
+      if (res.status === 404 || res.status === 405) continue;
+
+      // For other errors, stop early (likely real error)
+      return { ok: false, url, list: [], raw: json, error: lastErr };
+    } catch (e) {
+      // Network/CORS errors will land here
+      lastErr = e?.message || "Failed to fetch";
+      const hint =
+        String(lastErr).toLowerCase().includes("failed to fetch") ||
+        String(lastErr).toLowerCase().includes("network")
+          ? "(Tip: Check backend is running, URL is correct, and CORS allows your frontend origin.)"
+          : "";
+      return {
+        ok: false,
+        url: urls?.[0] || "",
+        list: [],
+        raw: null,
+        error: `${label} request failed: ${lastErr} ${hint}`.trim(),
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    url: "",
+    list: [],
+    raw: null,
+    error: `${label} endpoint not found. Tried: ${urls.join(", ")}${lastErr ? ` | Last error: ${lastErr}` : ""}`,
+  };
+}
+
 /* -----------------------
    Fetch
    ----------------------- */
 async function fetchAll() {
-  if (!ANN_API_URL) {
-    loading.value = false;
-    error.value = "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.";
-    toastErr("Config error", error.value);
-    return;
-  }
-
   loading.value = true;
   error.value = "";
   try {
-    const res = await fetch(ANN_API_URL);
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    if (!API_BASE) throw new Error("Missing VITE_API_BASE_URL in .env");
+
+    const r = await fetchListWithFallback(ANN_URL_CANDIDATES, "Announcements");
+    if (!r.ok) throw new Error(r.error || "Failed to load announcements");
+    usedEndpoints.value.announcements = r.url || getAnnouncementsCollectionUrl();
+    const list = r.list || [];
 
     itemsRaw.value = (list || []).map((it, i) => {
       const t = getTime(it);
@@ -1263,7 +1351,9 @@ async function fetchJsonSafe(res) {
 }
 
 async function tryUpdateWithFormData(id, baseFields, file) {
-  const url = `${ANN_API_URL}/${encodeURIComponent(id)}`;
+  const base = getAnnouncementsCollectionUrl();
+  if (!base) return null;
+  const url = `${base}/${encodeURIComponent(id)}`;
   const fields = ["file", "image", "attachment"];
 
   const methods = ["PUT", "PATCH"];
@@ -1278,7 +1368,7 @@ async function tryUpdateWithFormData(id, baseFields, file) {
       fd.append("remove_existing", baseFields.removeExisting ? "1" : "0");
       fd.append(fileField, file);
 
-      const res = await fetch(url, { method, body: fd });
+      const res = await fetch(url, { method, body: fd, credentials: "include" });
       if (res.ok) return res;
 
       await fetchJsonSafe(res);
@@ -1288,11 +1378,16 @@ async function tryUpdateWithFormData(id, baseFields, file) {
 }
 
 async function tryUpdateJson(id, payload) {
-  const url = `${ANN_API_URL}/${encodeURIComponent(id)}`;
+  const base = getAnnouncementsCollectionUrl();
+  const url = base ? `${base}/${encodeURIComponent(id)}` : "";
+  if (!url) {
+    return new Response(null, { status: 0, statusText: "Missing announcements endpoint" });
+  }
 
   let res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -1300,6 +1395,7 @@ async function tryUpdateJson(id, payload) {
     res = await fetch(url, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload),
     });
   }
@@ -1308,7 +1404,6 @@ async function tryUpdateJson(id, payload) {
 }
 
 async function saveEdit() {
-  if (!ANN_API_URL) return toastErr("Config error", "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.");
   const id = String(form.value.id || "").trim();
   if (!id) return toastErr("Missing ID", "This item has no id field from API.");
   if (!String(form.value.title || "").trim()) return toastErr("Missing title", "Please enter a title.");
@@ -1379,7 +1474,6 @@ function askDelete(a) {
 }
 
 async function doDelete() {
-  if (!ANN_API_URL) return toastErr("Config error", "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.");
   const a = confirmDel.value.item;
   const id = String(a?.id || "").trim();
   if (!id) return toastErr("Missing ID", "This item has no id field from API.");
@@ -1387,12 +1481,17 @@ async function doDelete() {
   confirmDel.value.busy = true;
 
   try {
-    let res = await fetch(`${ANN_API_URL}/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const base = getAnnouncementsCollectionUrl();
+    if (!base) throw new Error("Missing announcements endpoint");
+
+    let res = await fetch(`${base}/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
 
     if (!res.ok) {
-      res = await fetch(`${ANN_API_URL}/delete`, {
+      // Legacy fallback (some backends expose POST /delete)
+      res = await fetch(`${base}/delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
       });
     }
