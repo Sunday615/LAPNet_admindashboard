@@ -567,7 +567,12 @@ const router = useRouter();
 /* -----------------------------
   API base (from .env only)
 ----------------------------- */
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+function resolveApiBase() {
+  const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
+  return raw.replace(/\/+$/, "");
+}
+
+const API_BASE = resolveApiBase();
 const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
 if (!API_BASE) console.warn("[viewannouncementtomember] Missing VITE_API_BASE_URL in .env");
 
@@ -582,10 +587,12 @@ function joinBaseAndPath(baseUrl, path) {
 }
 
 const API = (p = "") => {
+  // Hard-block relative URL when env is missing to avoid accidentally calling localhost/dev server.
+  if (!API_BASE) return "";
+
   const s = String(p || "").trim();
   if (!s) return API_BASE;
   if (/^https?:\/\//i.test(s)) return s;
-  if (!API_BASE) return s.startsWith("/") ? s : `/${s}`;
   return joinBaseAndPath(API_BASE, s);
 };
 
@@ -642,6 +649,13 @@ async function fetchMembers() {
   if (membersLoading.value) return;
   membersLoading.value = true;
   membersError.value = "";
+
+  if (!MEMBERS_API_URL) {
+    membersLoading.value = false;
+    membersLoaded.value = false;
+    membersError.value = "Missing API base URL (VITE_API_BASE_URL). Cannot load members.";
+    return;
+  }
   try {
     const res = await fetch(MEMBERS_API_URL);
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -969,6 +983,13 @@ function makeKey(it, i) {
    Fetch
    ----------------------- */
 async function fetchAll() {
+  if (!ANN_API_URL) {
+    loading.value = false;
+    error.value = "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.";
+    toastErr("Config error", error.value);
+    return;
+  }
+
   loading.value = true;
   error.value = "";
   try {
@@ -1287,6 +1308,7 @@ async function tryUpdateJson(id, payload) {
 }
 
 async function saveEdit() {
+  if (!ANN_API_URL) return toastErr("Config error", "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.");
   const id = String(form.value.id || "").trim();
   if (!id) return toastErr("Missing ID", "This item has no id field from API.");
   if (!String(form.value.title || "").trim()) return toastErr("Missing title", "Please enter a title.");
@@ -1357,6 +1379,7 @@ function askDelete(a) {
 }
 
 async function doDelete() {
+  if (!ANN_API_URL) return toastErr("Config error", "Missing API base URL (VITE_API_BASE_URL). Please set .env and restart dev server.");
   const a = confirmDel.value.item;
   const id = String(a?.id || "").trim();
   if (!id) return toastErr("Missing ID", "This item has no id field from API.");
