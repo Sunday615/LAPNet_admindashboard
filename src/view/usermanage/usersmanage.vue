@@ -141,7 +141,7 @@
                     class="miniSwitch"
                     :class="{ on: toBool(u.is_active) }"
                     @click="toggleActiveRow(u)"
-                    :disabled="isRowBusy(u.id)"
+                    :disabled="isRowBusy(readUserId(u) ?? u.id)"
                     :title="toBool(u.is_active) ? 'Click to set Inactive' : 'Click to set Active'"
                   >
                     <span class="knob"></span>
@@ -159,7 +159,7 @@
 
                 <!-- ✅ Row actions -->
                 <td class="actionsCell">
-                  <button class="iconBtn" type="button" @click="openEdit(u)" :disabled="isRowBusy(u.id)" title="Edit">
+                  <button class="iconBtn" type="button" @click="openEdit(u)" :disabled="isRowBusy(readUserId(u) ?? u.id)" title="Edit">
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
 
@@ -167,7 +167,7 @@
                     class="iconBtn danger"
                     type="button"
                     @click="deleteUser(u)"
-                    :disabled="isRowBusy(u.id)"
+                    :disabled="isRowBusy(readUserId(u) ?? u.id)"
                     title="Delete"
                   >
                     <i class="fa-solid fa-trash"></i>
@@ -194,7 +194,7 @@
 
         <ul class="tips">
           <li>
-            For MemberBank login (role <b>viewer</b>), you should pick a MemberBank from dropdown so system stores
+            For MemberBank login (role <b>viewer</b> or <b>bank</b>), you should pick a MemberBank from dropdown so system stores
             <b>member_id</b> + <b>bankcode</b>.
           </li>
           <li>Admin/Staff can still create accounts without MemberBank (optional), if you allow it in backend.</li>
@@ -256,11 +256,11 @@
                   v-model="form.password"
                   type="password"
                   :placeholder="isEditMode ? 'leave blank to keep current' : 'password'"
-                  :minlength="isEditMode ? 0 : 6"
+                  :minlength="isEditMode ? 0 : 8"
                   :required="!isEditMode"
                 />
               </div>
-              <div class="miniHint">{{ isEditMode ? "Leave blank to keep current password" : "Min 6 characters" }}</div>
+              <div class="miniHint">{{ isEditMode ? "Leave blank to keep current password" : "Min 8 characters" }}</div>
             </label>
           </div>
 
@@ -270,8 +270,10 @@
               <div class="selectWrap">
                 <i class="fa-solid fa-shield-halved"></i>
                 <select v-model="form.role" @change="onRoleChange">
-                  <option value="viewer">viewer</option>
                   <option value="admin">admin</option>
+                  <option value="staff">staff</option>
+                  <option value="viewer">viewer</option>
+                  <option value="bank">bank</option>
                 </select>
               </div>
               <div class="miniHint">Default: viewer</div>
@@ -551,8 +553,49 @@ const API = (p = "") => {
   return joinBaseAndPath(API_BASE, s);
 };
 
-const USERS_ENDPOINTS = [API("/api/users")];
-const MEMBERS_ENDPOINTS = [API("/api/members")];
+function dedupeUrls(list = []) {
+  return [...new Set((list || []).map((v) => String(v || "").trim()).filter(Boolean))];
+}
+
+const USERS_ENDPOINTS = dedupeUrls([
+  API("/api/users"),
+  "http://localhost:3000/api/users",
+  "http://127.0.0.1:3000/api/users",
+]);
+
+const MEMBERS_ENDPOINTS = dedupeUrls([
+  API("/api/members"),
+  "http://localhost:3000/api/members",
+  "http://127.0.0.1:3000/api/members",
+]);
+
+function readAuthToken() {
+  const keys = [
+    "token",
+    "access_token",
+    "authToken",
+    "auth_token",
+    "jwt",
+    "userToken",
+    "lap_token",
+  ];
+
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    for (const key of keys) {
+      const value = store.getItem(key);
+      if (value && String(value).trim()) return String(value).trim();
+    }
+  }
+
+  return "";
+}
+
+function buildHeaders(extra = {}) {
+  const headers = { Accept: "application/json", ...extra };
+  const token = readAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
 
 /* -----------------------------
   State
@@ -635,8 +678,9 @@ function onBankLogoError(e) {
   if (img && img.src !== defaultBankLogo) img.src = defaultBankLogo;
 }
 
-async function fetchJsonTry(url, opts) {
-  const res = await fetch(url, opts);
+async function fetchJsonTry(url, opts = {}) {
+  const headers = buildHeaders(opts.headers || {});
+  const res = await fetch(url, { ...opts, headers });
   const ct = (res.headers.get("content-type") || "").toLowerCase();
 
   if (!res.ok) {
@@ -657,11 +701,36 @@ async function fetchJsonTry(url, opts) {
   }
 }
 
-function readMemberId(r) {
-  const raw =
-    r?.idmember ?? r?.IdMember ?? r?.IDMEMBER ?? r?.memberId ?? r?.MemberId ?? r?.idMember ?? r?.member_id ?? null;
-  const n = Number(raw);
+function readMaybeNumber(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function readUserId(r) {
+  return (
+    readMaybeNumber(r?.id) ??
+    readMaybeNumber(r?.user_id) ??
+    readMaybeNumber(r?.userId) ??
+    readMaybeNumber(r?.userid) ??
+    readMaybeNumber(r?.iduser) ??
+    readMaybeNumber(r?.IdUser) ??
+    readMaybeNumber(r?.ID) ??
+    null
+  );
+}
+
+function readMemberId(r) {
+  return (
+    readMaybeNumber(r?.idmember) ??
+    readMaybeNumber(r?.IdMember) ??
+    readMaybeNumber(r?.IDMEMBER) ??
+    readMaybeNumber(r?.memberId) ??
+    readMaybeNumber(r?.MemberId) ??
+    readMaybeNumber(r?.idMember) ??
+    readMaybeNumber(r?.member_id) ??
+    null
+  );
 }
 
 async function loadMembers() {
@@ -1017,12 +1086,16 @@ function fmtDate(v) {
 function roleIcon(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "fa-crown";
+  if (r === "staff") return "fa-user-shield";
+  if (r === "bank") return "fa-building-columns";
   return "fa-eye";
 }
 
 function pillRoleClass(role) {
   const r = String(role || "viewer").toLowerCase();
   if (r === "admin") return "roleAdmin";
+  if (r === "staff") return "roleStaff";
+  if (r === "bank") return "roleBank";
   return "roleViewer";
 }
 
@@ -1030,26 +1103,47 @@ function pillRoleClass(role) {
   API helpers for update/delete
 ----------------------------- */
 function userIdEndpoints(id) {
+  const safeId = encodeURIComponent(String(id ?? "").trim());
   const clean = (s) => String(s || "").replace(/\/+$/, "");
-  return USERS_ENDPOINTS.map((u) => `${clean(u)}/${id}`);
+
+  return dedupeUrls(
+    USERS_ENDPOINTS.flatMap((u) => {
+      const base = clean(u);
+      return [`${base}/${safeId}`, `${base}/${safeId}/`, `${base}?id=${safeId}`];
+    })
+  );
 }
 
 async function requestFirstSuccess(requests) {
   let lastErr = null;
+  const tried = [];
+
   for (const r of requests) {
     try {
+      tried.push(`${r?.opts?.method || "GET"} ${r?.url || ""}`);
       const json = await fetchJsonTry(r.url, r.opts);
       return json;
     } catch (e) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error("Request failed.");
+
+  const msg = (lastErr?.message || "Request failed.").toString();
+  throw new Error(`${msg}${tried.length ? ` | tried: ${tried.join(" , ")}` : ""}`);
 }
 
 async function apiUpdateUser(id, payload) {
-  const idUrls = userIdEndpoints(id);
+  const safeId = readMaybeNumber(id);
+  if (safeId == null) throw new Error("Missing user id for update.");
+
+  const idUrls = userIdEndpoints(safeId);
   const headers = { "Content-Type": "application/json" };
+  const payloadWithId = {
+    id: safeId,
+    user_id: safeId,
+    userId: safeId,
+    ...payload,
+  };
 
   const reqs = [
     ...idUrls.map((url) => ({
@@ -1062,11 +1156,11 @@ async function apiUpdateUser(id, payload) {
     })),
     ...USERS_ENDPOINTS.map((url) => ({
       url,
-      opts: { method: "PATCH", headers, body: JSON.stringify({ id, ...payload }) },
+      opts: { method: "PATCH", headers, body: JSON.stringify(payloadWithId) },
     })),
     ...USERS_ENDPOINTS.map((url) => ({
       url,
-      opts: { method: "PUT", headers, body: JSON.stringify({ id, ...payload }) },
+      opts: { method: "PUT", headers, body: JSON.stringify(payloadWithId) },
     })),
   ];
 
@@ -1074,13 +1168,17 @@ async function apiUpdateUser(id, payload) {
 }
 
 async function apiDeleteUser(id) {
-  const idUrls = userIdEndpoints(id);
+  const safeId = readMaybeNumber(id);
+  if (safeId == null) throw new Error("Missing user id for delete.");
+
+  const idUrls = userIdEndpoints(safeId);
+  const headers = { "Content-Type": "application/json" };
 
   const reqs = [
-    ...idUrls.map((url) => ({ url, opts: { method: "DELETE" } })),
+    ...idUrls.map((url) => ({ url, opts: { method: "DELETE", headers } })),
     ...USERS_ENDPOINTS.map((url) => ({
       url,
-      opts: { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) },
+      opts: { method: "DELETE", headers, body: JSON.stringify({ id: safeId, user_id: safeId, userId: safeId }) },
     })),
   ];
 
@@ -1112,14 +1210,14 @@ async function load() {
     const raw = pickArrayFromApi(json);
 
     users.value = (raw || []).map((u) => ({
-      id: u.id,
-      username: u.username,
-      role: u.role,
-      bankcode: u.bankcode ?? null,
-      member_id: u.member_id ?? u.memberId ?? null,
-      is_active: u.is_active,
-      created_at: u.created_at,
-      updated_at: u.updated_at,
+      id: readUserId(u),
+      username: u.username ?? u.user_name ?? u.name ?? "",
+      role: u.role ?? u.user_role ?? "viewer",
+      bankcode: u.bankcode ?? u.bank_code ?? null,
+      member_id: readMemberId(u),
+      is_active: u.is_active ?? u.active ?? u.status ?? 0,
+      created_at: u.created_at ?? u.createdAt ?? null,
+      updated_at: u.updated_at ?? u.updatedAt ?? null,
     }));
 
     await nextTick();
@@ -1154,14 +1252,18 @@ const inactiveCount = computed(() => filtered.value.filter((u) => !toBool(u.is_a
   Row actions: toggle / edit / delete
 ----------------------------- */
 async function toggleActiveRow(u) {
-  if (!u?.id) return;
-  if (isRowBusy(u.id)) return;
+  const userId = readUserId(u);
+  if (userId == null) {
+    showToast({ type: "bad", title: "Missing user id", message: "This row has no valid user id." });
+    return;
+  }
+  if (isRowBusy(userId)) return;
 
   const nextVal = toBool(u.is_active) ? 0 : 1;
 
-  setFlag(rowSaving, u.id, true);
+  setFlag(rowSaving, userId, true);
   try {
-    await apiUpdateUser(u.id, { is_active: nextVal });
+    await apiUpdateUser(userId, { is_active: nextVal });
 
     showToast({
       type: "ok",
@@ -1173,31 +1275,35 @@ async function toggleActiveRow(u) {
   } catch (err) {
     showToast({ type: "bad", title: "Update failed", message: (err?.message || "Update failed.").toString() });
   } finally {
-    setFlag(rowSaving, u.id, false);
+    setFlag(rowSaving, userId, false);
   }
 }
 
 async function deleteUser(u) {
-  if (!u?.id) return;
-  if (isRowBusy(u.id)) return;
+  const userId = readUserId(u);
+  if (userId == null) {
+    showToast({ type: "bad", title: "Missing user id", message: "This row has no valid user id." });
+    return;
+  }
+  if (isRowBusy(userId)) return;
 
   const ok = await openConfirm({
     title: "Delete user?",
-    message: `Delete "${u.username}" (ID ${u.id})? This action cannot be undone.`,
+    message: `Delete "${u.username}" (ID ${userId})? This action cannot be undone.`,
     confirmText: "Delete",
     cancelText: "Cancel",
   });
   if (!ok) return;
 
-  setFlag(rowDeleting, u.id, true);
+  setFlag(rowDeleting, userId, true);
   try {
-    await apiDeleteUser(u.id);
+    await apiDeleteUser(userId);
     showToast({ type: "ok", title: "Deleted", message: `Deleted ${u.username}` });
     await load();
   } catch (err) {
     showToast({ type: "bad", title: "Delete failed", message: (err?.message || "Delete failed.").toString() });
   } finally {
-    setFlag(rowDeleting, u.id, false);
+    setFlag(rowDeleting, userId, false);
   }
 }
 
@@ -1226,7 +1332,7 @@ const form = ref({
 
 const originalEditSnapshot = ref(null);
 
-const memberRequired = computed(() => form.value.role === "viewer");
+const memberRequired = computed(() => ["viewer", "bank"].includes(String(form.value.role || "").toLowerCase()));
 
 function onRoleChange() {
   // viewer requires member selection (validated by canSave)
@@ -1234,7 +1340,7 @@ function onRoleChange() {
 
 const canSave = computed(() => {
   const uOk = form.value.username.trim().length >= 3;
-  const passOk = isEditMode.value ? true : (form.value.password || "").length >= 6;
+  const passOk = isEditMode.value ? true : (form.value.password || "").length >= 8;
   const memberOk = !memberRequired.value || (!!form.value.bankcode && (form.value.member_id ?? null) !== null);
   return uOk && passOk && memberOk && !saving.value;
 });
@@ -1283,9 +1389,13 @@ async function openCreate() {
 }
 
 async function openEdit(u) {
-  if (!u?.id) return;
+  const userId = readUserId(u);
+  if (userId == null) {
+    showToast({ type: "bad", title: "Missing user id", message: "This row has no valid user id." });
+    return;
+  }
 
-  editingId.value = u.id;
+  editingId.value = userId;
   form.value = {
     username: String(u.username || ""),
     password: "",
@@ -1353,11 +1463,11 @@ async function saveUser() {
 
   if (!canSave.value) {
     if (memberRequired.value && (!form.value.bankcode || form.value.member_id == null)) {
-      createErr.value = "Please select a MemberBank (required for viewer).";
+      createErr.value = "Please select a MemberBank (required for viewer/bank).";
       return;
     }
     if (!isEditMode.value && (form.value.password || "").length < 6) {
-      createErr.value = "Password must be at least 6 characters.";
+      createErr.value = "Password must be at least 8 characters.";
       return;
     }
     createErr.value = "Please fill required fields.";
@@ -1840,6 +1950,12 @@ tbody tr.inactive td {
 }
 .pill.roleViewer {
   background: rgba(90, 180, 255, 0.12);
+}
+.pill.roleStaff {
+  background: rgba(139, 92, 246, 0.14);
+}
+.pill.roleBank {
+  background: rgba(16, 185, 129, 0.14);
 }
 .bankPill {
   display: inline-flex;

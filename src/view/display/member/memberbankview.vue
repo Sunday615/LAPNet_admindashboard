@@ -9,7 +9,7 @@
       <header ref="topbarEl" class="topbar js-reveal">
         <div class="welcome">
           <div class="hello">Welcome Back,</div>
-          <div class="name">{{ userName }}</div>
+          <div class="name">{{ displayUserName }}</div>
         </div>
 
         <!-- Search this page -->
@@ -24,7 +24,7 @@
             type="button"
             aria-label="Refresh"
             title="Refresh"
-            @click="fetchMembers"
+            @click="handleRefresh"
             @mouseenter="iconHover($event, true)"
             @mouseleave="iconHover($event, false)"
           >
@@ -32,10 +32,10 @@
           </button>
 
           <div class="profile">
-            <div class="avatar">P</div>
+            <div class="avatar">{{ profileInitial }}</div>
             <div class="profileText">
-              <div class="profileName">Parisa</div>
-              <div class="profileRole">Admin</div>
+              <div class="profileName">{{ displayUserName }}</div>
+              <div class="profileRole">{{ displayUserRole }}</div>
             </div>
           </div>
         </div>
@@ -139,7 +139,6 @@
                     class="td"
                     :class="{ fullText: isFullTextCol(col) }"
                   >
-                    <!-- ✅ idmember = running number across ALL filtered rows -->
                     <template v-if="isIdMemberCol(col)">
                       <div class="idCell">
                         <div>{{ pageStart + localIdx + 1 }}</div>
@@ -147,7 +146,6 @@
                       </div>
                     </template>
 
-                    <!-- ✅ LinkFB / LinkWeb => button with icon -->
                     <template v-else-if="isLinkField(col)">
                       <template v-if="safeUrl(m?.[col])">
                         <a
@@ -172,7 +170,6 @@
                     </template>
                   </td>
 
-                  <!-- ✅ Actions -->
                   <td class="td tdLast">
                     <div class="actionRow">
                       <button
@@ -224,7 +221,7 @@
             </table>
           </div>
 
-          <!-- ✅ Pagination -->
+          <!-- Pagination -->
           <div class="pager js-reveal" v-if="!loading && !error && pageCount > 1">
             <div class="pagerLeft">
               Showing <b>{{ rows.length ? pageStart + 1 : 0 }}</b>–<b>{{ pageEnd }}</b> of <b>{{ rows.length }}</b>
@@ -281,7 +278,6 @@
                     <div v-for="item in flatEntries" :key="item.k" class="kv">
                       <div class="k">{{ item.k }}</div>
 
-                      <!-- ✅ Special list -->
                       <div v-if="item.type === 'list'" class="v">
                         <div class="listBox" :class="{ cross: item.kind === 'crossborder' }">
                           <div v-for="(it, i) in item.items" :key="`${item.k}-${i}`" class="neoItem">
@@ -302,7 +298,6 @@
                         </div>
                       </div>
 
-                      <!-- ✅ Color.primary / Color.secondary => swatch -->
                       <div v-else-if="isColorField(item.k)" class="v">
                         <div class="colorValue">
                           <span
@@ -315,7 +310,6 @@
                         </div>
                       </div>
 
-                      <!-- ✅ LinkFB / LinkWeb => button with icon (overlay) -->
                       <div v-else-if="isLinkField(item.k)" class="v">
                         <template v-if="safeUrl(item.v)">
                           <a
@@ -336,18 +330,15 @@
                           <div>-</div>
                         </template>
 
-                        <!-- ✅ Logo under idmember -->
                         <div v-if="isIdMemberCol(item.k) && selectedLogoUrl" class="logoUnderId">
                           <div class="logoLabel">Logo</div>
                           <img class="logoImg" :src="selectedLogoUrl" alt="Logo" />
                         </div>
                       </div>
 
-                      <!-- ✅ Default -->
                       <div v-else class="v">
                         <div>{{ item.v }}</div>
 
-                        <!-- ✅ Logo under idmember -->
                         <div v-if="isIdMemberCol(item.k) && selectedLogoUrl" class="logoUnderId">
                           <div class="logoLabel">Logo</div>
                           <img class="logoImg" :src="selectedLogoUrl" alt="Logo" />
@@ -362,7 +353,7 @@
             </div>
           </Teleport>
 
-          <!-- ✅ Shared Confirm Modal (Edit/Delete) -->
+          <!-- Shared Confirm Modal -->
           <Teleport to="body">
             <div v-if="confirmOpen" class="confirmOverlay" @click.self="closeConfirm">
               <div
@@ -428,7 +419,7 @@
             </div>
           </Teleport>
 
-          <!-- ✅ Toast -->
+          <!-- Toast -->
           <Teleport to="body">
             <div v-if="toast.open" ref="toastEl" class="toast" :class="toast.type">
               <i v-if="toast.type === 'success'" class="fa-solid fa-circle-check"></i>
@@ -453,7 +444,249 @@ const router = useRouter();
 const rootEl = ref(null);
 const topbarEl = ref(null);
 
-const userName = "Arkhan";
+/* =========================
+   API
+   ========================= */
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_VITE_API_BASE_URL_URL ||
+  "http://localhost:3000"
+).replace(/\/+$/, "");
+
+const MEMBERS_API = `${API_BASE_URL}/api/members`;
+const USERS_API = `${API_BASE_URL}/api/users`;
+
+/* =========================
+   CURRENT LOGIN USER
+   ========================= */
+const currentUser = ref(null);
+const userLoading = ref(false);
+
+const displayUserName = computed(() => {
+  return (
+    currentUser.value?.full_name ||
+    currentUser.value?.fullName ||
+    currentUser.value?.name ||
+    currentUser.value?.username ||
+    currentUser.value?.userName ||
+    currentUser.value?.display_name ||
+    currentUser.value?.displayName ||
+    currentUser.value?.email ||
+    "User"
+  );
+});
+
+const displayUserRole = computed(() => {
+  return (
+    currentUser.value?.role_name ||
+    currentUser.value?.roleName ||
+    currentUser.value?.role ||
+    currentUser.value?.user_type ||
+    currentUser.value?.userType ||
+    "Admin"
+  );
+});
+
+const profileInitial = computed(() => {
+  const raw = String(displayUserName.value || "").trim();
+  return raw ? raw.charAt(0).toUpperCase() : "U";
+});
+
+function normalizeId(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value).trim().toLowerCase();
+}
+
+function tryParseJson(input) {
+  try {
+    return JSON.parse(input);
+  } catch {
+    return null;
+  }
+}
+
+function readStoredAuthMeta() {
+  if (typeof window === "undefined") return {};
+
+  const candidateKeys = [
+    "user",
+    "currentUser",
+    "auth",
+    "authUser",
+    "profile",
+    "me",
+    "loginUser",
+    "userData",
+    "session",
+  ];
+
+  for (const key of candidateKeys) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+
+    const parsed = tryParseJson(raw);
+    if (!parsed) continue;
+
+    const source = parsed?.user && typeof parsed.user === "object" ? parsed.user : parsed;
+
+    return {
+      id:
+        source?.id ??
+        source?._id ??
+        source?.user_id ??
+        source?.userId ??
+        source?.uuid ??
+        "",
+      email: source?.email ?? "",
+      username: source?.username ?? source?.userName ?? "",
+      name: source?.name ?? source?.full_name ?? source?.fullName ?? "",
+      token:
+        parsed?.token ??
+        parsed?.accessToken ??
+        parsed?.access_token ??
+        source?.token ??
+        localStorage.getItem("token") ??
+        localStorage.getItem("accessToken") ??
+        localStorage.getItem("access_token") ??
+        "",
+    };
+  }
+
+  return {
+    id:
+      localStorage.getItem("userId") ||
+      localStorage.getItem("id") ||
+      localStorage.getItem("_id") ||
+      "",
+    email: localStorage.getItem("email") || "",
+    username: localStorage.getItem("username") || localStorage.getItem("userName") || "",
+    name: localStorage.getItem("name") || "",
+    token:
+      localStorage.getItem("token") ||
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("access_token") ||
+      "",
+  };
+}
+
+function getAuthHeaders() {
+  const meta = readStoredAuthMeta();
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (meta.token) {
+    headers.Authorization = `Bearer ${meta.token}`;
+  }
+
+  return headers;
+}
+
+function pickUserList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (payload && typeof payload === "object") return [payload];
+  return [];
+}
+
+function findMatchedUser(list, meta) {
+  if (!Array.isArray(list) || !list.length) return null;
+
+  const targetId = normalizeId(meta?.id);
+  const targetEmail = normalizeId(meta?.email);
+  const targetUsername = normalizeId(meta?.username);
+  const targetName = normalizeId(meta?.name);
+
+  if (targetId) {
+    const byId = list.find((u) =>
+      [
+        u?.id,
+        u?._id,
+        u?.user_id,
+        u?.userId,
+        u?.uuid,
+      ].some((v) => normalizeId(v) === targetId)
+    );
+    if (byId) return byId;
+  }
+
+  if (targetEmail) {
+    const byEmail = list.find((u) => normalizeId(u?.email) === targetEmail);
+    if (byEmail) return byEmail;
+  }
+
+  if (targetUsername) {
+    const byUsername = list.find((u) =>
+      [u?.username, u?.userName].some((v) => normalizeId(v) === targetUsername)
+    );
+    if (byUsername) return byUsername;
+  }
+
+  if (targetName) {
+    const byName = list.find((u) =>
+      [u?.name, u?.full_name, u?.fullName, u?.display_name, u?.displayName].some(
+        (v) => normalizeId(v) === targetName
+      )
+    );
+    if (byName) return byName;
+  }
+
+  return list[0] || null;
+}
+
+async function fetchCurrentUser() {
+  try {
+    userLoading.value = true;
+
+    const authHeaders = getAuthHeaders();
+    const res = await fetch(USERS_API, {
+      method: "GET",
+      headers: authHeaders,
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const payload = await res.json();
+    const users = pickUserList(payload);
+    const storedMeta = readStoredAuthMeta();
+    const matched = findMatchedUser(users, storedMeta);
+
+    if (matched) {
+      currentUser.value = matched;
+      return;
+    }
+
+    if (storedMeta?.name || storedMeta?.email || storedMeta?.username) {
+      currentUser.value = {
+        name: storedMeta.name || storedMeta.username || storedMeta.email || "User",
+        email: storedMeta.email || "",
+        username: storedMeta.username || "",
+        role: "Admin",
+      };
+      return;
+    }
+
+    currentUser.value = null;
+  } catch (err) {
+    console.error("fetchCurrentUser error:", err);
+
+    const storedMeta = readStoredAuthMeta();
+    if (storedMeta?.name || storedMeta?.email || storedMeta?.username) {
+      currentUser.value = {
+        name: storedMeta.name || storedMeta.username || storedMeta.email || "User",
+        email: storedMeta.email || "",
+        username: storedMeta.username || "",
+        role: "Admin",
+      };
+    }
+  } finally {
+    userLoading.value = false;
+  }
+}
 
 /* =========================
    DATA
@@ -476,7 +709,7 @@ const modalEl = ref(null);
 let abortCtrl = null;
 
 /* =========================
-   ✅ Busy state per row
+   Busy state per row
    ========================= */
 const busyById = ref({});
 function setBusy(id, v) {
@@ -488,25 +721,25 @@ function isBusy(m) {
 }
 
 /* =========================
-   ✅ Shared Confirm state (Edit/Delete)
+   Shared Confirm state
    ========================= */
 const confirmOpen = ref(false);
 const confirmLoading = ref(false);
 const confirmTarget = ref(null);
-const confirmAction = ref("delete"); // 'delete' | 'edit'
+const confirmAction = ref("delete");
 const confirmEl = ref(null);
 
 const confirmName = computed(() => titleOf(confirmTarget.value));
 
 /* =========================
-   ✅ Toast
+   Toast
    ========================= */
 const toast = ref({ open: false, type: "success", text: "" });
 const toastEl = ref(null);
 let toastTimer = null;
 
 /* =========================
-   ✅ GSAP modern helpers
+   GSAP modern helpers
    ========================= */
 let gsapCtx = null;
 const reducedMotion =
@@ -520,7 +753,7 @@ const DUR = {
   slow: reducedMotion ? 0 : 0.6,
 };
 
-const hoverQ = new WeakMap(); // WeakMap<Element, {x,y,scale}>
+const hoverQ = new WeakMap();
 function ensureHoverQuick(el) {
   if (!el) return null;
   if (hoverQ.has(el)) return hoverQ.get(el);
@@ -642,7 +875,7 @@ function showToast(type, text) {
 }
 
 /* =========================
-   ✅ Remove Image Columns
+   Remove Image Columns
    ========================= */
 function isImageKey(k) {
   const s = String(k || "").toLowerCase();
@@ -660,7 +893,7 @@ function isImageKey(k) {
 }
 
 /* =========================
-   ✅ Hide backend id columns in table/filter
+   Hide backend id columns
    ========================= */
 const BACKEND_ID_KEYS = new Set(["id", "_id", "uuid", "member_id", "memberid"]);
 function isBackendIdKey(k) {
@@ -668,7 +901,7 @@ function isBackendIdKey(k) {
 }
 
 /* =========================
-   ✅ "idmember" display column
+   idmember display column
    ========================= */
 const ID_MEMBER_COL = "idmember";
 function isIdMemberCol(k) {
@@ -679,7 +912,7 @@ function colLabel(col) {
 }
 
 /* =========================
-   ✅ Link helpers (LinkFB / LinkWeb)
+   Link helpers
    ========================= */
 const LINK_KEYS = new Set(["linkfb", "linkweb"]);
 function lastSegmentKey(k) {
@@ -706,7 +939,7 @@ function safeUrl(input) {
 }
 
 /* =========================
-   ✅ FULL TEXT columns (BanknameLa)
+   Full text columns
    ========================= */
 const FULL_TEXT_COL_KEYS = new Set([
   "banknamela",
@@ -721,8 +954,7 @@ function isFullTextCol(col) {
 }
 
 /* =========================
-   ✅ HIDE these fields everywhere (table + overlay + filter)
-   ✅ (including crossborderproduct)
+   Hide these fields everywhere
    ========================= */
 const HIDE_UI_KEYS = new Set(
   [
@@ -734,8 +966,8 @@ const HIDE_UI_KEYS = new Set(
     "atmtransfer",
     "mobiletransfer",
     "qrpayment",
-    "crossborderproduct", // ✅ hide this column
-    "crossborder_product", // ✅ optional variant
+    "crossborderproduct",
+    "crossborder_product",
   ].map((x) => x.toLowerCase())
 );
 
@@ -750,7 +982,7 @@ function isHiddenUiPath(path) {
 }
 
 /* =========================
-   ✅ HIDE in TABLE ONLY (remove fintech column in table rows/header/filter/sort)
+   Hide in table only
    ========================= */
 const HIDE_TABLE_ONLY_KEYS = new Set(
   [
@@ -780,7 +1012,7 @@ function sanitizeTableState() {
 }
 
 /* =========================
-   ✅ TIME helpers
+   Time helpers
    ========================= */
 function isTimeKey(k) {
   return lastSegmentKey(k).toLowerCase() === "time";
@@ -811,18 +1043,15 @@ function formatDDMMYY(input) {
 }
 
 /* =========================
-   ✅ Logo from backend
+   Logo from backend
    ========================= */
-const VITE_API_BASE_URL = import.meta.env.VITE_VITE_API_BASE_URL_URL || "";
-const MEMBERS_API = `${VITE_API_BASE_URL}/api/members`;
-
 function resolveMediaUrl(src) {
   if (!src) return "";
   const s = String(src).trim();
   if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:")) return s;
-  if (s.startsWith("/")) return `${VITE_API_BASE_URL}${s}`;
-  return `${VITE_API_BASE_URL}/${s}`;
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:")) return s;
+  if (s.startsWith("/")) return `${API_BASE_URL}${s}`;
+  return `${API_BASE_URL}/${s}`;
 }
 
 function logoUrlOf(m) {
@@ -845,7 +1074,7 @@ function logoUrlOf(m) {
 const selectedLogoUrl = computed(() => logoUrlOf(selected.value));
 
 /* =========================
-   ✅ Overlay hide ids
+   Overlay hide ids
    ========================= */
 function isHiddenOverlayIdKey(k) {
   const s = String(k || "").toLowerCase();
@@ -853,7 +1082,7 @@ function isHiddenOverlayIdKey(k) {
 }
 
 /* =========================
-   ✅ Sort members oldest -> newest
+   Sort members oldest -> newest
    ========================= */
 function getDateMsFromRow(m) {
   const candidates = [m?.createdAt, m?.created_at, m?.date_time, m?.timestamp, m?.updatedAt, m?.updated_at];
@@ -891,7 +1120,7 @@ function sortMembersOldestFirst(list) {
 }
 
 /* =========================
-   ✅ Color helpers
+   Color helpers
    ========================= */
 function isColorField(k) {
   const kk = String(k || "");
@@ -903,9 +1132,9 @@ function normalizeHex(input) {
   const raw = s.startsWith("#") ? s.slice(1) : s;
 
   if (/^[0-9a-fA-F]{3}$/.test(raw)) {
-    const r = raw[0],
-      g = raw[1],
-      b = raw[2];
+    const r = raw[0];
+    const g = raw[1];
+    const b = raw[2];
     return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
   if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw}`.toLowerCase();
@@ -913,7 +1142,7 @@ function normalizeHex(input) {
 }
 
 /* =========================
-   ✅ Flags for Crossborder.items
+   Flags for Crossborder.items
    ========================= */
 function flagUrl(code) {
   const STYLE = "flat";
@@ -942,8 +1171,8 @@ function extractPairFromText(text) {
   const s = raw.toLowerCase();
 
   const seps = ["ສະແກນ", "scan", "→", "->", "➡"];
-  let left = raw,
-    right = "";
+  let left = raw;
+  let right = "";
 
   for (const sep of seps) {
     const idx = s.indexOf(sep);
@@ -968,7 +1197,7 @@ function extractPairFromText(text) {
 }
 
 /* =========================
-   ✅ Special list detection
+   Special list detection
    ========================= */
 function normPath(path) {
   return String(path || "")
@@ -1024,8 +1253,8 @@ function formatCell(v, col = "") {
   if (typeof v === "number") return String(v);
 
   if (typeof v === "string") {
-    if (isFullTextCol(col)) return v; // ✅ no truncate
-    return v.length > 40 ? v.slice(0, 40) + "…" : v;
+    if (isFullTextCol(col)) return v;
+    return v.length > 40 ? `${v.slice(0, 40)}…` : v;
   }
 
   if (Array.isArray(v)) return v.length ? `(${v.length}) items` : "-";
@@ -1033,7 +1262,6 @@ function formatCell(v, col = "") {
   return String(v);
 }
 
-/* ✅ Flatten */
 function toText(v) {
   if (v === null || v === undefined) return "-";
   if (typeof v === "boolean") return v ? "true" : "false";
@@ -1055,7 +1283,6 @@ function toText(v) {
 }
 
 function flattenAny(val, path, out) {
-  // ✅ hides memberatm/mobile/etc + crossborderproduct at any level
   if (path && isHiddenUiPath(path)) return;
 
   if (val === null || val === undefined) {
@@ -1174,8 +1401,7 @@ function flattenAny(val, path, out) {
     for (const [k, v] of entries) {
       if (k === "password" || k === "pwd") continue;
       if (isImageKey(k)) continue;
-
-      if (isHiddenUiKey(k)) continue; // ✅ includes crossborderproduct
+      if (isHiddenUiKey(k)) continue;
       if (isHiddenOverlayIdKey(k)) continue;
       if (String(k).toLowerCase() === ID_MEMBER_COL) continue;
 
@@ -1200,20 +1426,22 @@ function flattenAny(val, path, out) {
   out.push({ k: path || "value", v: String(val) });
 }
 
-/* ✅ rows (filtered + sorted) */
+/* =========================
+   Rows
+   ========================= */
 function normalize(v) {
   if (v === null || v === undefined) return "";
   return String(v).toLowerCase();
 }
 
 function compare(a, b) {
-  const na = Number(a),
-    nb = Number(b);
+  const na = Number(a);
+  const nb = Number(b);
   const bothNum = !Number.isNaN(na) && !Number.isNaN(nb);
   if (bothNum) return na - nb;
 
-  const da = Date.parse(a),
-    db = Date.parse(b);
+  const da = Date.parse(a);
+  const db = Date.parse(b);
   const bothDate = !Number.isNaN(da) && !Number.isNaN(db);
   if (bothDate) return da - db;
 
@@ -1240,7 +1468,7 @@ const rows = computed(() => {
 });
 
 /* =========================
-   ✅ Pagination (7 per page)
+   Pagination
    ========================= */
 const pageSize = 7;
 const currentPage = ref(1);
@@ -1295,14 +1523,12 @@ const pageList = computed(() => {
   return out;
 });
 
-/* Reset page on filters/sort/search */
 watch([q, filterKey, filterValue, sortKey, sortDir], async () => {
   currentPage.value = 1;
   await nextTick();
   animateRows();
 });
 
-/* Keep page in range + animate on page change */
 watch(
   () => [rows.value.length, currentPage.value],
   async () => {
@@ -1314,7 +1540,6 @@ watch(
   }
 );
 
-/* ✅ Selected row No (1..n) based on current filtered rows */
 const selectedRowNo = computed(() => {
   if (!selected.value) return "-";
   const sid = String(rowKey(selected.value, ""));
@@ -1343,8 +1568,8 @@ const tableCols = computed(() => {
       !isImageKey(k) &&
       !isBackendIdKey(k) &&
       !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // hides crossborderproduct too
-      !isHiddenTableKey(k) && // ✅ hide fintech in table
+      !isHiddenUiKey(k) &&
+      !isHiddenTableKey(k) &&
       String(k).toLowerCase() !== ID_MEMBER_COL
   );
 
@@ -1374,8 +1599,8 @@ const tableCols = computed(() => {
       !isImageKey(k) &&
       !isBackendIdKey(k) &&
       !isTimeKey(k) &&
-      !isHiddenUiKey(k) && // hides crossborderproduct too
-      !isHiddenTableKey(k) && // ✅ hide fintech in table
+      !isHiddenUiKey(k) &&
+      !isHiddenTableKey(k) &&
       String(k).toLowerCase() !== ID_MEMBER_COL
   );
 
@@ -1404,8 +1629,8 @@ const filterKeys = computed(() => {
       if (isImageKey(k)) return;
       if (isBackendIdKey(k)) return;
       if (isTimeKey(k)) return;
-      if (isHiddenUiKey(k)) return; // hides crossborderproduct too
-      if (isHiddenTableKey(k)) return; // ✅ hide fintech in filter dropdown
+      if (isHiddenUiKey(k)) return;
+      if (isHiddenTableKey(k)) return;
       if (String(k).toLowerCase() === ID_MEMBER_COL) return;
       if (typeof v === "object" && v !== null) return;
       set.add(k);
@@ -1418,8 +1643,8 @@ const filterKeys = computed(() => {
 function toggleSort(col) {
   if (isIdMemberCol(col)) return;
   if (isTimeKey(col)) return;
-  if (isHiddenUiKey(col)) return; // includes crossborderproduct
-  if (isHiddenTableKey(col)) return; // ✅ hide fintech from sorting
+  if (isHiddenUiKey(col)) return;
+  if (isHiddenTableKey(col)) return;
 
   if (sortKey.value !== col) {
     sortKey.value = col;
@@ -1438,7 +1663,7 @@ function clearFilters() {
 }
 
 /* =========================
-   ✅ Actions (Edit/Delete via Confirm)
+   Actions
    ========================= */
 function askEdit(m) {
   openConfirm("edit", m);
@@ -1478,7 +1703,10 @@ async function confirmProceed() {
     setBusy(String(id), true);
     error.value = "";
 
-    const res = await fetch(`${MEMBERS_API}/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+    const res = await fetch(`${MEMBERS_API}/${encodeURIComponent(String(id))}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     if (selected.value && String(rowKey(selected.value, "")) === String(id)) selected.value = null;
@@ -1497,7 +1725,7 @@ async function confirmProceed() {
 }
 
 /* =========================
-   Overlay (modern GSAP)
+   Overlay
    ========================= */
 let overlayTL = null;
 
@@ -1558,7 +1786,7 @@ function closeOverlay() {
 }
 
 /* =========================
-   Fetch
+   Fetch Members
    ========================= */
 async function fetchMembers() {
   try {
@@ -1570,7 +1798,7 @@ async function fetchMembers() {
 
     const res = await fetch(MEMBERS_API, {
       signal: abortCtrl.signal,
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -1585,7 +1813,6 @@ async function fetchMembers() {
 
     members.value = sortMembersOldestFirst(list);
 
-    // ✅ if fintech was previously selected as sort/filter, reset safely
     sanitizeTableState();
 
     await nextTick();
@@ -1599,8 +1826,13 @@ async function fetchMembers() {
   }
 }
 
+async function handleRefresh() {
+  await Promise.all([fetchCurrentUser(), fetchMembers()]);
+  showToast("success", "Data refreshed");
+}
+
 /* =========================
-   Modern hover micro-interactions (quickTo)
+   Modern hover micro-interactions
    ========================= */
 function iconHover(e, enter) {
   const el = e.currentTarget;
@@ -1658,7 +1890,7 @@ onMounted(async () => {
     );
   }, rootEl.value);
 
-  await fetchMembers();
+  await Promise.all([fetchCurrentUser(), fetchMembers()]);
 });
 
 onBeforeUnmount(() => {
@@ -1671,9 +1903,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* =========================
-   DARK BLUE TECH THEME
-   ========================= */
 :root {
   color-scheme: dark;
 }
@@ -1702,7 +1931,7 @@ onBeforeUnmount(() => {
   --muted: rgba(255, 255, 255, 0.55);
 
   min-height: 100vh;
-  display: block; /* ✅ no sidebar grid anymore */
+  display: block;
   background: radial-gradient(1100px 620px at 18% 14%, rgba(56, 189, 248, 0.16), transparent 58%),
     radial-gradient(900px 520px at 82% 18%, rgba(99, 102, 241, 0.14), transparent 60%),
     radial-gradient(800px 520px at 70% 90%, rgba(14, 165, 233, 0.1), transparent 62%),
@@ -1713,7 +1942,6 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* subtle grid overlay */
 .app.tech::before {
   content: "";
   position: fixed;
@@ -1726,7 +1954,6 @@ onBeforeUnmount(() => {
   mask-image: radial-gradient(circle at 35% 18%, black 0%, transparent 60%);
 }
 
-/* Ambient glows */
 .glow {
   position: fixed;
   pointer-events: none;
@@ -1748,9 +1975,6 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
 
-/* =========================
-   Main
-   ========================= */
 .main {
   padding: 18px;
   overflow: hidden;
@@ -1861,9 +2085,6 @@ onBeforeUnmount(() => {
   border-radius: 999px;
 }
 
-/* =========================
-   Members Page styles
-   ========================= */
 .membersPage {
   padding: 6px 6px 18px;
   color: var(--txt);
@@ -2021,7 +2242,6 @@ onBeforeUnmount(() => {
   width: 320px;
 }
 
-/* ✅ Link button (Linkfb/Linkweb) */
 .linkBtn {
   display: inline-flex;
   align-items: center;
@@ -2063,7 +2283,6 @@ onBeforeUnmount(() => {
   word-break: break-all;
 }
 
-/* Actions */
 .actionRow {
   display: flex;
   gap: 8px;
@@ -2106,7 +2325,6 @@ onBeforeUnmount(() => {
   font-weight: 900;
 }
 
-/* Pagination */
 .pager {
   margin-top: 12px;
   display: flex;
@@ -2175,7 +2393,6 @@ onBeforeUnmount(() => {
   padding: 0 4px;
 }
 
-/* Overlay modal */
 .overlay {
   position: fixed;
   inset: 0;
@@ -2379,7 +2596,6 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
-/* Logo under idmember */
 .idCell {
   display: flex;
   flex-direction: column;
@@ -2413,7 +2629,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
 }
 
-/* Confirm Modal + Toast */
 .confirmOverlay {
   position: fixed;
   inset: 0;
@@ -2655,7 +2870,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* responsive */
 @media (max-width: 1100px) {
   .topbar {
     grid-template-columns: 1fr 1fr 160px;

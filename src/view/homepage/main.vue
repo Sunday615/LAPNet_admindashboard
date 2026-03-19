@@ -1,9 +1,7 @@
-<!-- src/views/AdminDashboard.vue  (FULL) -->
+<!-- src/views/AdminDashboard.vue -->
 <template>
   <div ref="dashEl" class="dash">
-    <!-- ✅ TOP BAR: Search + Notifications + Chat + Admin Profile -->
     <div ref="topBarEl" class="dashTop js-reveal">
-      <!-- Search -->
       <div ref="searchWrapEl" class="searchWrap" @keydown.esc.prevent="closeSearch">
         <i class="fa-solid fa-magnifying-glass searchIcon"></i>
 
@@ -20,7 +18,6 @@
           <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <!-- Search results panel -->
         <div v-if="showSearchPanel" class="searchPanel" role="listbox">
           <div class="searchPanelTop">
             <div class="searchPanelTitle">
@@ -85,9 +82,7 @@
         </div>
       </div>
 
-      <!-- Actions -->
       <div class="topActions">
-        <!-- Notifications -->
         <div class="menuWrap" ref="notifWrapEl">
           <button class="iconBtn" type="button" title="Notifications" @click="toggleNotif">
             <i class="fa-solid fa-bell"></i>
@@ -133,7 +128,6 @@
           </div>
         </div>
 
-        <!-- Chat notifications -->
         <div class="menuWrap" ref="chatWrapEl">
           <button class="iconBtn" type="button" title="Chat" @click="toggleChatMenu">
             <i class="fa-solid fa-comment-dots"></i>
@@ -181,7 +175,6 @@
           </div>
         </div>
 
-        <!-- Admin profile -->
         <div class="menuWrap" ref="profileWrapEl">
           <button class="profileBtn" type="button" @click="toggleProfileMenu" title="Admin profile">
             <span class="avatar">
@@ -229,9 +222,7 @@
       </div>
     </div>
 
-    <!-- ✅ GRID -->
     <div class="statGrid">
-      <!-- Member -->
       <div
         ref="statCardEl"
         class="statCard js-reveal clickable"
@@ -268,7 +259,6 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Announcement -->
       <div
         ref="announcementCardEl"
         class="statCard js-reveal clickable"
@@ -305,7 +295,6 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- News -->
       <div
         ref="newsCardEl"
         class="statCard js-reveal clickable"
@@ -337,12 +326,11 @@
           <span v-else>{{ newsTotal }}</span>
         </div>
 
-        <div class="statHint">{{ NEWS_API.replace(NEWS_BASE, "") }}</div>
+        <div class="statHint">{{ NEWS_API.replace(VITE_API_BASE_URL, "") }}</div>
         <span class="statGlow" />
         <span class="cardSheen" />
       </div>
 
-      <!-- Jobs -->
       <div
         ref="jobsCardEl"
         class="statCard js-reveal clickable"
@@ -379,7 +367,6 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Board Director (stat) -->
       <div
         ref="boardCardEl"
         class="statCard js-reveal clickable wide"
@@ -416,7 +403,6 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- Lapnet Employee (stat) -->
       <div
         ref="lapnetStatCardEl"
         class="statCard js-reveal clickable wide"
@@ -453,9 +439,7 @@
         <span class="cardSheen" />
       </div>
 
-      <!-- LEFT COLUMN -->
       <div class="leftCol">
-        <!-- ✅ Graph Card (Chart.js) -->
         <div ref="chartCardEl" class="chartCard js-reveal">
           <div class="chartTop">
             <div class="chartTitle">
@@ -542,7 +526,6 @@
             </div>
           </div>
 
-          <!-- ✅ Chart.js canvas -->
           <div class="chartCanvasWrap">
             <canvas ref="chartCanvasEl" class="chartCanvas"></canvas>
 
@@ -572,7 +555,6 @@
           <span class="cardSheen" />
         </div>
 
-        <!-- ✅ News Preview -->
         <div ref="newsPreviewEl" class="sideCard newsPreviewCard js-reveal">
           <div class="sideTop">
             <div class="sideTitle">
@@ -666,9 +648,7 @@
         </div>
       </div>
 
-      <!-- RIGHT COLUMN -->
       <div class="sideCol js-reveal">
-        <!-- Board Director card -->
         <div ref="boardSideEl" class="sideCard boardCard">
           <div class="boardHero" />
 
@@ -763,7 +743,6 @@
                 <i class="fa-solid fa-chevron-right boardChevron"></i>
               </div>
 
-              <!-- Pagination (Board) -->
               <div class="boardPager" v-if="boardPageCountFiltered > 1">
                 <button class="pagerBtn" type="button" @click.stop="boardPrev" :disabled="boardPage <= 1" title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
@@ -788,7 +767,6 @@
           <span class="cardSheen" />
         </div>
 
-        <!-- Lapnet Employee Card -->
         <div ref="lapnetSideEl" class="sideCard lapnetCard">
           <div class="sideTop">
             <div class="sideTitle">
@@ -876,7 +854,6 @@
                 </div>
               </div>
 
-              <!-- Pagination (Lapnet) -->
               <div class="boardPager" v-if="lapnetPageCountFiltered > 1">
                 <button class="pagerBtn" type="button" @click.stop="lapnetPrev" :disabled="lapnetPage <= 1" title="Previous">
                   <i class="fa-solid fa-chevron-left"></i>
@@ -902,7 +879,6 @@
         </div>
       </div>
 
-      <!-- ✅ CALENDAR (FULL) -->
       <div class="calendarCard js-reveal">
         <div class="calTop">
           <div class="calTitle">
@@ -1040,7 +1016,6 @@
       </div>
     </div>
 
-    <!-- ✅ Confirm overlay (calendar delete) -->
     <div v-if="confirmOpen" class="overlay" @click.self="closeConfirm">
       <div class="modal">
         <div class="modalTop">
@@ -1062,7 +1037,6 @@
       </div>
     </div>
 
-    <!-- ✅ Toasts -->
     <div class="toastWrap">
       <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
         <i :class="t.icon"></i>
@@ -1106,34 +1080,15 @@ Chart.register(
 const router = useRouter();
 const dashEl = ref(null);
 
-/** routes */
-function goMembers() {
-  router.push("/members");
-}
-function goBoardDirector() {
-  router.push("/Board_directorview");
-}
-function goNews() {
-  router.push("/newsviewer");
-}
-function goJobs() {
-  router.push("/jobview");
-}
-function goAnnouncement() {
-  router.push("/announcementviewer");
-}
-function goLapnetEmp() {
-  router.push("/lapnetview");
-}
-function goChat() {
-  router.push("/chat");
-}
-function goAdminProfile() {
-  router.push("/admin/profile");
-}
-function goAdminSettings() {
-  router.push("/admin/settings");
-}
+function goMembers() { router.push("/members"); }
+function goBoardDirector() { router.push("/Board_directorview"); }
+function goNews() { router.push("/newsviewer"); }
+function goJobs() { router.push("/jobview"); }
+function goAnnouncement() { router.push("/announcementviewer"); }
+function goLapnetEmp() { router.push("/lapnetview"); }
+function goChat() { router.push("/chat"); }
+function goAdminProfile() { router.push("/admin/profile"); }
+function goAdminSettings() { router.push("/admin/settings"); }
 function logout() {
   try {
     localStorage.removeItem("token");
@@ -1143,7 +1098,6 @@ function logout() {
   router.push("/login");
 }
 
-/* refs */
 const statCardEl = ref(null);
 const boardCardEl = ref(null);
 const newsCardEl = ref(null);
@@ -1162,27 +1116,25 @@ const notifWrapEl = ref(null);
 const chatWrapEl = ref(null);
 const profileWrapEl = ref(null);
 
-/* Chart.js */
 const chartCanvasEl = ref(null);
 let chartInst = null;
 
-/* API base */
-const VITE_API_BASE_URL = import.meta.env.VITE_VITE_API_BASE_URL_URL || "";
-const FETCH_CREDENTIALS = import.meta.env.VITE_FETCH_CREDENTIALS || ""; // "include" if you need cookies
+const VITE_API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
+
+const RAW_FETCH_CREDENTIALS = String(import.meta?.env?.VITE_FETCH_CREDENTIALS || "").trim();
+const FETCH_CREDENTIALS = ["include", "omit", "same-origin"].includes(RAW_FETCH_CREDENTIALS)
+  ? RAW_FETCH_CREDENTIALS
+  : "";
 
 const MEMBERS_API = `${VITE_API_BASE_URL}/api/members`;
 const BOARD_API = `${VITE_API_BASE_URL}/api/boarddirector`;
-
-// ✅ force News Preview (and News total) to fetch from the exact URL you gave
-const NEWS_API = `http://175.0.198.10:3000/api/news`;
-const NEWS_BASE = `http://175.0.198.10:3000`;
-
-// ✅ announcements endpoint (plural)
+const NEWS_API = `${VITE_API_BASE_URL}/api/news`;
 const ANNOUNCE_API = `${VITE_API_BASE_URL}/api/announcement`;
 const JOBS_API = `${VITE_API_BASE_URL}/api/jobs`;
 const EMP_LAPNET_API = `${VITE_API_BASE_URL}/api/emp_lapnet`;
 
-/* Raw items */
 const memberItems = ref([]);
 const boardItems = ref([]);
 const newsItems = ref([]);
@@ -1190,8 +1142,35 @@ const jobItems = ref([]);
 const announcementItems = ref([]);
 const lapnetEmpItems = ref([]);
 
-/* fallback logo */
 const BOARD_LOGO_FALLBACK = "/logobank.png";
+
+function resolveImageUrl(v, baseOverride) {
+  if (!v) return "";
+
+  let s = String(v).trim();
+  if (!s) return "";
+
+  s = s.replace(/\\/g, "/");
+
+  if (
+    s.startsWith("http://") ||
+    s.startsWith("https://") ||
+    s.startsWith("data:") ||
+    s.startsWith("blob:")
+  ) {
+    return s;
+  }
+
+  const baseRaw = baseOverride || VITE_API_BASE_URL;
+  const base = String(baseRaw || "").trim().replace(/\/+$/, "");
+  if (!base) return s;
+
+  if (s.startsWith("./")) s = s.slice(2);
+
+  if (s.startsWith("/")) return `${base}${s}`;
+
+  return `${base}/${s}`;
+}
 
 function boardLogoSrc(b) {
   const nested =
@@ -1223,7 +1202,6 @@ function boardLogoSrc(b) {
   return resolveImageUrl(raw) || BOARD_LOGO_FALLBACK;
 }
 
-/* auth header helper */
 function getToken() {
   try {
     return (
@@ -1237,7 +1215,6 @@ function getToken() {
   }
 }
 
-/* fetch helper */
 async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
   try {
     errorRef.value = "";
@@ -1294,8 +1271,10 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
     return list;
   } catch (err) {
     if (err?.name === "AbortError") return null;
-    const isLocalhost = url.includes("localhost") || url.includes("127.0.0.1");
-    errorRef.value = isLocalhost ? `Failed to load (check VITE_API_BASE_URL / CORS / auth)` : `Failed to load`;
+
+    const msg = String(err?.message || "Failed to load");
+    errorRef.value = msg;
+
     console.error("[fetchList]", url, err);
     return null;
   } finally {
@@ -1303,7 +1282,6 @@ async function fetchList(url, abortCtrlRef, loadingRef, errorRef, itemsRef) {
   }
 }
 
-/* totals state */
 const memberTotal = ref(0);
 const memberLoading = ref(false);
 const memberError = ref("");
@@ -1334,7 +1312,6 @@ const announcementLoading = ref(false);
 const announcementError = ref("");
 const announcementAbortCtrl = ref(null);
 
-/* fetch totals */
 async function fetchMemberTotal() {
   const list = await fetchList(MEMBERS_API, memberAbortCtrl, memberLoading, memberError, memberItems);
   if (!list) return;
@@ -1359,9 +1336,12 @@ async function fetchLapnetEmpTotal() {
   lapnetEmpTotal.value = list.length;
   lapnetPage.value = 1;
 
-  if (lapnetStatCardEl.value)
+  if (lapnetStatCardEl.value) {
     gsap.fromTo(lapnetStatCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
-  if (lapnetSideEl.value) gsap.fromTo(lapnetSideEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  }
+  if (lapnetSideEl.value) {
+    gsap.fromTo(lapnetSideEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  }
 }
 
 async function fetchNewsTotal() {
@@ -1369,8 +1349,9 @@ async function fetchNewsTotal() {
   if (!list) return;
   newsTotal.value = list.length;
   if (newsCardEl.value) gsap.fromTo(newsCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
-  if (newsPreviewEl.value)
+  if (newsPreviewEl.value) {
     gsap.fromTo(newsPreviewEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  }
 }
 
 async function fetchJobTotal() {
@@ -1384,8 +1365,9 @@ async function fetchAnnouncementTotal() {
   const list = await fetchList(ANNOUNCE_API, announcementAbortCtrl, announcementLoading, announcementError, announcementItems);
   if (!list) return;
   announcementTotal.value = list.length;
-  if (announcementCardEl.value)
+  if (announcementCardEl.value) {
     gsap.fromTo(announcementCardEl.value, { y: 8 }, { y: 0, duration: 0.28, ease: "power2.out" });
+  }
 }
 
 function refreshAll() {
@@ -1397,7 +1379,6 @@ function refreshAll() {
   fetchAnnouncementTotal();
 }
 
-/* utils */
 function pick(obj, ...keys) {
   for (const k of keys) {
     const v = obj?.[k];
@@ -1406,24 +1387,6 @@ function pick(obj, ...keys) {
   return "";
 }
 
-function resolveImageUrl(v, baseOverride) {
-  if (!v) return "";
-  let s = String(v).trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:") || s.startsWith("blob:")) return s;
-
-  const baseRaw = baseOverride || VITE_API_BASE_URL;
-  const base = String(baseRaw || "").replace(/\/$/, "");
-  if (!base) return s;
-
-  if (s.startsWith("/")) return base + s;
-  s = s.replace(/^\.\//, "");
-  return base + "/" + s;
-}
-
-/* ---------------------------
-   ✅ Global Search (search everything)
----------------------------- */
 const searchQuery = ref("");
 const showSearchPanel = ref(false);
 
@@ -1442,7 +1405,6 @@ function norm(s) {
   return String(s ?? "").toLowerCase().trim();
 }
 
-// small flatten (safe + fast)
 function flattenText(obj, maxDepth = 2, depth = 0, out = []) {
   if (obj === null || obj === undefined) return out;
   if (depth > maxDepth) return out;
@@ -1570,16 +1532,12 @@ function onSearchEnter() {
   goToCategorySearch(groups[0].route);
 }
 
-/* Filter previews by search (dashboard) */
 function filterList(list) {
   const q = qNorm.value;
   if (!q) return list || [];
   return (list || []).filter((x) => matchObj(x, q));
 }
 
-/* ---------------------------
-   ✅ Notifications + Chat notifs + Admin profile
----------------------------- */
 const NOTIF_KEY = "lapnet_admin_notifications_v1";
 const CHAT_KEY = "lapnet_admin_chat_notifs_v1";
 
@@ -1671,7 +1629,6 @@ function openChat(c) {
   goChat();
 }
 
-/* Admin profile (simple localStorage-driven) */
 const adminName = computed(() => {
   try {
     return localStorage.getItem("admin_name") || "Admin";
@@ -1701,7 +1658,6 @@ const adminInitials = computed(() => {
   return (a + b).toUpperCase();
 });
 
-/* close dropdowns on outside click */
 function onDocClick(e) {
   const t = e.target;
   const inside = (el) => el && (el === t || el.contains(t));
@@ -1717,9 +1673,6 @@ function onDocClick(e) {
   if (!inProfile) showProfileMenu.value = false;
 }
 
-/* ---------------------------
-   ✅ Graph (Chart.js)
----------------------------- */
 const ranges = [
   { key: "7d", label: "7D", days: 7 },
   { key: "30d", label: "30D", days: 30 },
@@ -1744,7 +1697,6 @@ function setCategory(k) {
   categoryKey.value = k;
 }
 
-/* date parsing */
 const dateCache = new WeakMap();
 function parseAnyDate(obj) {
   if (!obj) return null;
@@ -1822,7 +1774,6 @@ function sortByDateDesc(list) {
   return arr;
 }
 
-/* days + series */
 function toKey(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -1907,7 +1858,6 @@ const activeSeries = computed(() => {
   }
 });
 
-/* loading/error for chart */
 const anyLoading = computed(() => memberLoading.value || newsLoading.value || jobLoading.value || announcementLoading.value);
 const anyError = computed(() => memberError.value || newsError.value || jobError.value || announcementError.value || "");
 
@@ -1931,7 +1881,6 @@ const avgPerDay = computed(() => {
   return v.toFixed(1);
 });
 
-/* ✅ Chart.js rendering */
 function cssVar(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
@@ -2096,14 +2045,12 @@ function renderOrUpdateChart() {
   if (chartCardEl.value) gsap.fromTo(chartCardEl.value, { y: 8 }, { y: 0, duration: 0.22, ease: "power2.out" });
 }
 
-/* watch to update chart */
 watch([rangeKey, categoryKey, anyLoading, anyError], async () => {
   if (anyLoading.value || anyError.value) return;
   await nextTick();
   renderOrUpdateChart();
 });
 
-/* Lapnet pagination */
 const lapnetSorted = computed(() => (Array.isArray(lapnetEmpItems.value) ? lapnetEmpItems.value.slice() : []));
 const lapnetPage = ref(1);
 const lapnetPageSize = 3;
@@ -2138,7 +2085,6 @@ watch(qNorm, () => {
   lapnetPage.value = 1;
 });
 
-/* Board pagination */
 const boardLatest = computed(() => sortByDateDesc(boardItems.value));
 const boardFiltered = computed(() => filterList(boardLatest.value));
 
@@ -2173,7 +2119,6 @@ watch(qNorm, () => {
   boardPage.value = 1;
 });
 
-/* News preview */
 const newsLatest = computed(() => sortByDateDesc(newsItems.value));
 const newsFilteredLatest = computed(() => filterList(newsLatest.value));
 const newsFilteredPreview = computed(() => (newsFilteredLatest.value || []).slice(0, 6));
@@ -2193,10 +2138,15 @@ function newsThumbSrc(n) {
       "thumb",
       "image",
       "image_url",
-      "imageUrl"
+      "imageUrl",
+      "news_image",
+      "newsImage",
+      "image_path",
+      "imagePath",
+      "photo"
     ) || "";
 
-  return resolveImageUrl(raw, NEWS_BASE);
+  return resolveImageUrl(raw, VITE_API_BASE_URL);
 }
 
 function fmtDateTime(d) {
@@ -2215,9 +2165,6 @@ function fmtDateTime(d) {
   }
 }
 
-/* ---------------------------
-   ✅ Calendar (FULL)
----------------------------- */
 const CAL_STORAGE_KEY = "lapnet_admin_calendar_events_v1";
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -2297,7 +2244,6 @@ function buildCalCells(y, m) {
     out.push({ blank: false, key: toKey(dt), day: d });
   }
 
-  // fill to full weeks
   while (out.length % 7 !== 0) out.push({ blank: true, key: `t-${y}-${m}-${out.length}`, day: "" });
   return out;
 }
@@ -2309,14 +2255,18 @@ function prevMonth() {
   if (m < 0) {
     calMonth.value = 11;
     calYear.value -= 1;
-  } else calMonth.value = m;
+  } else {
+    calMonth.value = m;
+  }
 }
 function nextMonth() {
   const m = calMonth.value + 1;
   if (m > 11) {
     calMonth.value = 0;
     calYear.value += 1;
-  } else calMonth.value = m;
+  } else {
+    calMonth.value = m;
+  }
 }
 function jumpToday() {
   const d = new Date();
@@ -2326,7 +2276,6 @@ function jumpToday() {
   toast("Jumped to today", "info");
 }
 
-/* calendar add/delete */
 const newEventTitle = ref("");
 const newEventTime = ref("");
 const newEventNote = ref("");
@@ -2361,7 +2310,6 @@ function clearDayEvents() {
   toast("Cleared day events", "ok");
 }
 
-/* confirm delete overlay */
 const confirmOpen = ref(false);
 const confirmTarget = ref(null);
 
@@ -2381,9 +2329,6 @@ function confirmDelete() {
   closeConfirm();
 }
 
-/* ---------------------------
-   ✅ Toasts
----------------------------- */
 const toasts = ref([]);
 function toast(msg, type = "info") {
   const id = uid();
@@ -2397,9 +2342,8 @@ function toast(msg, type = "info") {
   const item = { id, msg, type, icon };
   toasts.value = [item, ...toasts.value].slice(0, 5);
 
-  // animate in
   nextTick(() => {
-    const el = document.querySelector(`.toastWrap .toast:nth-child(1)`);
+    const el = document.querySelector(".toastWrap .toast:nth-child(1)");
     if (el) gsap.fromTo(el, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22, ease: "power2.out" });
   });
 
@@ -2408,7 +2352,6 @@ function toast(msg, type = "info") {
   }, 3200);
 }
 
-/* hover */
 function cardHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -3 : 0, duration: 0.22, ease: "power2.out" });
 }
@@ -2447,22 +2390,16 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* --------------------------------
-   Base (inherits your theme vars)
---------------------------------- */
 .dash {
   width: 100%;
 }
 
-/* ✅ TOP BAR */
 .dashTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 2px 0 12px;
-
-  /* keep overlays always above cards */
   position: relative;
   z-index: 9999;
 }
@@ -2478,7 +2415,6 @@ onBeforeUnmount(() => {
   height: 40px;
 }
 
-/* ✅ Search */
 .searchWrap {
   position: relative;
   flex: 1;
@@ -2534,7 +2470,6 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   z-index: 9999;
-
   border-radius: 18px;
   padding: 12px;
   background: rgba(8, 14, 34, 0.92);
@@ -2710,7 +2645,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-/* ✅ Icons + Menus */
 .menuWrap {
   position: relative;
 }
@@ -2988,7 +2922,6 @@ onBeforeUnmount(() => {
   color: rgba(56, 189, 248, 0.9);
 }
 
-/* Grid base */
 .statGrid {
   --sideBlockMaxH: 430px;
   display: grid;
@@ -3144,7 +3077,6 @@ onBeforeUnmount(() => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Left column wrapper */
 .leftCol {
   grid-column: span 8;
   display: flex;
@@ -3152,7 +3084,6 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-/* Chart Card */
 .chartCard {
   width: 100%;
   --chartH: 270px;
@@ -3418,7 +3349,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-/* Right column */
 .sideCol {
   grid-column: span 4;
   display: flex;
@@ -3552,7 +3482,6 @@ onBeforeUnmount(() => {
   color: rgba(239, 68, 68, 0.95);
 }
 
-/* Mini chip */
 .miniChip {
   display: inline-flex;
   align-items: center;
@@ -3619,7 +3548,6 @@ onBeforeUnmount(() => {
 .sideRole { font-weight: 850; color: rgba(255, 255, 255, 0.68); font-size: 12px; }
 .sideChips { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Board card */
 .sideCard.boardCard { background: rgba(255, 255, 255, 0.026); border-color: rgba(255, 255, 255, 0.09); }
 
 .boardHero {
@@ -3709,7 +3637,6 @@ onBeforeUnmount(() => {
   opacity: 0.8;
 }
 
-/* Pagination */
 .boardPager {
   margin-top: 10px;
   display: flex;
@@ -3742,7 +3669,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-/* News preview list */
 .newsList { display: grid; gap: 10px; }
 .newsItem {
   display: grid;
@@ -3786,7 +3712,6 @@ onBeforeUnmount(() => {
 }
 .newsMeta { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* ✅ Calendar card */
 .calendarCard {
   grid-column: span 12;
   background: rgba(255, 255, 255, 0.024);
@@ -4112,7 +4037,6 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-/* ✅ Overlay + modal */
 .overlay {
   position: fixed;
   inset: 0;
@@ -4188,7 +4112,6 @@ onBeforeUnmount(() => {
 }
 .btnDanger:hover { transform: translateY(-1px); border-color: rgba(239,68,68,0.35); }
 
-/* ✅ Toasts */
 .toastWrap {
   position: fixed;
   top: 14px;
@@ -4215,7 +4138,6 @@ onBeforeUnmount(() => {
 .toast.danger { border-color: rgba(239,68,68,0.25); }
 .toastMsg { min-width: 0; }
 
-/* responsive */
 @media (max-width: 1100px) {
   .statCard { grid-column: span 6; }
   .statCard.wide { grid-column: span 6; }

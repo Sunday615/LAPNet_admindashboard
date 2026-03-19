@@ -8,7 +8,7 @@
           Analytics • Form Submissions
         </div>
         <h1 class="title">Responses Summary</h1>
-        <p class="sub">เลือก templateId → สรุปจำนวนคน submit + กราฟแบบ Google Forms</p>
+        <p class="sub">Select a templateId → summarize total submissions + Google Forms style charts</p>
       </div>
 
       <div class="right">
@@ -144,7 +144,7 @@
               <span class="pill ghostPill">{{ selectedQuestion.type }}</span>
             </template>
             <template v-else>
-              Summary (Overview) • Answered rate per question
+              Summary (Overview) • Answered rate by question
             </template>
           </div>
         </div>
@@ -158,7 +158,7 @@
         <div v-else-if="!selectedTemplateId" class="empty">
           <div class="emptyIcon"><i class="fa-regular fa-hand-pointer" /></div>
           <div class="emptyTitle">Select a template</div>
-          <div class="emptySub muted">Choose templateId then Load.</div>
+          <div class="emptySub muted">Choose a templateId and click Load.</div>
         </div>
 
         <div v-else class="chartsGrid">
@@ -166,7 +166,7 @@
           <div v-if="!selectedQuestion" class="chartCard">
             <div class="chartTitleRow">
               <div class="chartTitle"><i class="fa-solid fa-list-check" /> Answered rate</div>
-              <div class="muted" style="font-size: 12px">เปอร์เซ็นต์การตอบในแต่ละคำถาม</div>
+              <div class="muted" style="font-size: 12px">Percentage answered for each question</div>
             </div>
             <div class="chartWrap tall">
               <canvas ref="overviewCanvasRef"></canvas>
@@ -178,9 +178,9 @@
             <div class="chartTitleRow">
               <div class="chartTitle"><i class="fa-solid fa-square-poll-vertical" /> Distribution</div>
               <div class="muted" style="font-size: 12px">
-                <template v-if="isChoiceType(selectedQuestion.type)">เลือก/ติ๊ก (นับจำนวน)</template>
-                <template v-else-if="selectedQuestion.type === 'score'">คะแนน (Histogram)</template>
-                <template v-else-if="selectedQuestion.type === 'upload'">ไฟล์ที่อัปโหลด (Top mime types)</template>
+                <template v-if="isChoiceType(selectedQuestion.type)">Choice / checkbox selections (count)</template>
+                <template v-else-if="selectedQuestion.type === 'score'">Score (Histogram)</template>
+                <template v-else-if="selectedQuestion.type === 'upload'">Uploaded files (Top mime types)</template>
                 <template v-else>Answered vs Not answered</template>
               </div>
             </div>
@@ -208,11 +208,11 @@
             </div>
           </div>
 
-          <!-- Heatmap for table type (เหมือนเดิม แต่ยัง modern) -->
+          <!-- Heatmap for table type -->
           <div v-if="selectedQuestion && (selectedQuestion.type === 'table_option' || selectedQuestion.type === 'table_checkbox')" class="chartCard">
             <div class="chartTitleRow">
               <div class="chartTitle"><i class="fa-solid fa-border-all" /> Table heatmap</div>
-              <div class="muted" style="font-size: 12px">ความถี่ (opacity = relative)</div>
+              <div class="muted" style="font-size: 12px">Frequency (opacity = relative)</div>
             </div>
 
             <div class="heatWrap">
@@ -688,7 +688,7 @@ const scoreHist = computed(() => {
   return counts;
 });
 
-/* table heatmap (เดิม) */
+/* table heatmap */
 const heat = computed(() => {
   const q = selectedQuestion.value;
   if (!q || !(q.type === "table_option" || q.type === "table_checkbox")) return { grid: [], max: 0 };
@@ -733,7 +733,7 @@ function heatOpacity(ri, ci) {
   return 0.2 + (v / max) * 0.8;
 }
 
-/* upload stats (จริงจาก files[]) */
+/* upload stats */
 function fileMatchesQuestion(file, q, idx) {
   const keys = answerKeysFor(q, idx).map((x) => String(x));
   const qid = String(file?.questionId ?? "");

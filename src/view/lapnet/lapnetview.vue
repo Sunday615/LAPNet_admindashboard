@@ -33,9 +33,9 @@
           </button>
 
           <div class="profile">
-            <div class="avatarTop">A</div>
+            <div class="avatarTop">{{ userInitial }}</div>
             <div class="profileText">
-              <div class="profileName">Admin</div>
+              <div class="profileName">{{ userName }}</div>
               <div class="profileRole">Lapnet</div>
             </div>
           </div>
@@ -392,7 +392,135 @@ const route = useRoute();
 const rootEl = ref(null);
 const topbarEl = ref(null);
 
-const userName = "Arkhan";
+const userName = ref("Loading...");
+
+const USERS_API = "http://localhost:3000/api/users";
+
+const userInitial = computed(() => {
+  const s = String(userName.value || "").trim();
+  return s ? s.charAt(0).toUpperCase() : "U";
+});
+
+function extractUserList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
+}
+
+function getStoredCurrentUser() {
+  const keys = ["admin_data", "user", "currentUser", "auth_user", "profile"];
+
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      // Ignore invalid localStorage JSON
+    }
+  }
+
+  return null;
+}
+
+function pickBestUser(users) {
+  if (!Array.isArray(users) || !users.length) return null;
+
+  const stored = getStoredCurrentUser();
+  if (!stored) return users[0];
+
+  const storedIds = new Set(
+    [
+      stored?.id,
+      stored?.user_id,
+      stored?.userId,
+      stored?.admin_id,
+      stored?._id,
+      stored?.uuid,
+    ]
+      .filter(Boolean)
+      .map((v) => String(v))
+  );
+
+  const storedNames = new Set(
+    [
+      stored?.name,
+      stored?.username,
+      stored?.full_name,
+      stored?.fullName,
+      stored?.email,
+    ]
+      .filter(Boolean)
+      .map((v) => String(v).trim().toLowerCase())
+  );
+
+  const matched =
+    users.find((u) => {
+      const userIds = [
+        u?.id,
+        u?.user_id,
+        u?.userId,
+        u?.admin_id,
+        u?._id,
+        u?.uuid,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v));
+
+      return userIds.some((id) => storedIds.has(id));
+    }) ||
+    users.find((u) => {
+      const userNames = [
+        u?.name,
+        u?.username,
+        u?.full_name,
+        u?.fullName,
+        u?.email,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v).trim().toLowerCase());
+
+      return userNames.some((name) => storedNames.has(name));
+    });
+
+  return matched || users[0];
+}
+
+function displayNameOfUser(user) {
+  return (
+    user?.name ||
+    user?.full_name ||
+    user?.fullName ||
+    user?.username ||
+    user?.email ||
+    "User"
+  );
+}
+
+async function fetchCurrentUser() {
+  try {
+    const res = await fetch(USERS_API, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const payload = await res.json();
+    const users = extractUserList(payload);
+    const currentUser = pickBestUser(users);
+
+    userName.value = displayNameOfUser(currentUser);
+  } catch (err) {
+    console.error("Failed to load users:", err);
+    const stored = getStoredCurrentUser();
+    userName.value = displayNameOfUser(stored);
+  }
+}
 
 /* =========================
    API
@@ -1150,6 +1278,7 @@ onMounted(async () => {
     ).to(others, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: DUR.base, stagger: 0.06, ease: "power3.out" }, 0.08);
   }, rootEl.value);
 
+  fetchCurrentUser();
   await fetchEmployees();
 });
 

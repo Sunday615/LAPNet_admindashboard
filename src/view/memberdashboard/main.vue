@@ -1,4 +1,4 @@
-<!-- src/views/ViewerOverview.vue  (Overview + Members card + Members in charts) -->
+<!-- src/views/ViewerOverview.vue -->
 <template>
   <section class="ov">
     <!-- Header -->
@@ -13,7 +13,7 @@
       </div>
 
       <div class="headRight">
-        <!-- ✅ SINGLE BOX (Account + MemberBank) -->
+        <!-- Single Box (Account + MemberBank) -->
         <div
           class="profileBox"
           @mouseenter="profileHover($event, true)"
@@ -24,7 +24,6 @@
             <span v-if="profileLoading || memberLoading" class="dotSpin"></span>
 
             <template v-else>
-              <!-- ✅ show bank logo if exists, else show user initial -->
               <img
                 v-if="memberProfile?.logo"
                 class="avatarImg"
@@ -41,7 +40,6 @@
               {{ profileLoading ? "Loading..." : displayUsername }}
             </div>
 
-            <!-- ✅ Bank info (full name, no ellipsis) -->
             <div class="profileBankLine">
               <i class="fa-solid fa-building-columns"></i>
 
@@ -73,7 +71,6 @@
               </div>
             </div>
 
-            <!-- errors -->
             <div v-if="profileError" class="profileErr">{{ profileError }}</div>
             <div v-else-if="memberError" class="profileErr">{{ memberError }}</div>
           </div>
@@ -128,7 +125,7 @@
             <i class="fa-solid fa-bullhorn"></i>
             Announcements
           </div>
-          <div class="pill">Total</div>
+          <div class="pill">Targeted</div>
         </div>
         <div class="statRow">
           <div class="statValue">{{ totals.announcements }}</div>
@@ -148,7 +145,7 @@
         </button>
       </article>
 
-      <!-- ✅ FORMS (ACTIVE ONLY) -->
+      <!-- FORMS (ACTIVE ONLY) -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -175,7 +172,7 @@
         </button>
       </article>
 
-      <!-- ✅ MEMBERS -->
+      <!-- MEMBERS -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -197,7 +194,6 @@
           <div class="miniText">{{ latestMemberTitle }}</div>
         </div>
 
-        <!-- ✅ change route if your viewer route differs -->
         <button class="miniBtn" type="button" @click="go('/v/allmembers_viewer')">
           View members <i class="fa-solid fa-arrow-right"></i>
         </button>
@@ -217,7 +213,7 @@
           <canvas ref="trendCanvas"></canvas>
         </div>
 
-        <div class="hint">Count by month (Documents / Announcements / Active Forms / Members)</div>
+        <div class="hint">Count by month (Documents / Targeted Announcements / Active Forms / Members)</div>
       </article>
 
       <!-- Distribution chart -->
@@ -330,11 +326,11 @@
             </div>
             <div class="chip">{{ a.category || "ANN" }}</div>
           </li>
-          <li v-if="!recentAnns.length" class="empty">No announcements found</li>
+          <li v-if="!recentAnns.length" class="empty">No targeted announcements found</li>
         </ul>
       </article>
 
-      <!-- ✅ Recent: Forms (ACTIVE ONLY) -->
+      <!-- Recent: Forms (ACTIVE ONLY) -->
       <article class="card list js-reveal">
         <div class="cardHead">
           <div class="cardTitle">
@@ -370,7 +366,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 
@@ -402,11 +398,13 @@ Chart.register(
 const router = useRouter();
 const headEl = ref(null);
 
-/* ✅ Force Year + Anno Domini label everywhere */
+/* Force Year + Anno Domini label everywhere */
 const DISPLAY_YEAR = 2026;
 const AD_LABEL = "";
 
-// ---- API base (.env only)
+/* -----------------------------
+  API base (.env only)
+----------------------------- */
 function resolveApiBase() {
   const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
   return raw.replace(/\/+$/, "");
@@ -414,12 +412,14 @@ function resolveApiBase() {
 function joinBaseAndPath(baseUrl, path) {
   const p = String(path || "");
   if (!baseUrl) return p;
+
   const b = String(baseUrl || "").replace(/\/+$/, "");
   const pp = p.startsWith("/") ? p : `/${p}`;
-  // Avoid duplicate "/api" when base already ends with "/api"
+
   if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
   return b + pp;
 }
+
 const API_BASE = resolveApiBase();
 
 const endpoints = {
@@ -430,23 +430,23 @@ const endpoints = {
   members: joinBaseAndPath(API_BASE, "/api/members"),
 };
 
-// ---- State
+/* -----------------------------
+  State
+----------------------------- */
 const loading = ref(false);
 const error = ref("");
 
 const documents = ref([]);
 const announcements = ref([]);
-
-// ✅ forms that will be shown (ACTIVE ONLY)
 const forms = ref([]);
-
-// ✅ members list (for card + graph)
 const members = ref([]);
 
 const totals = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
 const last7 = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
 
-// ---- Profile (Account)
+/* -----------------------------
+  Profile (Account)
+----------------------------- */
 const profileLoading = ref(false);
 const profileError = ref("");
 const profile = ref({
@@ -455,7 +455,9 @@ const profile = ref({
   member_id: null,
 });
 
-// ---- MemberBank Profile (logo + name)
+/* -----------------------------
+  MemberBank Profile (logo + name)
+----------------------------- */
 const memberLoading = ref(false);
 const memberError = ref("");
 const memberProfile = ref({
@@ -465,13 +467,17 @@ const memberProfile = ref({
   logo: "",
 });
 
-// ---- Charts
+/* -----------------------------
+  Charts
+----------------------------- */
 const trendCanvas = ref(null);
 const distCanvas = ref(null);
 let trendChart = null;
 let distChart = null;
 
-// ---- Helpers (storage/user)
+/* -----------------------------
+  Helpers (storage/user)
+----------------------------- */
 function safeJsonParse(x) {
   try {
     return JSON.parse(String(x));
@@ -479,22 +485,29 @@ function safeJsonParse(x) {
     return null;
   }
 }
+
 function readUserFromStorage() {
   const u1 = localStorage.getItem("user");
   if (u1) return safeJsonParse(u1);
+
   const u2 = sessionStorage.getItem("user");
   if (u2) return safeJsonParse(u2);
+
   return null;
 }
+
 function readToken() {
   return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 }
+
 function authHeaders() {
   const token = readToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ---- Helpers (lists/dates)
+/* -----------------------------
+  Helpers (lists/dates)
+----------------------------- */
 function pickDate(obj) {
   const candidates = [
     obj.createdAt,
@@ -512,6 +525,7 @@ function pickDate(obj) {
     const d = new Date(c);
     if (!Number.isNaN(d.getTime())) return d;
   }
+
   return new Date();
 }
 
@@ -546,6 +560,7 @@ function toFixedYearDate(input) {
   if (fixed.getMonth() !== m) {
     return new Date(DISPLAY_YEAR, m + 1, 0);
   }
+
   return fixed;
 }
 
@@ -573,32 +588,38 @@ function monthKey(date) {
 function lastNMonths(n = 6) {
   const out = [];
   const now = new Date();
+
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const mon = d.toLocaleString(undefined, { month: "short" });
+
     out.push({
       y: DISPLAY_YEAR,
       m: d.getMonth(),
       label: joinParts(mon, AD_LABEL, DISPLAY_YEAR),
     });
   }
+
   return out;
 }
 
 async function fetchJSON(url) {
   const res = await fetch(url, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${url})`);
+
   const data = await res.json();
+
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.rows)) return data.rows;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.members)) return data.members;
   if (Array.isArray(data?.result)) return data.result;
+
   return [];
 }
 
-/* ✅ ACTIVE CHECK: activetoggle = 1 */
+/* ACTIVE CHECK: activetoggle = 1 */
 function isFormActive(x) {
   const v =
     x?.activetoggle ??
@@ -614,9 +635,9 @@ function isFormActive(x) {
   return Number.isFinite(n) ? n === 1 : false;
 }
 
-// ------------------------
-// ✅ Member helpers (logo resolve + mapping)
-// ------------------------
+/* -----------------------------
+  Member helpers (logo resolve + mapping)
+----------------------------- */
 function resolveAssetUrl(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
@@ -631,7 +652,15 @@ function resolveAssetUrl(val) {
 
 function readMemberId(r) {
   const raw =
-    r?.idmember ?? r?.IdMember ?? r?.IDMEMBER ?? r?.memberId ?? r?.MemberId ?? r?.idMember ?? r?.member_id ?? null;
+    r?.idmember ??
+    r?.IdMember ??
+    r?.IDMEMBER ??
+    r?.memberId ??
+    r?.MemberId ??
+    r?.idMember ??
+    r?.member_id ??
+    null;
+
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
@@ -650,6 +679,102 @@ function onAvatarLogoError() {
   memberProfile.value = { ...memberProfile.value, logo: "" };
 }
 
+/* -----------------------------
+  Announcement target helpers
+----------------------------- */
+function normalizeIdArray(val) {
+  if (Array.isArray(val)) {
+    return val
+      .flatMap((x) => normalizeIdArray(x))
+      .filter((x) => x !== "");
+  }
+
+  if (val == null) return [];
+
+  if (typeof val === "number") return [String(val)];
+  if (typeof val === "string") {
+    const s = val.trim();
+    if (!s) return [];
+
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return normalizeIdArray(parsed);
+    } catch {}
+
+    return s
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof val === "object") {
+    if (Array.isArray(val.member_ids)) return normalizeIdArray(val.member_ids);
+    if (Array.isArray(val.memberIds)) return normalizeIdArray(val.memberIds);
+    if (Array.isArray(val.targets)) return normalizeIdArray(val.targets);
+    if (Array.isArray(val.ids)) return normalizeIdArray(val.ids);
+
+    if ("id" in val && val.id != null) return [String(val.id)];
+    if ("member_id" in val && val.member_id != null) return [String(val.member_id)];
+    if ("memberId" in val && val.memberId != null) return [String(val.memberId)];
+  }
+
+  return [];
+}
+
+function announcementMemberIds(item) {
+  return [
+    ...normalizeIdArray(item?.member_ids),
+    ...normalizeIdArray(item?.memberIds),
+    ...normalizeIdArray(item?.member_id),
+    ...normalizeIdArray(item?.targets),
+    ...normalizeIdArray(item?.target_member_ids),
+    ...normalizeIdArray(item?.targetMemberIds),
+    ...normalizeIdArray(item?.targets),
+  ].filter(Boolean);
+}
+
+function isAnnouncementGlobal(item) {
+  return announcementMemberIds(item).length === 0;
+}
+
+function getMappedMemberIdsByBankcode(bankcode) {
+  const code = String(bankcode || "").trim();
+  if (!code) return [];
+
+  const ids = members.value
+    .map(normalizeMemberRow)
+    .filter((m) => String(m.bankcode) === code)
+    .map((m) => m.member_id)
+    .filter((id) => id != null)
+    .map((id) => String(id));
+
+  return [...new Set(ids)];
+}
+
+function announcementTargetsCurrentMember(item) {
+  const myBankcode = String(profile.value?.bankcode || "").trim();
+  const myMemberIdsFromMembers = getMappedMemberIdsByBankcode(myBankcode);
+  const myMemberIds = [
+    ...myMemberIdsFromMembers,
+    ...(profile.value?.member_id != null ? [String(profile.value.member_id)] : []),
+    ...(memberProfile.value?.member_id != null ? [String(memberProfile.value.member_id)] : []),
+  ].filter(Boolean);
+
+  const targetIds = announcementMemberIds(item);
+
+  if (!targetIds.length) return true;
+  if (!myMemberIds.length) return false;
+
+  return targetIds.some((id) => myMemberIds.includes(String(id)));
+}
+
+function filterAnnouncementsForCurrentMember(list) {
+  return (Array.isArray(list) ? list : []).filter((item) => announcementTargetsCurrentMember(item));
+}
+
+/* -----------------------------
+  MemberBank profile
+----------------------------- */
 async function fetchMemberProfileByBankcode(bankcode) {
   memberLoading.value = true;
   memberError.value = "";
@@ -661,7 +786,6 @@ async function fetchMemberProfileByBankcode(bankcode) {
       return;
     }
 
-    // ✅ use already-loaded members list first; fallback to API
     const raw = members.value?.length ? members.value : await fetchJSON(endpoints.members);
     const mapped = (raw || []).map(normalizeMemberRow).filter((m) => m.bankcode);
 
@@ -686,7 +810,9 @@ async function fetchMemberProfileByBankcode(bankcode) {
   }
 }
 
-// ---- Profile fetch + pick
+/* -----------------------------
+  Profile fetch + pick
+----------------------------- */
 function pickProfileUser(usersList) {
   const list = Array.isArray(usersList) ? usersList : [];
   const me = readUserFromStorage();
@@ -696,7 +822,9 @@ function pickProfileUser(usersList) {
   const meEmail = (me?.email ?? "").toString().trim();
 
   const byId =
-    meId != null ? list.find((u) => String(u?.id ?? u?.user_id ?? u?._id ?? u?.uuid ?? "") === String(meId)) : null;
+    meId != null
+      ? list.find((u) => String(u?.id ?? u?.user_id ?? u?._id ?? u?.uuid ?? "") === String(meId))
+      : null;
 
   const byUsername =
     !byId && meUsername
@@ -745,8 +873,7 @@ async function fetchUserProfile() {
       member_id,
     };
 
-    // ✅ load MemberBank (logo + name)
-    fetchMemberProfileByBankcode(bankcode);
+    await fetchMemberProfileByBankcode(bankcode);
   } catch (e) {
     profileError.value = e?.message || "Profile load failed";
   } finally {
@@ -754,7 +881,9 @@ async function fetchUserProfile() {
   }
 }
 
-// ---- UI computed
+/* -----------------------------
+  UI computed
+----------------------------- */
 const recentDocs = computed(() => documents.value.slice(0, 6));
 const recentAnns = computed(() => announcements.value.slice(0, 6));
 const recentForms = computed(() => forms.value.slice(0, 6));
@@ -765,25 +894,20 @@ const latestFormTitle = computed(() => recentForms.value?.[0]?.name || recentFor
 
 const latestMemberTitle = computed(() => {
   const m = members.value?.[0];
-  return (
-    m?.BanknameLA ||
-    m?.BankNameLA ||
-    m?.banknameLA ||
-    m?.name ||
-    m?.bank_name ||
-    m?.bankcode ||
-    "-"
-  );
+  return m?.BanknameLA || m?.BankNameLA || m?.banknameLA || m?.name || m?.bank_name || m?.bankcode || "-";
 });
 
 const displayUsername = computed(() => (profile.value?.username ? String(profile.value.username) : "-"));
+
 const avatarText = computed(() => {
   const u = displayUsername.value;
   if (!u || u === "-") return "U";
   return String(u).trim().charAt(0).toUpperCase() || "U";
 });
 
-// ---- Charts
+/* -----------------------------
+  Charts
+----------------------------- */
 function cssVar(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
@@ -800,11 +924,13 @@ function buildCharts() {
 
   const bucketCount = (arr) => {
     const map = new Map(months.map((m) => [`${m.y}-${m.m}`, 0]));
+
     for (const item of arr) {
       const { y, m } = monthKey(item._date);
       const k = `${y}-${m}`;
       if (map.has(k)) map.set(k, map.get(k) + 1);
     }
+
     return months.map((m) => map.get(`${m.y}-${m.m}`) || 0);
   };
 
@@ -903,7 +1029,9 @@ function buildCharts() {
   });
 }
 
-// ---- Animations
+/* -----------------------------
+  Animations
+----------------------------- */
 function revealIn() {
   const scope = document.querySelector(".ov");
   if (!scope) return;
@@ -912,23 +1040,29 @@ function revealIn() {
   gsap.set(els, { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
   if (headEl.value) {
     tl.fromTo(headEl.value, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45 }, 0);
   }
+
   tl.to(els, { opacity: 1, y: 0, duration: 0.42, stagger: 0.06 }, 0.05);
 }
 
 function cardHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
+
 function rowHover(e, enter) {
   gsap.to(e.currentTarget, { x: enter ? 3 : 0, duration: 0.16, ease: "power2.out" });
 }
+
 function profileHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
 
-// ---- Actions
+/* -----------------------------
+  Actions
+----------------------------- */
 function go(path) {
   router.push(path);
 }
@@ -936,18 +1070,24 @@ function go(path) {
 async function refresh() {
   loading.value = true;
   error.value = "";
+
   try {
     const [docsRaw, annsRaw, formsRaw, membersRaw] = await Promise.all([
       fetchJSON(endpoints.documents),
       fetchJSON(endpoints.announcements),
       fetchJSON(endpoints.forms),
-      fetchJSON(endpoints.members), // ✅ NEW
+      fetchJSON(endpoints.members),
     ]);
 
     documents.value = normalizeList(docsRaw).sort((a, b) => b._date - a._date);
-    announcements.value = normalizeList(annsRaw).sort((a, b) => b._date - a._date);
     forms.value = normalizeList(formsRaw).filter(isFormActive).sort((a, b) => b._date - a._date);
     members.value = normalizeList(membersRaw).sort((a, b) => b._date - a._date);
+
+    await fetchUserProfile();
+
+    announcements.value = normalizeList(annsRaw)
+      .filter((item) => announcementTargetsCurrentMember(item))
+      .sort((a, b) => b._date - a._date);
 
     totals.documents = documents.value.length;
     totals.announcements = announcements.value.length;
@@ -959,9 +1099,7 @@ async function refresh() {
     last7.forms = forms.value.filter((x) => isWithinLastDays(x._date, 7)).length;
     last7.members = members.value.filter((x) => isWithinLastDays(x._date, 7)).length;
 
-    // ✅ fetch profile (uses members list cache when mapping logo/name)
-    fetchUserProfile();
-
+    await nextTick();
     buildCharts();
     revealIn();
   } catch (e) {
@@ -1015,6 +1153,7 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   opacity: 0.8;
 }
+
 .kDot {
   width: 10px;
   height: 10px;
@@ -1022,19 +1161,21 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.9);
   box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
 }
+
 .title {
   margin: 8px 0 4px;
   font-size: 26px;
   line-height: 1.1;
   font-weight: 950;
 }
+
 .sub {
   margin: 0;
   font-size: 13px;
   opacity: 0.7;
 }
 
-/* ✅ Single Profile box */
+/* Single Profile box */
 .profileBox {
   display: inline-flex;
   align-items: center;
@@ -1077,6 +1218,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.08);
   animation: pulse 0.9s ease-in-out infinite;
 }
+
 @keyframes pulse {
   0% {
     transform: scale(0.9);
@@ -1098,7 +1240,6 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-/* Username can still be ellipsized if super long */
 .profileName {
   font-weight: 950;
   font-size: 13px;
@@ -1109,7 +1250,6 @@ onBeforeUnmount(() => {
   max-width: 240px;
 }
 
-/* ✅ Bank info: FULL NAME (no ellipsis) */
 .profileBankLine {
   display: flex;
   align-items: flex-start;
@@ -1117,7 +1257,6 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 1.25;
   opacity: 0.9;
-
   white-space: normal;
   overflow: visible;
   text-overflow: unset;
@@ -1176,20 +1315,25 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
 .btn:hover {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
 }
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
 .btnIcon {
   display: inline-block;
 }
+
 .spin {
   animation: spin 0.9s linear infinite;
 }
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1203,10 +1347,12 @@ onBeforeUnmount(() => {
   background: rgba(255, 80, 80, 0.10);
   border: 1px solid rgba(255, 80, 80, 0.22);
 }
+
 .bannerTitle {
   font-weight: 900;
   margin-bottom: 4px;
 }
+
 .bannerBody {
   opacity: 0.85;
   font-size: 13px;
@@ -1227,12 +1373,14 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
   overflow: hidden;
 }
+
 .cardHead {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 14px 14px 10px;
 }
+
 .cardTitle {
   font-weight: 950;
   letter-spacing: 0.2px;
@@ -1240,6 +1388,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
+
 .pill {
   font-size: 12px;
   padding: 6px 10px;
@@ -1249,20 +1398,23 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 
-/* ✅ 4 stats per row on desktop */
 .stat {
   grid-column: span 3;
   padding-bottom: 12px;
 }
+
 .chartWide {
   grid-column: span 8;
 }
+
 .chartNarrow {
   grid-column: span 4;
 }
+
 .actions {
   grid-column: span 12;
 }
+
 .list {
   grid-column: span 4;
 }
@@ -1274,18 +1426,22 @@ onBeforeUnmount(() => {
   gap: 14px;
   padding: 0 14px 12px;
 }
+
 .statValue {
   font-size: 42px;
   font-weight: 950;
   letter-spacing: -1px;
 }
+
 .statMeta {
   text-align: right;
 }
+
 .statLabel {
   font-size: 12px;
   opacity: 0.72;
 }
+
 .statSub {
   font-size: 13px;
   font-weight: 900;
@@ -1297,14 +1453,17 @@ onBeforeUnmount(() => {
   margin: 0 14px;
   background: rgba(255, 255, 255, 0.10);
 }
+
 .mini {
   padding: 12px 14px 8px;
 }
+
 .miniLabel {
   font-size: 12px;
   opacity: 0.72;
   margin-bottom: 6px;
 }
+
 .miniText {
   font-size: 13px;
   font-weight: 900;
@@ -1313,6 +1472,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .miniBtn {
   margin: 0 14px 14px;
   width: calc(100% - 28px);
@@ -1328,6 +1488,7 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.08);
   color: rgba(255, 255, 255, 0.9);
 }
+
 .miniBtn:hover {
   background: rgba(56, 189, 248, 0.10);
 }
@@ -1336,9 +1497,11 @@ onBeforeUnmount(() => {
   height: 280px;
   padding: 0 14px 12px;
 }
+
 .chartWrap.small {
   height: 240px;
 }
+
 .hint {
   padding: 0 14px 14px;
   font-size: 12px;
@@ -1351,6 +1514,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
+
 .qbtn {
   border-radius: 14px;
   padding: 12px 12px;
@@ -1363,6 +1527,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
 }
+
 .qbtn:hover {
   border-color: rgba(56, 189, 248, 0.18);
   box-shadow: 0 14px 34px rgba(56, 189, 248, 0.08);
@@ -1374,6 +1539,7 @@ onBeforeUnmount(() => {
   padding: 0 10px 12px;
   margin: 0;
 }
+
 .row {
   display: flex;
   align-items: center;
@@ -1383,18 +1549,22 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   transition: background 160ms ease;
 }
+
 .row:hover {
   background: rgba(255, 255, 255, 0.05);
 }
+
 .rowTitle {
   font-weight: 950;
   font-size: 13px;
 }
+
 .rowSub {
   font-size: 12px;
   opacity: 0.68;
   margin-top: 2px;
 }
+
 .chip {
   font-size: 12px;
   padding: 6px 10px;
@@ -1404,6 +1574,7 @@ onBeforeUnmount(() => {
   opacity: 0.9;
   white-space: nowrap;
 }
+
 .empty {
   padding: 16px 10px;
   opacity: 0.7;
@@ -1413,6 +1584,7 @@ onBeforeUnmount(() => {
 .skeletonList {
   padding: 0 14px 14px;
 }
+
 .sk {
   height: 42px;
   border-radius: 12px;
@@ -1426,6 +1598,7 @@ onBeforeUnmount(() => {
   background-size: 240% 100%;
   animation: shimmer 1.1s ease infinite;
 }
+
 @keyframes shimmer {
   0% {
     background-position: 0% 0;
@@ -1439,15 +1612,19 @@ onBeforeUnmount(() => {
   .stat {
     grid-column: span 6;
   }
+
   .chartWide {
     grid-column: span 12;
   }
+
   .chartNarrow {
     grid-column: span 12;
   }
+
   .list {
     grid-column: span 6;
   }
+
   .actionGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1455,6 +1632,7 @@ onBeforeUnmount(() => {
   .profileBox {
     min-width: 280px;
   }
+
   .profileName {
     max-width: 200px;
   }
@@ -1465,6 +1643,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .headRight {
     width: 100%;
     justify-content: space-between;
@@ -1474,6 +1653,7 @@ onBeforeUnmount(() => {
   .list {
     grid-column: span 12;
   }
+
   .actionGrid {
     grid-template-columns: 1fr;
   }
@@ -1482,6 +1662,7 @@ onBeforeUnmount(() => {
     width: 100%;
     min-width: 0;
   }
+
   .profileName {
     max-width: 260px;
   }

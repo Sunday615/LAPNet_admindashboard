@@ -1,16 +1,16 @@
 <template>
   <div class="loginPage">
-    <!-- ✅ Video Background -->
+    <!-- Video Background -->
     <video class="bgVideo" autoplay muted loop playsinline preload="auto">
       <source src="/Video/test2.mp4" type="video/mp4" />
     </video>
 
-    <!-- ✅ Dark overlay to make text readable -->
+    <!-- Dark overlay to make text readable -->
     <div class="bgOverlay"></div>
 
-    <!-- ✅ Login Card -->
+    <!-- Login Card -->
     <div class="loginCard" ref="cardEl">
-      <!-- ✅ Light sweeps -->
+      <!-- Light sweeps -->
       <div class="lightSweep sweepA" ref="sweepAEl" aria-hidden="true"></div>
       <div class="lightSweep sweepB" ref="sweepBEl" aria-hidden="true"></div>
 
@@ -97,8 +97,42 @@ const showPass = ref(false);
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
 
+/* -----------------------------
+  API base from .env only
+----------------------------- */
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
 
-const LOGIN_URL = "http://localhost:3000/api/auth/login";
+if (!API_BASE) {
+  console.warn("[login] Missing VITE_API_BASE_URL in .env");
+}
+
+function joinBaseAndPath(baseUrl, path) {
+  const b = String(baseUrl || "").trim().replace(/\/+$/, "");
+  let p = String(path || "").trim();
+
+  if (!p) return b;
+  if (!p.startsWith("/")) p = `/${p}`;
+
+  if (/\/api$/i.test(b) && /^\/api\//i.test(p)) {
+    p = p.slice(4);
+  }
+
+  return b ? `${b}${p}` : p;
+}
+
+const API = (path = "") => {
+  const p = String(path || "").trim();
+
+  if (!p) return API_BASE;
+  if (/^https?:\/\//i.test(p)) return p;
+  if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
+
+  return joinBaseAndPath(API_BASE, p);
+};
+
+const LOGIN_URL = API("/api/auth/login");
 
 const ADMIN_HOME = "/dashboard";
 const VIEWER_HOME = "/memberdashboard";
@@ -112,9 +146,9 @@ const form = reactive({
 let sweepTl = null;
 let floatTl = null;
 
-// ---------------------
-// auth helpers
-// ---------------------
+/* -----------------------------
+  Auth helpers
+----------------------------- */
 function safeJsonParse(x) {
   try {
     return JSON.parse(String(x));
@@ -157,37 +191,26 @@ function isViewerRole(user) {
   return normalizeRole(user?.role) === "viewer";
 }
 
-/**
- * ✅ Fallback admin path detection (ถ้าไม่ได้ใช้ meta.area)
- * ปรับเพิ่มได้ตามโปรเจค
- */
 function isAdminPath(path) {
   const p = String(path || "");
   return p === ADMIN_HOME || p.startsWith("/admin") || p.startsWith("/dashboard");
 }
 
-/**
- * ✅ decide redirect target with role + query.redirect
- * - viewer => ALWAYS go VIEWER_HOME
- * - non-viewer => go query.redirect (if valid) else ADMIN_HOME
- * - if redirect points to admin zone but role is viewer => force VIEWER_HOME
- */
 function getRedirectTargetForUser(user) {
   const viewer = isViewerRole(user);
   const q = route.query.redirect?.toString() || "";
 
   let target = q && !q.startsWith("/login") ? q : viewer ? VIEWER_HOME : ADMIN_HOME;
 
-  // enforce separation
   if (viewer && isAdminPath(target)) target = VIEWER_HOME;
   if (!viewer && target.startsWith(VIEWER_HOME)) target = ADMIN_HOME;
 
   return target;
 }
 
-// ---------------------
-// login
-// ---------------------
+/* -----------------------------
+  Login
+----------------------------- */
 async function handleLogin() {
   error.value = "";
 
@@ -200,6 +223,7 @@ async function handleLogin() {
   }
 
   loading.value = true;
+
   try {
     const res = await fetch(LOGIN_URL, {
       method: "POST",
@@ -208,12 +232,16 @@ async function handleLogin() {
     });
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || "Invalid username or password.");
-    if (!data?.token || !data?.user) throw new Error("Login API response invalid (missing token/user)");
+
+    if (!res.ok) {
+      throw new Error(data?.message || "Invalid username or password.");
+    }
+
+    if (!data?.token || !data?.user) {
+      throw new Error("Login API response invalid (missing token/user)");
+    }
 
     saveAuth(data, form.remember);
-
-    // ✅ role-based redirect + block viewer -> admin
     router.replace(getRedirectTargetForUser(data.user));
   } catch (e) {
     error.value = e?.message || "Login failed.";
@@ -222,9 +250,9 @@ async function handleLogin() {
   }
 }
 
-// ---------------------
-// animations
-// ---------------------
+/* -----------------------------
+  Animations
+----------------------------- */
 function initFloatingWave() {
   if (!cardEl.value) return;
 
@@ -233,13 +261,11 @@ function initFloatingWave() {
 
   gsap.set(cardEl.value, { willChange: "transform" });
 
-  // ✅ wave feel: gentle up-down + micro rotate
   floatTl = gsap
     .timeline({ repeat: -1 })
     .to(cardEl.value, { y: -10, rotation: 0.12, duration: 2.6, ease: "sine.inOut" })
     .to(cardEl.value, { y: 0, rotation: -0.08, duration: 2.8, ease: "sine.inOut" });
 
-  // pause while interacting
   const pauseFloat = () => floatTl && floatTl.pause();
   const resumeFloat = () => floatTl && floatTl.resume();
 
@@ -290,6 +316,7 @@ function cleanupAll() {
     sweepTl.kill();
     sweepTl = null;
   }
+
   if (floatTl) {
     floatTl.kill();
     floatTl = null;
@@ -301,6 +328,7 @@ function cleanupAll() {
     cardEl.value.removeEventListener("mouseenter", cardEl.value.__sw_enter__);
     delete cardEl.value.__sw_enter__;
   }
+
   if (cardEl.value.__sw_leave__) {
     cardEl.value.removeEventListener("mouseleave", cardEl.value.__sw_leave__);
     delete cardEl.value.__sw_leave__;
@@ -311,6 +339,7 @@ function cleanupAll() {
     cardEl.value.removeEventListener("focusin", cardEl.value.__fl_pause__);
     delete cardEl.value.__fl_pause__;
   }
+
   if (cardEl.value.__fl_resume__) {
     cardEl.value.removeEventListener("mouseleave", cardEl.value.__fl_resume__);
     cardEl.value.removeEventListener("focusout", cardEl.value.__fl_resume__);
@@ -322,21 +351,18 @@ onMounted(async () => {
   await nextTick();
   if (!cardEl.value) return;
 
-  // ✅ If already logged in, redirect by role
   const { token, user } = getAuthFromStorage();
   if (token && user) {
     router.replace(getRedirectTargetForUser(user));
     return;
   }
 
-  // ✅ Smooth entrance
   gsap.fromTo(
     cardEl.value,
     { y: 22, opacity: 0, scale: 0.975, filter: "blur(7px)" },
     { y: 0, opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.8, ease: "power3.out" }
   );
 
-  // ✅ start animations after settle
   gsap.delayedCall(0.35, initSweeps);
   gsap.delayedCall(0.55, initFloatingWave);
 });
@@ -423,7 +449,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* ✅ Light sweeps */
 .lightSweep {
   position: absolute;
   inset: -55%;
@@ -479,6 +504,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 18px 46px rgba(56, 189, 248, 0.12);
 }
+
 .logoWrap img {
   width: 100%;
   height: 100%;
@@ -492,6 +518,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.96);
   font-size: 18px;
 }
+
 .sub {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.55);
@@ -509,6 +536,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 7px;
 }
+
 .label {
   font-size: 12px;
   font-weight: 800;
@@ -568,6 +596,7 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   transition: background 160ms ease, color 160ms ease;
 }
+
 .eyeBtn:hover {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.92);
@@ -590,6 +619,7 @@ onBeforeUnmount(() => {
   font-weight: 750;
   font-size: 12px;
 }
+
 .check input {
   width: 16px;
   height: 16px;
@@ -644,6 +674,7 @@ onBeforeUnmount(() => {
   .loginPage {
     padding: 18px;
   }
+
   .loginCard {
     border-radius: 18px;
   }
@@ -653,6 +684,7 @@ onBeforeUnmount(() => {
   .bgVideo {
     display: none;
   }
+
   .lightSweep {
     display: none;
   }
