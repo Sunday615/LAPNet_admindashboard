@@ -166,8 +166,7 @@ const routes: RouteRecordRaw[] = [
   // -------------------------
   { path: "/v/view_document", name: "v_view_member", component: main, meta: { roles: ["viewer"] } },
 
-  // ✅ FIX: documentviewer ต้องรับ :id (แก้ error Missing template id / viewer/:id)
-  // - ใส่ :id? ให้ลิงก์เก่า (/v/documentviewer) ยังไม่พัง
+
   { path: "/v/documentviewer/:id?", name: "v_documentviewer", component: documentviewer, meta: { roles: ["viewer"] } },
 
   // ✅ เพิ่ม route ตามข้อความ error ที่คุณเจอ: /viewer/:id -> ชี้ไป /v/documentviewer/:id

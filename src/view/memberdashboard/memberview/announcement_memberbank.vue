@@ -87,10 +87,8 @@
               <span v-if="!isRead(item.id)" class="dot" title="Unread"></span>
 
               <span v-if="item.preview.type !== 'none'" class="badge">
-                <i
-                  :class="item.preview.type === 'image' ? 'fa-regular fa-image' : 'fa-regular fa-file-pdf'"
-                ></i>
-                {{ item.preview.type === "image" ? "Image" : "PDF" }}
+                <i :class="previewBadgeIcon(item.preview.type)"></i>
+                {{ previewBadgeText(item.preview.type) }}
               </span>
             </div>
 
@@ -137,15 +135,10 @@
                     <i class="fa-regular fa-clock"></i>
                     {{ formatDate(selected.date) }}
                   </span>
+
                   <span v-if="selected.preview.type !== 'none'" class="badge">
-                    <i
-                      :class="
-                        selected.preview.type === 'image'
-                          ? 'fa-regular fa-image'
-                          : 'fa-regular fa-file-pdf'
-                      "
-                    ></i>
-                    {{ selected.preview.type === "image" ? "Image" : "PDF" }}
+                    <i :class="previewBadgeIcon(selected.preview.type)"></i>
+                    {{ previewBadgeText(selected.preview.type) }}
                   </span>
                 </div>
               </div>
@@ -178,26 +171,93 @@
                   Preview
                 </div>
 
-                <img
-                  v-if="selected.preview.type === 'image'"
-                  class="img"
-                  :src="selected.preview.url"
-                  :alt="selected.title"
-                  loading="lazy"
-                />
+                <div v-if="assetLoading" class="assetState">
+                  <i class="fa-solid fa-spinner fa-spin"></i>
+                  <span>Loading file preview…</span>
+                </div>
 
-                <iframe
-                  v-else
-                  class="pdf"
-                  :src="pdfEmbedUrl(selected.preview.url)"
-                  title="PDF preview"
-                ></iframe>
+                <div v-else-if="assetError" class="assetState assetStateError">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>{{ assetError }}</span>
+                </div>
+
+                <template v-else>
+                  <img
+                    v-if="selected.preview.type === 'image' && resolvedPreviewUrl"
+                    class="img"
+                    :src="resolvedPreviewUrl"
+                    :alt="selected.title"
+                    loading="lazy"
+                  />
+
+                  <iframe
+                    v-else-if="selected.preview.type === 'pdf' && resolvedPreviewUrl"
+                    class="pdf"
+                    :src="pdfEmbedUrl(resolvedPreviewUrl)"
+                    title="PDF preview"
+                  ></iframe>
+
+                  <div
+                    v-else-if="selected.preview.type === 'word'"
+                    class="wordPreview"
+                  >
+                    <div class="wordPreviewIcon">
+                      <i class="fa-regular fa-file-word"></i>
+                    </div>
+
+                    <div class="wordPreviewBody">
+                      <div class="wordPreviewTitle">
+                        {{ selected.preview.name || "Word document" }}
+                      </div>
+                      <div class="wordPreviewSub">
+                        Inline preview for secured Word files is not supported in most browsers.
+                        Use Open in new tab or Download file.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-else-if="resolvedPreviewUrl"
+                    class="wordPreview"
+                  >
+                    <div class="wordPreviewIcon">
+                      <i class="fa-regular fa-file"></i>
+                    </div>
+
+                    <div class="wordPreviewBody">
+                      <div class="wordPreviewTitle">
+                        {{ selected.preview.name || "Attachment" }}
+                      </div>
+                      <div class="wordPreviewSub">
+                        Preview is not available for this file type. You can still open or download it.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="assetState">
+                    <i class="fa-regular fa-file"></i>
+                    <span>No preview available</span>
+                  </div>
+                </template>
 
                 <div class="previewActions">
-                  <a class="btn primary" :href="selected.preview.url" target="_blank" rel="noopener">
+                  <button
+                    class="btn"
+                    @click="openSelectedPreviewInNewTab"
+                    :disabled="assetLoading || !canOpenSelectedPreview"
+                  >
                     <i class="fa-solid fa-up-right-from-square"></i>
                     Open in new tab
-                  </a>
+                  </button>
+
+                  <button
+                    class="btn primary"
+                    @click="downloadSelectedPreview"
+                    :disabled="assetLoading || !canDownloadSelectedPreview"
+                  >
+                    <i class="fa-solid fa-download"></i>
+                    Download file
+                  </button>
                 </div>
               </section>
             </div>
@@ -216,6 +276,7 @@ function resolveApiBase() {
   const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
   return raw.replace(/\/+$/, "");
 }
+
 function joinBaseAndPath(baseUrl, path) {
   const p = String(path || "");
   if (!baseUrl) return p;
@@ -224,25 +285,25 @@ function joinBaseAndPath(baseUrl, path) {
   if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
   return b + pp;
 }
+
 const API_BASE = resolveApiBase();
-
-
 const API_URL = joinBaseAndPath(API_BASE, "/api/announcements");
 const USERS_URL = joinBaseAndPath(API_BASE, "/api/users/");
 
-/* ✅ Year format: Anno Domini */
+/* Year format: Anno Domini */
 const AD_LABEL = "";
 
-// ---- Optional auth header (if your API uses Bearer token)
+// ---- Optional auth header
 function readToken() {
   return localStorage.getItem("token") || sessionStorage.getItem("token") || "";
 }
+
 function authHeaders() {
   const t = readToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-// ---- Per-user storage key (uses localStorage/sessionStorage "user" if available)
+// ---- Per-user storage key
 function safeJsonParse(x) {
   try {
     return JSON.parse(String(x));
@@ -250,6 +311,7 @@ function safeJsonParse(x) {
     return null;
   }
 }
+
 function readUserFromStorage() {
   const u1 = localStorage.getItem("user");
   if (u1) return safeJsonParse(u1);
@@ -257,10 +319,12 @@ function readUserFromStorage() {
   if (u2) return safeJsonParse(u2);
   return null;
 }
+
 function getUserKey() {
   const u = readUserFromStorage();
   return String(u?.id || u?.user_id || u?.username || u?.email || "anon");
 }
+
 function getStorageKey() {
   return `announcement_read_ids_v1_${getUserKey()}`;
 }
@@ -270,7 +334,6 @@ const loading = ref(false);
 const error = ref("");
 const raw = ref([]);
 
-// ---- current user bankcode (from /api/users)
 const userBankcode = ref("");
 const usersError = ref("");
 
@@ -279,43 +342,57 @@ const unreadOnly = ref(false);
 
 const selected = ref(null);
 
+// ---- attachment asset state
+const assetLoading = ref(false);
+const assetError = ref("");
+const resolvedPreviewUrl = ref("");
+const resolvedPreviewMime = ref("");
+const resolvedPreviewName = ref("");
+
+const assetCache = new Map();
+const createdObjectUrls = new Set();
+
 // ---- read set
 const readSet = ref(loadReadSet());
 
 function loadReadSet() {
   try {
-    const raw = localStorage.getItem(getStorageKey());
-    const arr = raw ? JSON.parse(raw) : [];
+    const rawValue = localStorage.getItem(getStorageKey());
+    const arr = rawValue ? JSON.parse(rawValue) : [];
     return new Set(arr.map(String));
   } catch {
     return new Set();
   }
 }
+
 function persistReadSet(set) {
   localStorage.setItem(getStorageKey(), JSON.stringify([...set]));
 }
+
 function isRead(id) {
   return readSet.value.has(String(id));
 }
+
 function markRead(id) {
   const next = new Set(readSet.value);
   next.add(String(id));
   readSet.value = next;
   persistReadSet(next);
 }
+
 function markAllAsRead() {
   const next = new Set(readSet.value);
-  for (const a of announcements.value) next.add(String(a.id)); // ✅ only visible announcements
+  for (const a of announcements.value) next.add(String(a.id));
   readSet.value = next;
   persistReadSet(next);
 }
+
 function markSelectedAsRead() {
   if (!selected.value) return;
   markRead(selected.value.id);
 }
 
 // ---- helpers
-/* ✅ Format: "DD Mon AD YYYY HH:mm" */
 function formatDate(value) {
   if (!value) return "—";
   const d = new Date(value);
@@ -327,75 +404,133 @@ function formatDate(value) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
 
-  // Example: 26 Jan AD 2026 08:15
   return `${dd} ${mon} ${AD_LABEL} ${yyyy} ${hh}:${mm}`;
 }
 
 function truncateText(text, max = 160) {
   const t = (text || "").replace(/\s+/g, " ").trim();
   if (!t) return "";
-  return t.length > max ? t.slice(0, max - 1) + "…" : t;
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
+
 function getExt(url = "") {
   const clean = String(url).split("?")[0].toLowerCase();
   const parts = clean.split(".");
   return parts.length > 1 ? parts.pop() : "";
 }
+
+function fileNameFromUrl(url = "") {
+  try {
+    const clean = String(url).split("?")[0];
+    const parts = clean.split("/");
+    return decodeURIComponent(parts[parts.length - 1] || "file");
+  } catch {
+    return "file";
+  }
+}
+
 function detectPreviewTypeFromUrl(url) {
   const ext = getExt(url);
   const img = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp"]);
+  const word = new Set(["doc", "docx"]);
+
   if (img.has(ext)) return "image";
   if (ext === "pdf") return "pdf";
-  return "none";
+  if (word.has(ext)) return "word";
+  return "file";
 }
+
+function detectPreviewTypeFromMime(mime = "") {
+  const m = String(mime).toLowerCase().trim();
+  if (!m) return "none";
+  if (m.startsWith("image/")) return "image";
+  if (m === "application/pdf") return "pdf";
+  if (
+    m === "application/msword" ||
+    m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    return "word";
+  }
+  return "file";
+}
+
 function pdfEmbedUrl(url) {
   const hasHash = String(url).includes("#");
   return hasHash ? url : `${url}#toolbar=0&navpanes=0&scrollbar=1`;
 }
+
 function resolveAssetUrl(url) {
   if (!url) return "";
-  const s = String(url);
-  if (s.startsWith("http://") || s.startsWith("http://") || s.startsWith("data:") || s.startsWith("blob:"))
-    return s;
+  const s = String(url).trim();
+  if (/^(https?:|data:|blob:)/i.test(s)) return s;
 
   const origin = (API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE) || window.location.origin;
+
   if (!s.startsWith("/")) return `${origin}/${s}`;
   return `${origin}${s}`;
 }
 
-// ---- normalize preview (supports many shapes)
+function previewBadgeIcon(type) {
+  if (type === "image") return "fa-regular fa-image";
+  if (type === "pdf") return "fa-regular fa-file-pdf";
+  if (type === "word") return "fa-regular fa-file-word";
+  return "fa-regular fa-file";
+}
+
+function previewBadgeText(type) {
+  if (type === "image") return "Image";
+  if (type === "pdf") return "PDF";
+  if (type === "word") return "Word";
+  return "File";
+}
+
+// ---- normalize preview
 function pickPreview(item) {
   const candidates = [];
 
-  const directUrls = [
-    item.image_url,
-    item.imageUrl,
-    item.pdf_url,
-    item.pdfUrl,
-    item.file_url,
-    item.fileUrl,
-    item.url,
-    item.path,
-  ].filter(Boolean);
+  const directEntries = [
+    { url: item.image_url, name: item.image_name || item.imageName || "" },
+    { url: item.imageUrl, name: item.image_name || item.imageName || "" },
+    { url: item.pdf_url, name: item.pdf_name || item.pdfName || "" },
+    { url: item.pdfUrl, name: item.pdf_name || item.pdfName || "" },
+    { url: item.doc_url, name: item.doc_name || item.docName || "" },
+    { url: item.docUrl, name: item.doc_name || item.docName || "" },
+    { url: item.docx_url, name: item.docx_name || item.docxName || "" },
+    { url: item.docxUrl, name: item.docx_name || item.docxName || "" },
+    { url: item.word_url, name: item.word_name || item.wordName || "" },
+    { url: item.wordUrl, name: item.word_name || item.wordName || "" },
+    { url: item.file_url, name: item.file_name || item.fileName || "" },
+    { url: item.fileUrl, name: item.file_name || item.fileName || "" },
+    { url: item.url, name: item.name || item.filename || "" },
+    { url: item.path, name: item.name || item.filename || "" },
+  ].filter((x) => x.url);
 
-  for (const u of directUrls) {
-    const abs = resolveAssetUrl(u);
-    candidates.push({ url: abs, type: detectPreviewTypeFromUrl(abs) });
+  for (const entry of directEntries) {
+    const abs = resolveAssetUrl(entry.url);
+    candidates.push({
+      url: abs,
+      type: detectPreviewTypeFromUrl(abs),
+      name: entry.name || fileNameFromUrl(abs),
+      mime: "",
+    });
   }
 
   const attachments = Array.isArray(item.attachments) ? item.attachments : [];
   for (const a of attachments) {
-    const u = a.url || a.file_url || a.path;
+    const u = a.url || a.file_url || a.fileUrl || a.path;
     if (!u) continue;
 
     const abs = resolveAssetUrl(u);
-    const mime = String(a.mime_type || a.mimeType || "").toLowerCase();
-    let type = "none";
-    if (mime.startsWith("image/")) type = "image";
-    else if (mime === "application/pdf") type = "pdf";
-    else type = detectPreviewTypeFromUrl(abs);
+    const mime = String(a.mime_type || a.mimeType || a.type || "").toLowerCase();
+    let type = detectPreviewTypeFromMime(mime);
+    if (type === "none") type = detectPreviewTypeFromUrl(abs);
 
-    candidates.push({ url: abs, type });
+    candidates.push({
+      url: abs,
+      type,
+      name: a.originalname || a.originalName || a.filename || a.fileName || a.name || fileNameFromUrl(abs),
+      mime,
+    });
   }
 
   const image = candidates.find((c) => c.type === "image");
@@ -404,18 +539,24 @@ function pickPreview(item) {
   const pdf = candidates.find((c) => c.type === "pdf");
   if (pdf) return pdf;
 
-  return { type: "none", url: "" };
+  const word = candidates.find((c) => c.type === "word");
+  if (word) return word;
+
+  const generic = candidates.find((c) => c.type === "file");
+  if (generic) return generic;
+
+  return { type: "none", url: "", name: "", mime: "" };
 }
 
-// ---- ✅ audience targeting: target_all OR member_ids includes user's bankcode
+// ---- audience targeting
 function truthy(v) {
   return v === true || v === 1 || v === "1" || String(v).toLowerCase() === "true";
 }
+
 function normalizeMemberIds(v) {
   if (!v) return [];
   if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
 
-  // string: JSON array OR "a,b,c"
   const s = String(v).trim();
   if (!s) return [];
   const maybeJson = safeJsonParse(s);
@@ -426,7 +567,6 @@ function normalizeMemberIds(v) {
 
 function normalize(item) {
   const id = item.id ?? item.announcement_id ?? item._id ?? crypto.randomUUID();
-
   const title = item.title ?? item.subject ?? item.name ?? "Untitled announcement";
   const content = item.content ?? item.description ?? item.body ?? item.detail ?? "";
   const date = item.created_at ?? item.createdAt ?? item.date ?? item.updated_at ?? item.updatedAt ?? "";
@@ -441,10 +581,8 @@ function normalize(item) {
     summary: truncateText(content || item.summary || item.short || "", 160) || "—",
     date,
     preview: pickPreview(item),
-
     targetAll,
     memberIds,
-
     _raw: item,
   };
 }
@@ -462,7 +600,7 @@ function isVisibleForUser(ann) {
 // All normalized announcements
 const allAnnouncements = computed(() => raw.value.map(normalize));
 
-// ✅ Visible announcements only (bankcode match or target_all)
+// Visible announcements only
 const announcements = computed(() => allAnnouncements.value.filter(isVisibleForUser));
 
 const unreadCount = computed(() => announcements.value.filter((a) => !isRead(a.id)).length);
@@ -480,7 +618,6 @@ const filteredAnnouncements = computed(() => {
     list = list.filter((a) => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q));
   }
 
-  // Unread first, then newest
   return [...list].sort((a, b) => {
     const ar = isRead(a.id) ? 1 : 0;
     const br = isRead(b.id) ? 1 : 0;
@@ -542,7 +679,6 @@ async function refresh() {
 
     const list = Array.isArray(annRes) ? annRes : Array.isArray(annRes?.data) ? annRes.data : [];
     raw.value = list;
-
     readSet.value = loadReadSet();
   } catch (e) {
     if (e?.name !== "AbortError") error.value = e?.message || String(e);
@@ -551,26 +687,174 @@ async function refresh() {
   }
 }
 
+// ---- asset helpers
+function clearResolvedPreviewState() {
+  assetLoading.value = false;
+  assetError.value = "";
+  resolvedPreviewUrl.value = "";
+  resolvedPreviewMime.value = "";
+  resolvedPreviewName.value = "";
+}
+
+function rememberObjectUrl(url) {
+  if (url && url.startsWith("blob:")) {
+    createdObjectUrls.add(url);
+  }
+}
+
+function normalizeContentDispositionFileName(headerValue) {
+  const rawValue = String(headerValue || "");
+  if (!rawValue) return "";
+
+  const utfMatch = rawValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1]);
+    } catch {
+      return utfMatch[1];
+    }
+  }
+
+  const plainMatch = rawValue.match(/filename\s*=\s*"([^"]+)"/i) || rawValue.match(/filename\s*=\s*([^;]+)/i);
+  if (plainMatch?.[1]) return plainMatch[1].trim();
+
+  return "";
+}
+
+async function fetchProtectedAsset(preview) {
+  if (!preview?.url) {
+    throw new Error("Attachment URL is missing");
+  }
+
+  const cacheKey = preview.url;
+  if (assetCache.has(cacheKey)) {
+    return assetCache.get(cacheKey);
+  }
+
+  const res = await fetch(preview.url, {
+    headers: { ...authHeaders() },
+  });
+
+  if (!res.ok) {
+    throw new Error(`File HTTP ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  rememberObjectUrl(blobUrl);
+
+  const contentDisposition = res.headers.get("content-disposition");
+  const nameFromHeader = normalizeContentDispositionFileName(contentDisposition);
+  const finalName = nameFromHeader || preview.name || fileNameFromUrl(preview.url) || "attachment";
+
+  const payload = {
+    blobUrl,
+    mime: blob.type || preview.mime || "",
+    name: finalName,
+  };
+
+  assetCache.set(cacheKey, payload);
+  return payload;
+}
+
+async function ensureSelectedPreviewAsset() {
+  clearResolvedPreviewState();
+
+  if (!selected.value?.preview || selected.value.preview.type === "none" || !selected.value.preview.url) {
+    return;
+  }
+
+  assetLoading.value = true;
+
+  try {
+    const result = await fetchProtectedAsset(selected.value.preview);
+    resolvedPreviewUrl.value = result.blobUrl;
+    resolvedPreviewMime.value = result.mime;
+    resolvedPreviewName.value = result.name;
+  } catch (e) {
+    assetError.value = e?.message || "Failed to load attachment";
+  } finally {
+    assetLoading.value = false;
+  }
+}
+
+const canOpenSelectedPreview = computed(() => {
+  if (!selected.value?.preview || selected.value.preview.type === "none") return false;
+  if (assetLoading.value) return false;
+  return Boolean(resolvedPreviewUrl.value);
+});
+
+const canDownloadSelectedPreview = computed(() => {
+  if (!selected.value?.preview || selected.value.preview.type === "none") return false;
+  if (assetLoading.value) return false;
+  return Boolean(resolvedPreviewUrl.value);
+});
+
+function triggerDownload(url, fileName) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName || "attachment";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function openSelectedPreviewInNewTab() {
+  if (!selected.value?.preview || selected.value.preview.type === "none") return;
+
+  if (!resolvedPreviewUrl.value) {
+    await ensureSelectedPreviewAsset();
+  }
+
+  if (!resolvedPreviewUrl.value) return;
+
+  window.open(resolvedPreviewUrl.value, "_blank", "noopener,noreferrer");
+}
+
+async function downloadSelectedPreview() {
+  if (!selected.value?.preview || selected.value.preview.type === "none") return;
+
+  if (!resolvedPreviewUrl.value) {
+    await ensureSelectedPreviewAsset();
+  }
+
+  if (!resolvedPreviewUrl.value) return;
+
+  const fileName = resolvedPreviewName.value || selected.value.preview.name || "attachment";
+  triggerDownload(resolvedPreviewUrl.value, fileName);
+}
+
 // ---- modal
 function open(item) {
   selected.value = item;
   markRead(item.id);
   lockScroll(true);
 }
+
 function close() {
   selected.value = null;
   lockScroll(false);
+  clearResolvedPreviewState();
 }
+
 function onKeydown(e) {
   if (e.key === "Escape" && selected.value) close();
 }
+
 function lockScroll(lock) {
   document.documentElement.style.overflow = lock ? "hidden" : "";
   document.body.style.overflow = lock ? "hidden" : "";
 }
 
-watch(selected, (v) => {
-  if (!v) lockScroll(false);
+watch(selected, async (v) => {
+  if (!v) {
+    lockScroll(false);
+    clearResolvedPreviewState();
+    return;
+  }
+
+  await ensureSelectedPreviewAsset();
 });
 
 onMounted(() => {
@@ -582,20 +866,21 @@ onBeforeUnmount(() => {
   if (aborter) aborter.abort();
   window.removeEventListener("keydown", onKeydown);
   lockScroll(false);
+
+  for (const url of createdObjectUrls) {
+    URL.revokeObjectURL(url);
+  }
+  createdObjectUrls.clear();
+  assetCache.clear();
 });
 </script>
 
 <style scoped>
-/* Uses your global theme vars from .app.tech:
-   --panel --panel2 --stroke --txt --muted --glass --glass2 --blueA --blueB etc.
-*/
-
 .viewer {
   display: grid;
   gap: 14px;
 }
 
-/* Shared card look (glass) */
 .card {
   background: var(--panel, rgba(255, 255, 255, 0.045));
   border: 1px solid var(--stroke, rgba(255, 255, 255, 0.08));
@@ -944,7 +1229,6 @@ onBeforeUnmount(() => {
   width: min(1020px, 96vw);
   max-height: calc(100vh - 36px);
   overflow: auto;
-
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -1011,6 +1295,66 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.82);
 }
 
+.assetState {
+  min-height: 140px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 18px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.assetStateError {
+  color: rgba(255, 170, 170, 0.95);
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.wordPreview {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.wordPreviewIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+
+.wordPreviewBody {
+  min-width: 0;
+}
+
+.wordPreviewTitle {
+  font-size: 15px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.94);
+  word-break: break-word;
+}
+
+.wordPreviewSub {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.55;
+  font-size: 13px;
+}
+
 .img {
   width: 100%;
   border-radius: 16px;
@@ -1029,6 +1373,8 @@ onBeforeUnmount(() => {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* Transition */

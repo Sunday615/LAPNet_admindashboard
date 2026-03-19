@@ -1,4 +1,4 @@
-<!-- src/views/ViewerOverview.vue -->
+<!-- src/views/ViewerOverview.vue  (Overview + Members card + Members in charts) -->
 <template>
   <section class="ov">
     <!-- Header -->
@@ -13,7 +13,6 @@
       </div>
 
       <div class="headRight">
-        <!-- Single Box (Account + MemberBank) -->
         <div
           class="profileBox"
           @mouseenter="profileHover($event, true)"
@@ -83,15 +82,12 @@
       </div>
     </header>
 
-    <!-- Error -->
     <div v-if="error" class="banner js-reveal">
       <div class="bannerTitle">⚠️ Load error</div>
       <div class="bannerBody">{{ error }}</div>
     </div>
 
-    <!-- Grid -->
     <div class="grid">
-      <!-- Documents -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -118,14 +114,13 @@
         </button>
       </article>
 
-      <!-- Announcements -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
             <i class="fa-solid fa-bullhorn"></i>
             Announcements
           </div>
-          <div class="pill">Targeted</div>
+          <div class="pill">Visible</div>
         </div>
         <div class="statRow">
           <div class="statValue">{{ totals.announcements }}</div>
@@ -145,7 +140,6 @@
         </button>
       </article>
 
-      <!-- FORMS (ACTIVE ONLY) -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -172,7 +166,6 @@
         </button>
       </article>
 
-      <!-- MEMBERS -->
       <article class="card stat js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -199,7 +192,6 @@
         </button>
       </article>
 
-      <!-- Trend chart -->
       <article class="card chartWide js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -213,10 +205,9 @@
           <canvas ref="trendCanvas"></canvas>
         </div>
 
-        <div class="hint">Count by month (Documents / Targeted Announcements / Active Forms / Members)</div>
+        <div class="hint">Count by month (Documents / Visible Announcements / Active Forms / Members)</div>
       </article>
 
-      <!-- Distribution chart -->
       <article class="card chartNarrow js-reveal" @mouseenter="cardHover($event, true)" @mouseleave="cardHover($event, false)">
         <div class="cardHead">
           <div class="cardTitle">
@@ -266,7 +257,6 @@
         </div>
       </article>
 
-      <!-- Recent: Documents -->
       <article class="card list js-reveal">
         <div class="cardHead">
           <div class="cardTitle">
@@ -298,7 +288,6 @@
         </ul>
       </article>
 
-      <!-- Recent: Announcements -->
       <article class="card list js-reveal">
         <div class="cardHead">
           <div class="cardTitle">
@@ -324,13 +313,20 @@
               <div class="rowTitle">{{ a.title || a.subject || "(Untitled)" }}</div>
               <div class="rowSub">{{ formatDate(a._date) }}</div>
             </div>
-            <div class="chip">{{ a.category || "ANN" }}</div>
+            <div class="chip">
+              {{
+                a._isPublic
+                  ? "PUBLIC"
+                  : a._isTargeted
+                    ? "TARGETED"
+                    : (a.category || "ANN")
+              }}
+            </div>
           </li>
-          <li v-if="!recentAnns.length" class="empty">No targeted announcements found</li>
+          <li v-if="!recentAnns.length" class="empty">No announcements found</li>
         </ul>
       </article>
 
-      <!-- Recent: Forms (ACTIVE ONLY) -->
       <article class="card list js-reveal">
         <div class="cardHead">
           <div class="cardTitle">
@@ -366,7 +362,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import gsap from "gsap";
 
@@ -398,24 +394,19 @@ Chart.register(
 const router = useRouter();
 const headEl = ref(null);
 
-/* Force Year + Anno Domini label everywhere */
 const DISPLAY_YEAR = 2026;
 const AD_LABEL = "";
 
-/* -----------------------------
-  API base (.env only)
------------------------------ */
 function resolveApiBase() {
   const raw = String(import.meta?.env?.VITE_API_BASE_URL || "").trim();
   return raw.replace(/\/+$/, "");
 }
+
 function joinBaseAndPath(baseUrl, path) {
   const p = String(path || "");
   if (!baseUrl) return p;
-
   const b = String(baseUrl || "").replace(/\/+$/, "");
   const pp = p.startsWith("/") ? p : `/${p}`;
-
   if (b.endsWith("/api") && pp.startsWith("/api/")) return b + pp.slice(4);
   return b + pp;
 }
@@ -430,9 +421,6 @@ const endpoints = {
   members: joinBaseAndPath(API_BASE, "/api/members"),
 };
 
-/* -----------------------------
-  State
------------------------------ */
 const loading = ref(false);
 const error = ref("");
 
@@ -444,9 +432,6 @@ const members = ref([]);
 const totals = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
 const last7 = reactive({ documents: 0, announcements: 0, forms: 0, members: 0 });
 
-/* -----------------------------
-  Profile (Account)
------------------------------ */
 const profileLoading = ref(false);
 const profileError = ref("");
 const profile = ref({
@@ -455,9 +440,6 @@ const profile = ref({
   member_id: null,
 });
 
-/* -----------------------------
-  MemberBank Profile (logo + name)
------------------------------ */
 const memberLoading = ref(false);
 const memberError = ref("");
 const memberProfile = ref({
@@ -467,17 +449,11 @@ const memberProfile = ref({
   logo: "",
 });
 
-/* -----------------------------
-  Charts
------------------------------ */
 const trendCanvas = ref(null);
 const distCanvas = ref(null);
 let trendChart = null;
 let distChart = null;
 
-/* -----------------------------
-  Helpers (storage/user)
------------------------------ */
 function safeJsonParse(x) {
   try {
     return JSON.parse(String(x));
@@ -489,10 +465,8 @@ function safeJsonParse(x) {
 function readUserFromStorage() {
   const u1 = localStorage.getItem("user");
   if (u1) return safeJsonParse(u1);
-
   const u2 = sessionStorage.getItem("user");
   if (u2) return safeJsonParse(u2);
-
   return null;
 }
 
@@ -505,9 +479,6 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/* -----------------------------
-  Helpers (lists/dates)
------------------------------ */
 function pickDate(obj) {
   const candidates = [
     obj.createdAt,
@@ -525,7 +496,6 @@ function pickDate(obj) {
     const d = new Date(c);
     if (!Number.isNaN(d.getTime())) return d;
   }
-
   return new Date();
 }
 
@@ -560,7 +530,6 @@ function toFixedYearDate(input) {
   if (fixed.getMonth() !== m) {
     return new Date(DISPLAY_YEAR, m + 1, 0);
   }
-
   return fixed;
 }
 
@@ -588,38 +557,31 @@ function monthKey(date) {
 function lastNMonths(n = 6) {
   const out = [];
   const now = new Date();
-
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const mon = d.toLocaleString(undefined, { month: "short" });
-
     out.push({
       y: DISPLAY_YEAR,
       m: d.getMonth(),
       label: joinParts(mon, AD_LABEL, DISPLAY_YEAR),
     });
   }
-
   return out;
 }
 
 async function fetchJSON(url) {
   const res = await fetch(url, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${url})`);
-
   const data = await res.json();
-
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.rows)) return data.rows;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.members)) return data.members;
   if (Array.isArray(data?.result)) return data.result;
-
   return [];
 }
 
-/* ACTIVE CHECK: activetoggle = 1 */
 function isFormActive(x) {
   const v =
     x?.activetoggle ??
@@ -635,9 +597,21 @@ function isFormActive(x) {
   return Number.isFinite(n) ? n === 1 : false;
 }
 
-/* -----------------------------
-  Member helpers (logo resolve + mapping)
------------------------------ */
+function normalizeBankcode(value) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function normalizeBoolean(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "yes" || v === "y";
+  }
+  return false;
+}
+
 function resolveAssetUrl(val) {
   const s = (val ?? "").toString().trim();
   if (!s) return "";
@@ -659,6 +633,8 @@ function readMemberId(r) {
     r?.MemberId ??
     r?.idMember ??
     r?.member_id ??
+    r?.id ??
+    r?._id ??
     null;
 
   const n = Number(raw);
@@ -666,7 +642,8 @@ function readMemberId(r) {
 }
 
 function normalizeMemberRow(r) {
-  const bankcode = (r?.Bankcode ?? r?.BankCode ?? r?.bankcode ?? r?.code ?? r?.id ?? "").toString().trim();
+  const bankcodeRaw = r?.Bankcode ?? r?.BankCode ?? r?.bankcode ?? r?.code ?? r?.id ?? "";
+  const bankcode = normalizeBankcode(bankcodeRaw);
   const name = (r?.BanknameLA ?? r?.BankNameLA ?? r?.banknameLA ?? r?.name ?? r?.bank_name ?? "").toString().trim();
   const logoRaw = r?.image ?? r?.Image ?? r?.bankLogo ?? r?.logo ?? r?.bank_logo ?? "";
   const logo = resolveAssetUrl(logoRaw);
@@ -679,121 +656,25 @@ function onAvatarLogoError() {
   memberProfile.value = { ...memberProfile.value, logo: "" };
 }
 
-/* -----------------------------
-  Announcement target helpers
------------------------------ */
-function normalizeIdArray(val) {
-  if (Array.isArray(val)) {
-    return val
-      .flatMap((x) => normalizeIdArray(x))
-      .filter((x) => x !== "");
-  }
-
-  if (val == null) return [];
-
-  if (typeof val === "number") return [String(val)];
-  if (typeof val === "string") {
-    const s = val.trim();
-    if (!s) return [];
-
-    try {
-      const parsed = JSON.parse(s);
-      if (Array.isArray(parsed)) return normalizeIdArray(parsed);
-    } catch {}
-
-    return s
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
-
-  if (typeof val === "object") {
-    if (Array.isArray(val.member_ids)) return normalizeIdArray(val.member_ids);
-    if (Array.isArray(val.memberIds)) return normalizeIdArray(val.memberIds);
-    if (Array.isArray(val.targets)) return normalizeIdArray(val.targets);
-    if (Array.isArray(val.ids)) return normalizeIdArray(val.ids);
-
-    if ("id" in val && val.id != null) return [String(val.id)];
-    if ("member_id" in val && val.member_id != null) return [String(val.member_id)];
-    if ("memberId" in val && val.memberId != null) return [String(val.memberId)];
-  }
-
-  return [];
-}
-
-function announcementMemberIds(item) {
-  return [
-    ...normalizeIdArray(item?.member_ids),
-    ...normalizeIdArray(item?.memberIds),
-    ...normalizeIdArray(item?.member_id),
-    ...normalizeIdArray(item?.targets),
-    ...normalizeIdArray(item?.target_member_ids),
-    ...normalizeIdArray(item?.targetMemberIds),
-    ...normalizeIdArray(item?.targets),
-  ].filter(Boolean);
-}
-
-function isAnnouncementGlobal(item) {
-  return announcementMemberIds(item).length === 0;
-}
-
-function getMappedMemberIdsByBankcode(bankcode) {
-  const code = String(bankcode || "").trim();
-  if (!code) return [];
-
-  const ids = members.value
-    .map(normalizeMemberRow)
-    .filter((m) => String(m.bankcode) === code)
-    .map((m) => m.member_id)
-    .filter((id) => id != null)
-    .map((id) => String(id));
-
-  return [...new Set(ids)];
-}
-
-function announcementTargetsCurrentMember(item) {
-  const myBankcode = String(profile.value?.bankcode || "").trim();
-  const myMemberIdsFromMembers = getMappedMemberIdsByBankcode(myBankcode);
-  const myMemberIds = [
-    ...myMemberIdsFromMembers,
-    ...(profile.value?.member_id != null ? [String(profile.value.member_id)] : []),
-    ...(memberProfile.value?.member_id != null ? [String(memberProfile.value.member_id)] : []),
-  ].filter(Boolean);
-
-  const targetIds = announcementMemberIds(item);
-
-  if (!targetIds.length) return true;
-  if (!myMemberIds.length) return false;
-
-  return targetIds.some((id) => myMemberIds.includes(String(id)));
-}
-
-function filterAnnouncementsForCurrentMember(list) {
-  return (Array.isArray(list) ? list : []).filter((item) => announcementTargetsCurrentMember(item));
-}
-
-/* -----------------------------
-  MemberBank profile
------------------------------ */
 async function fetchMemberProfileByBankcode(bankcode) {
   memberLoading.value = true;
   memberError.value = "";
 
   try {
-    const code = String(bankcode ?? "").trim();
+    const code = normalizeBankcode(bankcode);
     if (!code) {
       memberProfile.value = { member_id: null, bankcode: "", name: "", logo: "" };
-      return;
+      return null;
     }
 
     const raw = members.value?.length ? members.value : await fetchJSON(endpoints.members);
     const mapped = (raw || []).map(normalizeMemberRow).filter((m) => m.bankcode);
 
-    const found = mapped.find((m) => String(m.bankcode) === code) || null;
+    const found = mapped.find((m) => m.bankcode === code) || null;
 
     if (!found) {
       memberProfile.value = { member_id: null, bankcode: code, name: "", logo: "" };
-      return;
+      return null;
     }
 
     memberProfile.value = {
@@ -802,17 +683,17 @@ async function fetchMemberProfileByBankcode(bankcode) {
       name: found.name,
       logo: found.logo || "",
     };
+
+    return found;
   } catch (e) {
     memberError.value = e?.message || "MemberBank load failed";
-    memberProfile.value = { member_id: null, bankcode: String(bankcode ?? ""), name: "", logo: "" };
+    memberProfile.value = { member_id: null, bankcode: normalizeBankcode(bankcode), name: "", logo: "" };
+    return null;
   } finally {
     memberLoading.value = false;
   }
 }
 
-/* -----------------------------
-  Profile fetch + pick
------------------------------ */
 function pickProfileUser(usersList) {
   const list = Array.isArray(usersList) ? usersList : [];
   const me = readUserFromStorage();
@@ -822,9 +703,7 @@ function pickProfileUser(usersList) {
   const meEmail = (me?.email ?? "").toString().trim();
 
   const byId =
-    meId != null
-      ? list.find((u) => String(u?.id ?? u?.user_id ?? u?._id ?? u?.uuid ?? "") === String(meId))
-      : null;
+    meId != null ? list.find((u) => String(u?.id ?? u?.user_id ?? u?._id ?? u?.uuid ?? "") === String(meId)) : null;
 
   const byUsername =
     !byId && meUsername
@@ -832,8 +711,8 @@ function pickProfileUser(usersList) {
       : null;
 
   const byEmail =
-    !byId && !byUsername
-      ? list.find((u) => String(u?.email ?? "").trim() && String(u?.email ?? "").trim() === meEmail)
+    !byId && !byUsername && meEmail
+      ? list.find((u) => String(u?.email ?? "").trim() === meEmail)
       : null;
 
   return byId || byUsername || byEmail || list[0] || null;
@@ -841,7 +720,7 @@ function pickProfileUser(usersList) {
 
 function pickBankcodeFromUser(u) {
   const v = u?.bankcode ?? u?.Bankcode ?? u?.BankCode ?? u?.bank_code ?? u?.code ?? "";
-  return String(v ?? "").trim();
+  return normalizeBankcode(v);
 }
 
 function pickMemberIdFromUser(u) {
@@ -860,11 +739,11 @@ async function fetchUserProfile() {
 
     if (!u) {
       profile.value = { username: "-", bankcode: "", member_id: null };
-      return;
+      return profile.value;
     }
 
     const username = u?.username ?? u?.user_name ?? u?.name ?? u?.email ?? "-";
-    const bankcode = pickBankcodeFromUser(u) || String(readUserFromStorage()?.bankcode ?? "").trim();
+    const bankcode = pickBankcodeFromUser(u) || normalizeBankcode(readUserFromStorage()?.bankcode ?? "");
     const member_id = pickMemberIdFromUser(u) ?? pickMemberIdFromUser(readUserFromStorage() || {});
 
     profile.value = {
@@ -874,16 +753,252 @@ async function fetchUserProfile() {
     };
 
     await fetchMemberProfileByBankcode(bankcode);
+    return profile.value;
   } catch (e) {
     profileError.value = e?.message || "Profile load failed";
+    return profile.value;
   } finally {
     profileLoading.value = false;
   }
 }
 
-/* -----------------------------
-  UI computed
------------------------------ */
+function isNullish(v) {
+  return v === null || v === undefined;
+}
+
+function tryJsonParse(v) {
+  try {
+    return JSON.parse(v);
+  } catch {
+    return null;
+  }
+}
+
+function normalizePrimitiveArray(arr) {
+  return arr
+    .map((x) => {
+      if (isNullish(x)) return null;
+      if (typeof x === "object") {
+        return x?.member_id ?? x?.memberId ?? x?.idmember ?? x?.id ?? x?.bankcode ?? x?.Bankcode ?? null;
+      }
+      return x;
+    })
+    .filter((x) => !isNullish(x))
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+}
+
+function extractAnnouncementMemberIds(announcement) {
+  const raw =
+    announcement?.member_ids ??
+    announcement?.memberIds ??
+    announcement?.target_member_ids ??
+    announcement?.targetMemberIds ??
+    announcement?.member_id ??
+    announcement?.target_member_id ??
+    announcement?.targets ??
+    announcement?.target ??
+    null;
+
+  if (Array.isArray(raw)) {
+    return normalizePrimitiveArray(raw);
+  }
+
+  if (typeof raw === "number") {
+    return [String(raw)];
+  }
+
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (!text) return [];
+
+    const parsed = tryJsonParse(text);
+    if (Array.isArray(parsed)) {
+      return normalizePrimitiveArray(parsed);
+    }
+
+    if (parsed && typeof parsed === "object") {
+      const nested =
+        parsed.member_ids ??
+        parsed.memberIds ??
+        parsed.target_member_ids ??
+        parsed.targetMemberIds ??
+        parsed.targets ??
+        parsed.target ??
+        null;
+
+      if (Array.isArray(nested)) {
+        return normalizePrimitiveArray(nested);
+      }
+    }
+
+    return text
+      .split(/[,\s;|]+/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  if (raw && typeof raw === "object") {
+    const nested =
+      raw.member_ids ??
+      raw.memberIds ??
+      raw.target_member_ids ??
+      raw.targetMemberIds ??
+      raw.targets ??
+      raw.target ??
+      null;
+
+    if (Array.isArray(nested)) {
+      return normalizePrimitiveArray(nested);
+    }
+  }
+
+  return [];
+}
+
+function isAnnouncementPublic(announcement) {
+  return normalizeBoolean(
+    announcement?.target_all ??
+      announcement?.targetAll ??
+      announcement?.is_public ??
+      announcement?.isPublic ??
+      false
+  );
+}
+
+function hasExplicitAnnouncementTarget(announcement) {
+  if (isAnnouncementPublic(announcement)) return false;
+
+  const rawFields = [
+    announcement?.member_ids,
+    announcement?.memberIds,
+    announcement?.target_member_ids,
+    announcement?.targetMemberIds,
+    announcement?.member_id,
+    announcement?.target_member_id,
+    announcement?.targets,
+    announcement?.target,
+  ];
+
+  return rawFields.some((v) => {
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "number") return true;
+    if (typeof v === "string") return v.trim().length > 0;
+    if (v && typeof v === "object") return true;
+    return false;
+  });
+}
+
+function buildMemberMaps(memberRows) {
+  const byMemberId = new Map();
+  const byBankcode = new Map();
+
+  for (const row of memberRows) {
+    const m = normalizeMemberRow(row);
+
+    if (m.member_id != null) {
+      byMemberId.set(String(m.member_id), m);
+    }
+    if (m.bankcode) {
+      byBankcode.set(m.bankcode, m);
+    }
+  }
+
+  return { byMemberId, byBankcode };
+}
+
+function uniqueStrings(arr) {
+  return [...new Set(arr.filter(Boolean))];
+}
+
+function resolveAnnouncementTargetBankcodes(targets, memberMaps) {
+  const resolved = [];
+
+  for (const rawTarget of targets) {
+    const target = String(rawTarget ?? "").trim();
+    if (!target) continue;
+
+    const directBankcode = normalizeBankcode(target);
+    if (memberMaps.byBankcode.has(directBankcode)) {
+      resolved.push(directBankcode);
+      continue;
+    }
+
+    const mappedMember = memberMaps.byMemberId.get(target);
+    if (mappedMember?.bankcode) {
+      resolved.push(normalizeBankcode(mappedMember.bankcode));
+    }
+  }
+
+  return uniqueStrings(resolved);
+}
+
+function isAnnouncementVisibleForProfile(announcement, currentProfile, memberMaps) {
+  const isPublic = isAnnouncementPublic(announcement);
+
+  if (isPublic) {
+    return {
+      visible: true,
+      isTargeted: false,
+      isPublic: true,
+      targetBankcodes: [],
+    };
+  }
+
+  const targets = extractAnnouncementMemberIds(announcement);
+  const explicitTarget = hasExplicitAnnouncementTarget(announcement);
+
+  if (!explicitTarget || targets.length === 0) {
+    return {
+      visible: true,
+      isTargeted: false,
+      isPublic: false,
+      targetBankcodes: [],
+    };
+  }
+
+  const currentBankcode = normalizeBankcode(currentProfile?.bankcode);
+  const currentMemberId = currentProfile?.member_id != null ? String(currentProfile.member_id) : "";
+
+  const directBankcodeMatch = currentBankcode
+    ? targets.some((t) => normalizeBankcode(t) === currentBankcode)
+    : false;
+
+  const directMemberIdMatch = currentMemberId
+    ? targets.some((t) => String(t).trim() === currentMemberId)
+    : false;
+
+  const resolvedTargetBankcodes = resolveAnnouncementTargetBankcodes(targets, memberMaps);
+  const resolvedBankcodeMatch = currentBankcode
+    ? resolvedTargetBankcodes.includes(currentBankcode)
+    : false;
+
+  return {
+    visible: Boolean(directBankcodeMatch || directMemberIdMatch || resolvedBankcodeMatch),
+    isTargeted: true,
+    isPublic: false,
+    targetBankcodes: resolvedTargetBankcodes,
+  };
+}
+
+function filterAnnouncementsForCurrentMember(list, currentProfile, memberRows) {
+  const maps = buildMemberMaps(memberRows);
+
+  return normalizeList(list)
+    .map((item) => {
+      const result = isAnnouncementVisibleForProfile(item, currentProfile, maps);
+      return {
+        ...item,
+        _isTargeted: result.isTargeted,
+        _isPublic: result.isPublic,
+        _targetBankcodes: result.targetBankcodes,
+        _visibleForCurrentMember: result.visible,
+      };
+    })
+    .filter((item) => item._visibleForCurrentMember)
+    .sort((a, b) => b._date - a._date);
+}
+
 const recentDocs = computed(() => documents.value.slice(0, 6));
 const recentAnns = computed(() => announcements.value.slice(0, 6));
 const recentForms = computed(() => forms.value.slice(0, 6));
@@ -894,20 +1009,24 @@ const latestFormTitle = computed(() => recentForms.value?.[0]?.name || recentFor
 
 const latestMemberTitle = computed(() => {
   const m = members.value?.[0];
-  return m?.BanknameLA || m?.BankNameLA || m?.banknameLA || m?.name || m?.bank_name || m?.bankcode || "-";
+  return (
+    m?.BanknameLA ||
+    m?.BankNameLA ||
+    m?.banknameLA ||
+    m?.name ||
+    m?.bank_name ||
+    m?.bankcode ||
+    "-"
+  );
 });
 
 const displayUsername = computed(() => (profile.value?.username ? String(profile.value.username) : "-"));
-
 const avatarText = computed(() => {
   const u = displayUsername.value;
   if (!u || u === "-") return "U";
   return String(u).trim().charAt(0).toUpperCase() || "U";
 });
 
-/* -----------------------------
-  Charts
------------------------------ */
 function cssVar(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
@@ -924,13 +1043,11 @@ function buildCharts() {
 
   const bucketCount = (arr) => {
     const map = new Map(months.map((m) => [`${m.y}-${m.m}`, 0]));
-
     for (const item of arr) {
       const { y, m } = monthKey(item._date);
       const k = `${y}-${m}`;
       if (map.has(k)) map.set(k, map.get(k) + 1);
     }
-
     return months.map((m) => map.get(`${m.y}-${m.m}`) || 0);
   };
 
@@ -1029,9 +1146,6 @@ function buildCharts() {
   });
 }
 
-/* -----------------------------
-  Animations
------------------------------ */
 function revealIn() {
   const scope = document.querySelector(".ov");
   if (!scope) return;
@@ -1040,11 +1154,9 @@ function revealIn() {
   gsap.set(els, { opacity: 0, y: 10 });
 
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-
   if (headEl.value) {
     tl.fromTo(headEl.value, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45 }, 0);
   }
-
   tl.to(els, { opacity: 1, y: 0, duration: 0.42, stagger: 0.06 }, 0.05);
 }
 
@@ -1060,9 +1172,6 @@ function profileHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.18, ease: "power2.out" });
 }
 
-/* -----------------------------
-  Actions
------------------------------ */
 function go(path) {
   router.push(path);
 }
@@ -1079,15 +1188,13 @@ async function refresh() {
       fetchJSON(endpoints.members),
     ]);
 
-    documents.value = normalizeList(docsRaw).sort((a, b) => b._date - a._date);
-    forms.value = normalizeList(formsRaw).filter(isFormActive).sort((a, b) => b._date - a._date);
     members.value = normalizeList(membersRaw).sort((a, b) => b._date - a._date);
 
-    await fetchUserProfile();
+    const currentProfile = await fetchUserProfile();
 
-    announcements.value = normalizeList(annsRaw)
-      .filter((item) => announcementTargetsCurrentMember(item))
-      .sort((a, b) => b._date - a._date);
+    documents.value = normalizeList(docsRaw).sort((a, b) => b._date - a._date);
+    announcements.value = filterAnnouncementsForCurrentMember(annsRaw, currentProfile, members.value);
+    forms.value = normalizeList(formsRaw).filter(isFormActive).sort((a, b) => b._date - a._date);
 
     totals.documents = documents.value.length;
     totals.announcements = announcements.value.length;
@@ -1099,7 +1206,6 @@ async function refresh() {
     last7.forms = forms.value.filter((x) => isWithinLastDays(x._date, 7)).length;
     last7.members = members.value.filter((x) => isWithinLastDays(x._date, 7)).length;
 
-    await nextTick();
     buildCharts();
     revealIn();
   } catch (e) {
@@ -1175,7 +1281,6 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 
-/* Single Profile box */
 .profileBox {
   display: inline-flex;
   align-items: center;

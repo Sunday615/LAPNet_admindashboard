@@ -6,9 +6,8 @@
       <div class="glow glow-b"></div>
     </template>
 
-    <!-- ✅ GLOBAL SIDEBAR (hide on login) -->
+    <!-- Global sidebar -->
     <aside v-if="!isAuthPage" ref="sidebarEl" class="sidebar">
-      <!-- ✅ brand link: viewer -> go to viewer home (index 0), admin -> "/" -->
       <router-link :to="brandHomeTo" style="text-decoration: none">
         <div class="brand js-reveal">
           <div class="brandMark">
@@ -22,9 +21,6 @@
       </router-link>
 
       <nav class="nav js-reveal">
-        <!-- =========================
-             ✅ VIEWER SIDEBAR (items 1-6)
-             ========================= -->
         <template v-if="isViewer">
           <RouterLink
             v-for="item in viewerNavItems"
@@ -38,7 +34,6 @@
             <span class="navIcon"><i :class="item.fa"></i></span>
             <span class="navLabel">{{ item.label }}</span>
 
-            <!-- ✅ NEW: viewer badge (only on announcement_member nav) -->
             <span v-if="item.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount > 0" class="navBadge">
               {{ viewerAnnNewCount > 99 ? "99+" : viewerAnnNewCount }}
             </span>
@@ -47,11 +42,7 @@
           </RouterLink>
         </template>
 
-        <!-- =========================
-             ✅ ADMIN SIDEBAR (เดิมของคุณ)
-             ========================= -->
         <template v-else>
-          <!-- ✅ MAIN (item 1) -->
           <RouterLink
             :to="mainNavItem.to"
             class="navItem"
@@ -64,7 +55,6 @@
             <span class="navPill" />
           </RouterLink>
 
-          <!-- ✅ DASHBOARD CHILDREN (item 2) -->
           <RouterLink
             v-for="item in dashboardItems"
             :key="item.key"
@@ -81,7 +71,6 @@
 
           <div class="navDivider" />
 
-          <!-- ✅ VIEW INFORMATION (DROPDOWN) -->
           <div class="navGroup">
             <button
               type="button"
@@ -122,7 +111,6 @@
             </div>
           </div>
 
-          <!-- ✅ INSERT INFORMATION (DROPDOWN) -->
           <div class="navGroup">
             <button
               type="button"
@@ -179,14 +167,12 @@
       </button>
     </aside>
 
-    <!-- ✅ GLOBAL MAIN -->
     <main class="main">
       <section class="mainBody">
         <RouterView />
       </section>
     </main>
 
-    <!-- ✅ NEW: Viewer popup (modal) on login -->
     <transition name="popup">
       <div
         v-if="isViewer && annPopup.show && !isAuthPage"
@@ -232,10 +218,18 @@
               <li v-for="a in annPopup.items" :key="a._key" class="annItem">
                 <div class="annTop">
                   <div class="annTitle">{{ a.title }}</div>
-                  <span v-if="a.isNew" class="annTagNew">NEW</span>
+
+                  <div class="annBadges">
+                    <span v-if="a.isPublic" class="annTagPublic">PUBLIC</span>
+                    <span v-if="a.isNew" class="annTagNew">NEW</span>
+                  </div>
                 </div>
+
                 <div class="annMeta">{{ a.when }}</div>
-                <div v-if="a.preview" class="annPreview">{{ a.preview }}</div>
+
+                <div v-if="a.preview" class="annPreview">
+                  {{ a.preview }}
+                </div>
               </li>
 
               <li v-if="!annPopup.items.length" class="annEmpty">
@@ -266,7 +260,6 @@
       </div>
     </transition>
 
-    <!-- ✅ NEW: viewer toast notification (viewer only) -->
     <transition name="toast">
       <div v-if="isViewer && toast.show && !isAuthPage" class="toast">
         <div class="toastLeft">
@@ -303,12 +296,8 @@ const topbarEl = ref(null);
 const route = useRoute();
 const router = useRouter();
 
-// ✅ If this route is /login -> hide sidebar + hide tech background/glow
 const isAuthPage = computed(() => route.path === "/login");
 
-// ---------------------
-// ✅ role
-// ---------------------
 const currentUser = ref(null);
 
 function safeJsonParse(x) {
@@ -318,20 +307,23 @@ function safeJsonParse(x) {
     return null;
   }
 }
+
 function normalizeRole(r) {
   return String(r || "").trim().toLowerCase();
 }
+
 function readUserFromStorage() {
   const u1 = localStorage.getItem("user");
   if (u1) return safeJsonParse(u1);
+
   const u2 = sessionStorage.getItem("user");
   if (u2) return safeJsonParse(u2);
+
   return null;
 }
 
 const isViewer = computed(() => normalizeRole(currentUser.value?.role) === "viewer");
 
-// โหลด user ทุกครั้งที่ route เปลี่ยน (หลัง login จะเปลี่ยน route)
 watch(
   () => route.path,
   () => {
@@ -340,7 +332,6 @@ watch(
   { immediate: true }
 );
 
-// ✅ viewer sidebar items 1-6 (แยก path ชัดเจนเป็น /v/..)
 const viewerNavItems = [
   { key: "v_main", label: "ພາບລວມ", to: "/v/view_document", fa: "fa-solid fa-chart-line" },
   { key: "v_news", label: "ເອກະສານ", to: "/v/documentviewer", fa: "fa-solid fa-file" },
@@ -350,28 +341,21 @@ const viewerNavItems = [
   { key: "v_members", label: "ສະມາຊິກທັງໝົດຂອງ LAPNet", to: "/v/allmembers_viewer", fa: "fa-solid fa-building-columns" },
 ];
 
-
-
 const viewerDefaultTo = computed(() => viewerNavItems[0]?.to || "/v/view_member");
 const brandHomeTo = computed(() => (isViewer.value ? viewerDefaultTo.value : "/"));
 
-// ✅ IMPORTANT FIX:
-// viewer login แล้ว route ไม่ใช่ /v/... -> redirect ไป item index 0 เพื่อให้ sidebar active ทันที
 watch(
   [isViewer, isAuthPage, () => route.path],
   async () => {
     if (isAuthPage.value) return;
 
-    // viewer: force to viewer space
     if (isViewer.value) {
       if (!String(route.path || "").startsWith("/v/")) {
-        // replace เพื่อไม่ให้กด back แล้ววนกลับมาหน้าเดิม
         router.replace(viewerDefaultTo.value);
       }
       return;
     }
 
-    // (optional but safe) admin: ถ้าเผลออยู่ /v/... ให้กลับ dashboard
     if (!isViewer.value && String(route.path || "").startsWith("/v/")) {
       router.replace("/dashboard");
     }
@@ -379,9 +363,6 @@ watch(
   { immediate: true }
 );
 
-// ---------------------
-// ✅ admin nav (เดิม)
-// ---------------------
 const navItems = [
   {
     key: "dashboard",
@@ -405,12 +386,10 @@ const navItems = [
   { key: "lapnet_employee", label: "ເພີ່ມພະນັກງານ LAPNet", to: "/lapnet_employee", fa: "fa-solid fa-circle-user" },
 ];
 
-// ✅ split nav
 const mainNavItem = navItems[0];
 const dashboardItems = computed(() => mainNavItem?.children || []);
 const insertItems = navItems.slice(1, 7);
 
-// ✅ ADMIN-only view dropdown items (ใช้ path admin เท่านั้น)
 const viewItems = [
   { key: "member_view", label: "ເບິ່ງທະນາຄານສະມາຊິກ", to: "/members", fa: "fa-solid fa-building-columns" },
   { key: "news_view", label: "ເບິ່ງຂ່າວສານ & ກິດຈະກຳ", to: "/newsviewer", fa: "fa-solid fa-newspaper" },
@@ -423,13 +402,11 @@ const viewItems = [
   { key: "viewannouncementtomember", label: "ເບິ່ງແຈ້ງການເຖິງສະມາຊິກ", to: "/viewannouncementtomember", fa: "fa-solid fa-bullhorn" },
 ];
 
-// ✅ dropdown state (INSERT)
 const isInsertOpen = ref(false);
 const insertMenuEl = ref(null);
 const insertChevronEl = ref(null);
 const isInsertActive = computed(() => !isViewer.value && insertItems.some((i) => route.path === i.to));
 
-// ✅ dropdown state (VIEW)
 const isViewOpen = ref(false);
 const viewMenuEl = ref(null);
 const viewChevronEl = ref(null);
@@ -439,43 +416,41 @@ function logout() {
   try {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-  } catch (e) {}
+  } catch {}
+
   try {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
-  } catch (e) {}
+  } catch {}
 
   isInsertOpen.value = false;
   isViewOpen.value = false;
 
-  // ✅ viewer notify reset
   stopViewerAnnPoll();
   viewerAnnNewCount.value = 0;
   viewerAnnLatestAt.value = 0;
   hideToast();
-
-  // ✅ popup reset
   closeAnnPopup(true);
 
   router.replace({ path: "/login" });
 }
 
-/* GSAP hovers */
 function btnHover(e, enter) {
   gsap.to(e.currentTarget, { y: enter ? -2 : 0, duration: 0.22, ease: "power2.out" });
 }
+
 function navHover(e, enter) {
   const el = e.currentTarget;
   if (el.classList?.contains("active")) return;
   gsap.to(el, { x: enter ? 3 : 0, duration: 0.18, ease: "power2.out" });
 }
+
 function subHover(e, enter) {
   const el = e.currentTarget;
   if (el.classList?.contains("active")) return;
   gsap.to(el, { x: enter ? 4 : 0, duration: 0.18, ease: "power2.out" });
 }
 
-/* INSERT dropdown anim */
 function openInsertMenu(immediate = false) {
   const menu = insertMenuEl.value;
   const chev = insertChevronEl.value;
@@ -545,7 +520,6 @@ function ensureOpenAfterNavigate() {
   }
 }
 
-/* VIEW dropdown anim */
 function openViewMenu(immediate = false) {
   const menu = viewMenuEl.value;
   const chev = viewChevronEl.value;
@@ -615,7 +589,6 @@ function ensureViewOpenAfterNavigate() {
   }
 }
 
-// ✅ auto-open dropdown routes (admin only)
 watch(
   () => route.path,
   async () => {
@@ -627,6 +600,7 @@ watch(
       await nextTick();
       openInsertMenu(false);
     }
+
     if (isViewActive.value && !isViewOpen.value) {
       isViewOpen.value = true;
       await nextTick();
@@ -635,7 +609,6 @@ watch(
   }
 );
 
-// ✅ Sidebar init animation
 const didInitSidebar = ref(false);
 
 async function initSidebarUI() {
@@ -655,7 +628,6 @@ async function initSidebarUI() {
 
   await nextTick();
 
-  // admin only: init dropdown UI
   if (!isViewer.value) {
     if (isViewActive.value) {
       isViewOpen.value = true;
@@ -686,6 +658,7 @@ watch(isAuthPage, async (auth) => {
     didInitSidebar.value = false;
     return;
   }
+
   await nextTick();
   await initSidebarUI();
 });
@@ -698,13 +671,10 @@ onMounted(async () => {
 });
 
 /* =========================================================
-   ✅ NEW: Viewer notification (poll announcements and badge)
-   ✅ PLUS: Viewer popup on login
+   Viewer announcement popup + badge + target filtering
    ========================================================= */
 
-const ANN_API_URL = "http://175.0.198.10:3000/api/announcements";
-
-// the nav item you want to mark in sidebar
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 const VIEWER_ANN_ITEM_KEY = "v_jobs";
 const VIEWER_ANN_ROUTE = "/v/announcement_member";
 
@@ -715,9 +685,9 @@ let viewerAnnTimer = null;
 let viewerAnnAbort = null;
 
 const toast = ref({ show: false, text: "" });
+
 let toastTimer = null;
 
-// ✅ Popup state
 const annPopup = ref({
   show: false,
   loading: false,
@@ -727,9 +697,36 @@ const annPopup = ref({
   latestAt: 0,
 });
 
+function normalizeText(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeBaseUrl(base) {
+  return String(base || "").replace(/\/+$/, "");
+}
+
+function resolveApiUrl(path) {
+  const base = normalizeBaseUrl(API_BASE_URL);
+  const cleanPath = String(path || "").startsWith("/") ? String(path || "") : `/${String(path || "")}`;
+  return `${base}${cleanPath}`;
+}
+
 function getViewerIdentityKey() {
   const u = readUserFromStorage();
   return String(u?.id || u?.user_id || u?.username || u?.email || "anon");
+}
+
+function getCurrentViewerBankCode() {
+  const u = readUserFromStorage() || {};
+  return normalizeText(
+    u?.Bankcode ||
+      u?.bankcode ||
+      u?.bank_code ||
+      u?.bankCode ||
+      u?.member_code ||
+      u?.memberCode ||
+      u?.code
+  );
 }
 
 function viewerAnnSeenStorageKey() {
@@ -739,7 +736,7 @@ function viewerAnnSeenStorageKey() {
 function loadViewerSeen() {
   const key = viewerAnnSeenStorageKey();
   const raw = localStorage.getItem(key);
-  if (raw == null) return null; // uninitialized
+  if (raw == null) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
 }
@@ -749,10 +746,10 @@ function saveViewerSeen(ts) {
   localStorage.setItem(key, String(ts || 0));
 }
 
-// ✅ Popup shown per session
 function viewerPopupSessionKey() {
   return `viewer_login_popup_shown_v1_${getViewerIdentityKey()}`;
 }
+
 function hasShownPopupThisSession() {
   try {
     return sessionStorage.getItem(viewerPopupSessionKey()) === "1";
@@ -760,6 +757,7 @@ function hasShownPopupThisSession() {
     return false;
   }
 }
+
 function markPopupShownThisSession() {
   try {
     sessionStorage.setItem(viewerPopupSessionKey(), "1");
@@ -824,15 +822,104 @@ function formatWhen(ts) {
 }
 
 function annKey(item, i) {
-  return item?.id || item?._id || item?.uuid || item?.key || `${i}-${Math.random().toString(16).slice(2)}`;
+  return item?.id || item?._id || item?.uuid || item?.key || `${i}-${getAnnTime(item)}`;
 }
 
-async function fetchAnnouncementsList() {
-  const res = await fetch(ANN_API_URL);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+function extractMemberIds(item) {
+  const raw = item?.member_ids;
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => {
+        if (typeof entry === "string" || typeof entry === "number") return normalizeText(entry);
+        if (entry && typeof entry === "object") {
+          return normalizeText(
+            entry?.Bankcode ||
+              entry?.bankcode ||
+              entry?.bank_code ||
+              entry?.bankCode ||
+              entry?.member_code ||
+              entry?.memberCode ||
+              entry?.code ||
+              entry?.id
+          );
+        }
+        return "";
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((x) => normalizeText(x))
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function isAnnouncementPublic(item) {
+  return item?.target_all === true;
+}
+
+function isAnnouncementForViewer(item, bankCode) {
+  if (isAnnouncementPublic(item)) return true;
+  if (!bankCode) return false;
+
+  const memberIds = extractMemberIds(item);
+  if (!memberIds.length) return false;
+
+  return memberIds.includes(bankCode);
+}
+
+function filterAnnouncementsForViewer(list) {
+  const bankCode = getCurrentViewerBankCode();
+  return (Array.isArray(list) ? list : []).filter((item) => isAnnouncementForViewer(item, bankCode));
+}
+
+function normalizeAnnouncementList(list) {
+  const filtered = filterAnnouncementsForViewer(list);
+
+  return filtered
+    .map((item, index) => ({
+      ...item,
+      _t: getAnnTime(item),
+      _key: annKey(item, index),
+      _isPublic: isAnnouncementPublic(item),
+    }))
+    .sort((a, b) => (b._t || 0) - (a._t || 0));
+}
+
+async function parseFetchError(res) {
+  try {
+    const data = await res.json();
+    return data?.message || `${res.status} ${res.statusText}`;
+  } catch {
+    try {
+      const text = await res.text();
+      return text || `${res.status} ${res.statusText}`;
+    } catch {
+      return `${res.status} ${res.statusText}`;
+    }
+  }
+}
+
+async function fetchAnnouncementsList(signal) {
+  const url = resolveApiUrl("/api/announcements");
+  const res = await fetch(url, {
+    method: "GET",
+    signal,
+  });
+
+  if (!res.ok) {
+    const msg = await parseFetchError(res);
+    throw new Error(msg || "Failed to fetch announcements");
+  }
+
   const data = await res.json();
   const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-  return list;
+  return normalizeAnnouncementList(list);
 }
 
 async function checkViewerAnnouncements() {
@@ -843,48 +930,42 @@ async function checkViewerAnnouncements() {
     if (viewerAnnAbort) viewerAnnAbort.abort();
     viewerAnnAbort = new AbortController();
 
-    const res = await fetch(ANN_API_URL, { signal: viewerAnnAbort.signal });
-    if (!res.ok) return;
-
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    const list = await fetchAnnouncementsList(viewerAnnAbort.signal);
 
     let latest = 0;
     for (const it of list) {
       const t = getAnnTime(it);
       if (t > latest) latest = t;
     }
+
     viewerAnnLatestAt.value = latest;
 
     const seen = loadViewerSeen();
 
-    // If first time (no key), initialize to latest and show no badge
     if (seen == null) {
       saveViewerSeen(latest);
       viewerAnnNewCount.value = 0;
       return;
     }
 
-    // Count new
     const newCount = list.reduce((acc, it) => acc + (getAnnTime(it) > seen ? 1 : 0), 0);
-
     const prev = viewerAnnNewCount.value;
+
     viewerAnnNewCount.value = newCount;
 
-    // Toast only when new increases and not currently on announcement page
     if (newCount > prev && route.path !== VIEWER_ANN_ROUTE) {
       showToast(`${newCount} new item${newCount > 1 ? "s" : ""} added`);
     }
   } catch (e) {
     if (e?.name === "AbortError") return;
-    // ignore network errors silently (optional)
+    console.error("checkViewerAnnouncements error:", e);
   }
 }
 
 function startViewerAnnPoll() {
   stopViewerAnnPoll();
   checkViewerAnnouncements();
-  viewerAnnTimer = setInterval(checkViewerAnnouncements, 45000); // 45s
+  viewerAnnTimer = setInterval(checkViewerAnnouncements, 45000);
   window.addEventListener("focus", checkViewerAnnouncements);
 }
 
@@ -893,7 +974,9 @@ function stopViewerAnnPoll() {
     clearInterval(viewerAnnTimer);
     viewerAnnTimer = null;
   }
+
   window.removeEventListener("focus", checkViewerAnnouncements);
+
   if (viewerAnnAbort) {
     viewerAnnAbort.abort();
     viewerAnnAbort = null;
@@ -901,7 +984,6 @@ function stopViewerAnnPoll() {
 }
 
 function markViewerAnnouncementsSeen() {
-  // mark seen to latest time (clears badge)
   const latest = viewerAnnLatestAt.value || Date.now();
   saveViewerSeen(latest);
   viewerAnnNewCount.value = 0;
@@ -912,7 +994,6 @@ function isViewerNew(item) {
   return item?.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount.value > 0;
 }
 
-// when viewer enters announcement page -> clear badge
 watch(
   () => route.path,
   (p) => {
@@ -923,7 +1004,6 @@ watch(
   }
 );
 
-// start/stop poll based on role/page
 watch(
   [isViewer, isAuthPage, () => route.path],
   () => {
@@ -933,27 +1013,28 @@ watch(
   { immediate: true }
 );
 
-// Toast helpers
 function showToast(text) {
   toast.value = { show: true, text };
+
   if (toastTimer) clearTimeout(toastTimer);
+
   toastTimer = setTimeout(() => {
     toast.value.show = false;
   }, 5500);
 }
+
 function hideToast() {
   toast.value.show = false;
+
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = null;
 }
+
 function goToViewerAnnouncements() {
   router.push(VIEWER_ANN_ROUTE);
   hideToast();
 }
 
-/* ===========================
-   ✅ Popup logic
-   =========================== */
 async function openAnnPopup() {
   annPopup.value.show = true;
   annPopup.value.loading = true;
@@ -965,24 +1046,19 @@ async function openAnnPopup() {
   try {
     const list = await fetchAnnouncementsList();
 
-    // sort by time desc
-    const sorted = (list || [])
-      .map((x, i) => ({ ...x, _t: getAnnTime(x), _key: annKey(x, i) }))
-      .sort((a, b) => (b._t || 0) - (a._t || 0));
-
-    const latest = sorted[0]?._t || 0;
+    const latest = list[0]?._t || 0;
     annPopup.value.latestAt = latest;
 
     const seen = loadViewerSeen();
     const seenTs = seen == null ? 0 : seen;
 
-    const newCount = sorted.reduce((acc, it) => acc + ((it._t || 0) > seenTs ? 1 : 0), 0);
+    const newCount = list.reduce((acc, it) => acc + ((it._t || 0) > seenTs ? 1 : 0), 0);
     annPopup.value.newCount = newCount;
 
-    annPopup.value.items = sorted.slice(0, 8).map((it) => {
+    annPopup.value.items = list.slice(0, 8).map((it) => {
       const title = pickAnnTitle(it);
       const body = stripHtml(pickAnnBody(it));
-      const preview = body ? (body.length > 140 ? body.slice(0, 140) + "…" : body) : "";
+      const preview = body ? (body.length > 140 ? `${body.slice(0, 140)}…` : body) : "";
       const when = it._t ? formatWhen(it._t) : "-";
 
       return {
@@ -991,11 +1067,13 @@ async function openAnnPopup() {
         preview,
         when,
         isNew: (it._t || 0) > seenTs,
+        isPublic: it._isPublic === true,
         _t: it._t || 0,
       };
     });
   } catch (e) {
     annPopup.value.error = e?.message || "Load announcements failed";
+    console.error("openAnnPopup error:", e);
   } finally {
     annPopup.value.loading = false;
   }
@@ -1003,6 +1081,7 @@ async function openAnnPopup() {
 
 function closeAnnPopup(hard = false) {
   annPopup.value.show = false;
+
   if (hard) {
     annPopup.value.loading = false;
     annPopup.value.error = "";
@@ -1013,7 +1092,6 @@ function closeAnnPopup(hard = false) {
 }
 
 function markAllReadFromPopup() {
-  // set seen to popup latest (or global latest)
   const latest = annPopup.value.latestAt || viewerAnnLatestAt.value || Date.now();
   saveViewerSeen(latest);
   viewerAnnNewCount.value = 0;
@@ -1022,15 +1100,14 @@ function markAllReadFromPopup() {
 }
 
 function goToViewerAnnouncementsFromPopup() {
-  // mark seen first (optional but user-friendly)
   markAllReadFromPopup();
   router.push(VIEWER_ANN_ROUTE);
 }
 
-// ESC close
 function onGlobalKeydown(e) {
   if (e?.key === "Escape" && annPopup.value.show) closeAnnPopup();
 }
+
 watch(
   () => annPopup.value.show,
   (v) => {
@@ -1040,18 +1117,12 @@ watch(
   { immediate: true }
 );
 
-// ✅ Show popup once per login session for viewer
 async function maybeShowViewerPopupOnLogin() {
   if (isAuthPage.value) return;
   if (!isViewer.value) return;
-
-  // only once per session
   if (hasShownPopupThisSession()) return;
+
   markPopupShownThisSession();
-
-  // optional: don't popup if already on announcement page
-  // if (route.path === VIEWER_ANN_ROUTE) return;
-
   await openAnnPopup();
 }
 
@@ -1060,7 +1131,6 @@ watch(
   async () => {
     if (isViewer.value && !isAuthPage.value) {
       await nextTick();
-      // small delay makes it feel smoother after redirect
       setTimeout(() => {
         maybeShowViewerPopupOnLogin();
       }, 180);
@@ -1084,7 +1154,6 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 
-/* DARK BLUE TECH THEME */
 .app.tech {
   --bg0: #050914;
   --bg1: #070e23;
@@ -1101,7 +1170,6 @@ onBeforeUnmount(() => {
   --glass: rgba(255, 255, 255, 0.035);
   --glass2: rgba(255, 255, 255, 0.02);
 
-  /* ✅ unified sizing */
   --navH: 46px;
   --navPadY: 12px;
   --navPadX: 12px;
@@ -1120,7 +1188,6 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-/* ✅ Login page mode: no sidebar + let login view control its own background */
 .app.tech.is-auth {
   grid-template-columns: 1fr;
   background: transparent;
@@ -1142,13 +1209,13 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* ambient glows */
 .glow {
   position: fixed;
   pointer-events: none;
   filter: blur(52px);
   opacity: 0.75;
 }
+
 .glow-a {
   width: 560px;
   height: 560px;
@@ -1156,6 +1223,7 @@ onBeforeUnmount(() => {
   top: 120px;
   background: radial-gradient(circle at 30% 30%, rgba(56, 189, 248, 0.4), transparent 62%);
 }
+
 .glow-b {
   width: 560px;
   height: 560px;
@@ -1164,7 +1232,6 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.34), transparent 62%);
 }
 
-/* Sidebar */
 .sidebar {
   padding: 22px 18px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -1177,6 +1244,7 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
 }
+
 .sidebar::before {
   content: "";
   position: absolute;
@@ -1193,6 +1261,7 @@ onBeforeUnmount(() => {
   pointer-events: none;
   animation: holoShift 7s linear infinite;
 }
+
 @keyframes holoShift {
   0% {
     transform: translateX(-16%);
@@ -1208,6 +1277,7 @@ onBeforeUnmount(() => {
   align-items: center;
   position: relative;
 }
+
 .brandMark {
   width: 50px;
   height: 50px;
@@ -1219,11 +1289,13 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 42px rgba(56, 189, 248, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
 }
+
 .brandName {
   font-weight: 900;
   color: #fff;
   letter-spacing: 0.2px;
 }
+
 .brandSub {
   font-size: 12px;
   color: var(--muted);
@@ -1237,7 +1309,6 @@ onBeforeUnmount(() => {
   margin-top: 6px;
 }
 
-/* ✅ unified main row style */
 .navItem,
 .navGroupBtn {
   text-decoration: none;
@@ -1257,16 +1328,14 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-/* ✅ NEW: viewer "has new" highlight (only adds tiny glow) */
 .navItem.is-new {
   border-color: rgba(56, 189, 248, 0.22);
   box-shadow: 0 12px 30px rgba(56, 189, 248, 0.08);
 }
 
-/* ✅ NEW: badge count on viewer nav item */
 .navBadge {
   position: absolute;
-  right: 28px; /* keep space for navPill on far right */
+  right: 28px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
@@ -1279,12 +1348,12 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
 }
 
-/* dashboard child */
 .navItem--sub {
   background: rgba(255, 255, 255, 0.022);
   border-color: rgba(255, 255, 255, 0.055);
   padding-left: calc(var(--navPadX) + 6px);
 }
+
 .navItem--sub::before {
   content: "";
   position: absolute;
@@ -1297,6 +1366,7 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.35);
   opacity: 0.9;
 }
+
 .navItem--sub.active::before {
   background: rgba(56, 189, 248, 0.95);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
@@ -1310,6 +1380,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 12px 30px rgba(56, 189, 248, 0.1);
   transform: translateY(-1px);
 }
+
 .navItem.active,
 .navGroupBtn.active {
   background: linear-gradient(90deg, rgba(56, 189, 248, 0.22), rgba(99, 102, 241, 0.14));
@@ -1325,12 +1396,12 @@ onBeforeUnmount(() => {
   place-items: center;
   color: rgba(255, 255, 255, 0.9);
 }
+
 .navLabel {
   font-weight: 800;
   font-size: 14px;
 }
 
-/* pill */
 .navPill {
   position: absolute;
   right: 10px;
@@ -1341,13 +1412,13 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgba(56, 189, 248, 0);
 }
+
 .navItem.active .navPill,
 .navGroupBtn.active .navPill {
   background: rgba(56, 189, 248, 0.95);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
 }
 
-/* divider */
 .navDivider {
   height: 1px;
   margin: 6px 6px 2px;
@@ -1362,7 +1433,6 @@ onBeforeUnmount(() => {
   opacity: 0.65;
 }
 
-/* dropdown group */
 .navGroup {
   display: flex;
   flex-direction: column;
@@ -1427,11 +1497,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.72);
-
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -1456,6 +1524,7 @@ onBeforeUnmount(() => {
   place-items: center;
   opacity: 0.95;
 }
+
 .subLabel {
   font-weight: 800;
   font-size: 13px;
@@ -1468,6 +1537,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgba(56, 189, 248, 0);
 }
+
 .subNavItem.active .subPill {
   background: rgba(56, 189, 248, 0.95);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.12);
@@ -1489,7 +1559,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-/* Main */
 .main {
   padding: 18px;
   overflow: hidden;
@@ -1515,12 +1584,12 @@ onBeforeUnmount(() => {
 .mainBody::-webkit-scrollbar {
   width: 10px;
 }
+
 .mainBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
 }
 
-/* ✅ NEW: Popup modal */
 .popupMask {
   position: fixed;
   inset: 0;
@@ -1590,6 +1659,7 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
 }
+
 .iconClose:hover {
   border-color: rgba(56, 189, 248, 0.22);
   box-shadow: 0 14px 34px rgba(56, 189, 248, 0.10);
@@ -1599,9 +1669,11 @@ onBeforeUnmount(() => {
   padding: 12px 14px 12px;
   overflow: auto;
 }
+
 .popupBody::-webkit-scrollbar {
   width: 10px;
 }
+
 .popupBody::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
@@ -1615,6 +1687,7 @@ onBeforeUnmount(() => {
   padding: 26px 0;
   opacity: 0.9;
 }
+
 .loaderDot {
   width: 10px;
   height: 10px;
@@ -1623,12 +1696,28 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06);
   animation: ld 0.9s ease-in-out infinite;
 }
-.loaderDot:nth-child(2) { animation-delay: 0.12s; }
-.loaderDot:nth-child(3) { animation-delay: 0.24s; }
+
+.loaderDot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.loaderDot:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
 @keyframes ld {
-  0% { transform: translateY(0); opacity: 0.55; }
-  50% { transform: translateY(-5px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.55; }
+  0% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
 }
 
 .popupErr {
@@ -1667,15 +1756,31 @@ onBeforeUnmount(() => {
   line-height: 1.25;
 }
 
-.annTagNew {
+.annBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.annTagNew,
+.annTagPublic {
   font-size: 11px;
   font-weight: 950;
   padding: 4px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  background: rgba(56, 189, 248, 0.12);
   color: rgba(255, 255, 255, 0.9);
   white-space: nowrap;
+}
+
+.annTagNew {
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.annTagPublic {
+  border: 1px solid rgba(99, 102, 241, 0.24);
+  background: rgba(99, 102, 241, 0.14);
 }
 
 .annMeta {
@@ -1717,11 +1822,13 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.12);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .popupBtn.ghost {
   border-color: rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.80);
 }
+
 .popupBtn.soft {
   border-color: rgba(56, 189, 248, 0.18);
   background: rgba(56, 189, 248, 0.08);
@@ -1731,23 +1838,21 @@ onBeforeUnmount(() => {
 .popup-leave-active {
   transition: transform 180ms ease, opacity 180ms ease;
 }
+
 .popup-enter-from,
 .popup-leave-to {
   opacity: 0;
   transform: translateY(10px) scale(0.99);
 }
 
-/* ✅ NEW: Toast notification */
 .toast {
   position: fixed;
   right: 18px;
   bottom: 18px;
   z-index: 9999;
-
   display: flex;
   align-items: center;
   gap: 14px;
-
   padding: 12px 12px;
   border-radius: 16px;
   background: rgba(8, 12, 28, 0.78);
@@ -1762,6 +1867,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   min-width: 0;
 }
+
 .toastTitle {
   font-weight: 950;
   display: inline-flex;
@@ -1769,6 +1875,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   color: rgba(255, 255, 255, 0.92);
 }
+
 .toastSub {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.65);
@@ -1782,6 +1889,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
 }
+
 .toastBtn {
   padding: 9px 10px;
   border-radius: 12px;
@@ -1791,44 +1899,47 @@ onBeforeUnmount(() => {
   background: rgba(56, 189, 248, 0.12);
   color: rgba(255, 255, 255, 0.92);
 }
+
 .toastBtn.ghost {
   border-color: rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.80);
 }
 
-/* toast animation */
 .toast-enter-active,
 .toast-leave-active {
   transition: transform 180ms ease, opacity 180ms ease;
 }
+
 .toast-enter-from,
 .toast-leave-to {
   opacity: 0;
   transform: translateY(10px);
 }
 
-/* responsive */
 @media (max-width: 1100px) {
   .app.tech {
     grid-template-columns: 86px 1fr;
   }
+
   .brandText,
   .navLabel {
     display: none;
   }
+
   .navGroupHint,
   .navChevron {
     display: none;
   }
+
   .subLabel {
     display: none;
   }
+
   .navDivider {
     margin: 6px 2px 2px;
   }
 
-  /* badge still visible in compact mode */
   .navBadge {
     right: 26px;
   }
@@ -1838,6 +1949,7 @@ onBeforeUnmount(() => {
   .main {
     padding: 14px;
   }
+
   .app.tech.is-auth .main {
     padding: 0;
   }
