@@ -26,7 +26,7 @@
             v-for="item in viewerNavItems"
             :key="item.key"
             :to="item.to"
-            :class="['navItem', { 'is-new': isViewerNew(item) }]"
+            :class="['navItem', { 'is-new': isViewerNew(item) || isViewerChatNew(item) }]"
             active-class="active"
             @mouseenter="navHover($event, true)"
             @mouseleave="navHover($event, false)"
@@ -36,6 +36,13 @@
 
             <span v-if="item.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount > 0" class="navBadge">
               {{ viewerAnnNewCount > 99 ? "99+" : viewerAnnNewCount }}
+            </span>
+
+            <span
+              v-if="item.key === VIEWER_CHAT_ITEM_KEY && viewerChatNewCount > 0"
+              class="navChip navChip--danger"
+            >
+              New
             </span>
 
             <span class="navPill" />
@@ -322,6 +329,14 @@ function readUserFromStorage() {
   return null;
 }
 
+function readTokenFromStorage() {
+  return (
+    String(localStorage.getItem("token") || "").trim() ||
+    String(sessionStorage.getItem("token") || "").trim() ||
+    ""
+  );
+}
+
 const isViewer = computed(() => normalizeRole(currentUser.value?.role) === "viewer");
 
 watch(
@@ -427,8 +442,11 @@ function logout() {
   isViewOpen.value = false;
 
   stopViewerAnnPoll();
+  stopViewerChatPoll();
   viewerAnnNewCount.value = 0;
   viewerAnnLatestAt.value = 0;
+  viewerChatNewCount.value = 0;
+  viewerChatLatestAt.value = 0;
   hideToast();
   closeAnnPopup(true);
 
@@ -716,17 +734,60 @@ function getViewerIdentityKey() {
   return String(u?.id || u?.user_id || u?.username || u?.email || "anon");
 }
 
-function getCurrentViewerBankCode() {
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function getCurrentViewerBankCodeRaw() {
   const u = readUserFromStorage() || {};
-  return normalizeText(
-    u?.Bankcode ||
-      u?.bankcode ||
-      u?.bank_code ||
-      u?.bankCode ||
-      u?.member_code ||
-      u?.memberCode ||
-      u?.code
-  );
+
+  const candidates = [
+    u,
+    u?.profile,
+    u?.member,
+    u?.member_profile,
+    u?.memberProfile,
+    u?.bank,
+    u?.bank_profile,
+    u?.bankProfile,
+    u?.data,
+    u?.payload,
+  ].filter(Boolean);
+
+  for (const entry of candidates) {
+    const bankCode = firstNonEmpty(
+      entry?.Bankcode,
+      entry?.bankcode,
+      entry?.bank_code,
+      entry?.bankCode,
+      entry?.member_code,
+      entry?.memberCode,
+      entry?.member_bank_code,
+      entry?.memberBankCode,
+      entry?.member_bank,
+      entry?.memberBank,
+      entry?.bank_id,
+      entry?.bankId,
+      entry?.code,
+      entry?.bank?.code,
+      entry?.bank?.bankcode,
+      entry?.bank?.bank_code,
+      entry?.bank?.Bankcode
+    );
+
+    if (bankCode) return bankCode;
+  }
+
+  return "";
+}
+
+function getCurrentViewerBankCode() {
+  return normalizeText(getCurrentViewerBankCodeRaw());
 }
 
 function viewerAnnSeenStorageKey() {
@@ -994,6 +1055,300 @@ function isViewerNew(item) {
   return item?.key === VIEWER_ANN_ITEM_KEY && viewerAnnNewCount.value > 0;
 }
 
+/* =========================================================
+   Viewer chat sidebar chip for new admin messages
+   ========================================================= */
+
+const VIEWER_CHAT_ITEM_KEY = "v_board";
+const VIEWER_CHAT_ROUTE = "/v/chat";
+
+const viewerChatNewCount = ref(0);
+const viewerChatLatestAt = ref(0);
+
+let viewerChatTimer = null;
+let viewerChatAbort = null;
+
+function viewerChatSeenStorageKey() {
+  return `viewer_last_seen_admin_messages_v1_${getViewerIdentityKey()}`;
+}
+
+function loadViewerChatSeen() {
+  const raw = localStorage.getItem(viewerChatSeenStorageKey());
+  if (raw == null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function saveViewerChatSeen(ts) {
+  localStorage.setItem(viewerChatSeenStorageKey(), String(ts || 0));
+}
+
+function viewerChatHeaders(extra = {}, bankCodeOverride = "") {
+  const headers = {
+    ...extra,
+    "x-role": "bank",
+    "x-user-role": "bank",
+  };
+
+  const rawBankCode = firstNonEmpty(bankCodeOverride, getCurrentViewerBankCodeRaw());
+  const normalizedBankCode = normalizeText(rawBankCode);
+
+  const bankCode = rawBankCode || normalizedBankCode;
+  if (bankCode) {
+    headers["x-bankcode"] = bankCode;
+    headers["x-bank-code"] = bankCode;
+    headers["x-member-bank"] = bankCode;
+    headers["x-member-code"] = bankCode;
+  }
+
+  const token = readTokenFromStorage();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  return headers;
+}
+
+function buildViewerChatHeaderCandidates(extra = {}) {
+  const rawBankCode = firstNonEmpty(getCurrentViewerBankCodeRaw());
+  const normalizedBankCode = normalizeText(rawBankCode);
+
+  const candidates = [
+    viewerChatHeaders(extra, rawBankCode),
+    viewerChatHeaders(extra, normalizedBankCode),
+    viewerChatHeaders(extra, ""),
+  ];
+
+  const seen = new Set();
+  return candidates.filter((entry) => {
+    const key = JSON.stringify(entry);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function fetchViewerChatApi(path, options = {}) {
+  const {
+    method = "GET",
+    body = undefined,
+    signal = undefined,
+    withJson = false,
+  } = options;
+
+  const url = resolveApiUrl(path);
+  const headerCandidates = buildViewerChatHeaderCandidates(
+    withJson ? { "Content-Type": "application/json" } : {}
+  );
+
+  let lastError = null;
+
+  for (const headers of headerCandidates) {
+    try {
+      const res = await fetch(url, {
+        method,
+        headers,
+        body,
+        signal,
+      });
+
+      if (res.ok) return res;
+
+      const msg = await parseFetchError(res);
+      lastError = new Error(msg || `${res.status} ${res.statusText}`);
+
+      if (![400, 401, 403, 404].includes(Number(res.status))) {
+        throw lastError;
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Viewer chat request failed");
+}
+
+function getMessageSenderRole(item) {
+  return normalizeRole(
+    item?.sender_role ||
+      item?.senderRole ||
+      item?.from_role ||
+      item?.fromRole ||
+      item?.author_role ||
+      item?.authorRole ||
+      item?.role ||
+      item?.sender?.role
+  );
+}
+
+function getMessageSenderBankCode(item) {
+  return normalizeText(
+    item?.sender_bankcode ||
+      item?.senderBankcode ||
+      item?.sender_bank_code ||
+      item?.senderBankCode ||
+      item?.bankcode ||
+      item?.bank_code ||
+      item?.bankCode ||
+      item?.member_code ||
+      item?.memberCode ||
+      item?.sender?.bankcode ||
+      item?.sender?.bank_code ||
+      item?.sender?.Bankcode
+  );
+}
+
+function isAdminSideMessage(item) {
+  const senderRole = getMessageSenderRole(item);
+  if (senderRole) {
+    return !["bank", "viewer", "member", "memberbank"].includes(senderRole);
+  }
+
+  const currentBankCode = getCurrentViewerBankCode();
+  const senderBankCode = getMessageSenderBankCode(item);
+  if (currentBankCode && senderBankCode) {
+    return currentBankCode !== senderBankCode;
+  }
+
+  if (
+    item?.is_mine === true ||
+    item?.isMine === true ||
+    item?.mine === true ||
+    item?.from_me === true ||
+    item?.fromMe === true ||
+    item?.own === true
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+async function ensureViewerConversation(signal) {
+  const res = await fetchViewerChatApi("/api/chat/conversations/ensure", {
+    method: "POST",
+    body: JSON.stringify({}),
+    signal,
+    withJson: true,
+  });
+
+  const data = await res.json();
+  return Number(data?.conversation_id || data?.id || data?.conversation?.id || 0);
+}
+
+async function fetchViewerConversationMessages(signal) {
+  const conversationId = await ensureViewerConversation(signal);
+  if (!conversationId) return [];
+
+  const res = await fetchViewerChatApi(`/api/chat/conversations/${conversationId}/messages?limit=200`, {
+    method: "GET",
+    signal,
+  });
+
+  const data = await res.json();
+  return Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray(data?.messages)
+    ? data.messages
+    : Array.isArray(data)
+    ? data
+    : [];
+}
+
+async function checkViewerChatNotifications() {
+  if (isAuthPage.value) return;
+  if (!isViewer.value) return;
+
+  try {
+    if (viewerChatAbort) viewerChatAbort.abort();
+    viewerChatAbort = new AbortController();
+
+    const list = await fetchViewerConversationMessages(viewerChatAbort.signal);
+    const adminMessages = (Array.isArray(list) ? list : []).filter(isAdminSideMessage);
+
+    let latest = 0;
+    for (const it of adminMessages) {
+      const t = toTime(it?.created_at || it?.createdAt || it?.sent_at || it?.updated_at || it?.updatedAt);
+      if (t > latest) latest = t;
+    }
+
+    viewerChatLatestAt.value = latest;
+
+    if (route.path === VIEWER_CHAT_ROUTE) {
+      saveViewerChatSeen(latest || Date.now());
+      viewerChatNewCount.value = 0;
+      return;
+    }
+
+    const seen = loadViewerChatSeen();
+
+    if (seen == null) {
+      saveViewerChatSeen(latest);
+      viewerChatNewCount.value = 0;
+      return;
+    }
+
+    viewerChatNewCount.value = adminMessages.reduce((sum, item) => {
+      const createdAt = toTime(
+        item?.created_at || item?.createdAt || item?.sent_at || item?.updated_at || item?.updatedAt
+      );
+      return createdAt > seen ? sum + 1 : sum;
+    }, 0);
+  } catch (e) {
+    if (e?.name === "AbortError") return;
+    console.error("checkViewerChatNotifications error:", e);
+  }
+}
+
+function startViewerChatPoll() {
+  stopViewerChatPoll();
+  checkViewerChatNotifications();
+  viewerChatTimer = setInterval(checkViewerChatNotifications, 20000);
+  window.addEventListener("focus", checkViewerChatNotifications);
+}
+
+function stopViewerChatPoll() {
+  if (viewerChatTimer) {
+    clearInterval(viewerChatTimer);
+    viewerChatTimer = null;
+  }
+
+  window.removeEventListener("focus", checkViewerChatNotifications);
+
+  if (viewerChatAbort) {
+    viewerChatAbort.abort();
+    viewerChatAbort = null;
+  }
+}
+
+function markViewerChatSeen() {
+  const latest = viewerChatLatestAt.value || Date.now();
+  saveViewerChatSeen(latest);
+  viewerChatNewCount.value = 0;
+}
+
+function isViewerChatNew(item) {
+  return item?.key === VIEWER_CHAT_ITEM_KEY && viewerChatNewCount.value > 0;
+}
+
+watch(
+  () => route.path,
+  (p) => {
+    if (!isViewer.value) return;
+    if (p === VIEWER_CHAT_ROUTE) {
+      markViewerChatSeen();
+    }
+  }
+);
+
+watch(
+  [isViewer, isAuthPage, () => route.path],
+  () => {
+    if (isViewer.value && !isAuthPage.value) startViewerChatPoll();
+    else stopViewerChatPoll();
+  },
+  { immediate: true }
+);
+
 watch(
   () => route.path,
   (p) => {
@@ -1141,6 +1496,7 @@ watch(
 
 onBeforeUnmount(() => {
   stopViewerAnnPoll();
+  stopViewerChatPoll();
   hideToast();
   window.removeEventListener("keydown", onGlobalKeydown);
 });
@@ -1346,6 +1702,30 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(56, 189, 248, 0.2);
   background: rgba(56, 189, 248, 0.10);
   box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.06);
+}
+
+.navChip {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+
+.navChip--danger {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.08);
 }
 
 .navItem--sub {
@@ -1940,7 +2320,8 @@ onBeforeUnmount(() => {
     margin: 6px 2px 2px;
   }
 
-  .navBadge {
+  .navBadge,
+  .navChip {
     right: 26px;
   }
 }

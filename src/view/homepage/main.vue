@@ -1086,7 +1086,7 @@ function goNews() { router.push("/newsviewer"); }
 function goJobs() { router.push("/jobview"); }
 function goAnnouncement() { router.push("/announcementviewer"); }
 function goLapnetEmp() { router.push("/lapnetview"); }
-function goChat() { router.push("/chat"); }
+function goChat() { router.push("/notifications"); }
 function goAdminProfile() { router.push("/admin/profile"); }
 function goAdminSettings() { router.push("/admin/settings"); }
 function logout() {
@@ -1539,10 +1539,158 @@ function filterList(list) {
 }
 
 const NOTIF_KEY = "lapnet_admin_notifications_v1";
-const CHAT_KEY = "lapnet_admin_chat_notifs_v1";
+const ADMIN_CHAT_SUMMARY_KEY = "lapnet_admin_chat_summary_v1";
+const ADMIN_CHAT_SEEN_KEY = "lapnet_admin_chat_seen_v1";
+const ADMIN_CHAT_OPEN_TARGET_KEY = "lapnet_admin_chat_open_target_v1";
 
 const notifications = ref([]);
 const chatNotifs = ref([]);
+let adminChatPollTimer = null;
+let adminChatAbortController = null;
+
+function safeJsonParse(value, fallback = null) {
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed == null ? fallback : parsed;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeAdminChatApi(path = "") {
+  const clean = String(path || "").trim();
+  if (!clean) return VITE_API_BASE_URL;
+  if (/^https?:\/\//i.test(clean)) return clean;
+
+  const base = String(VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  let nextPath = clean.startsWith("/") ? clean : `/${clean}`;
+  if (/\/api$/i.test(base) && /^\/api\//i.test(nextPath)) nextPath = nextPath.slice(4);
+  return `${base}${nextPath}`;
+}
+
+function readAdminChatSeenMap() {
+  return safeJsonParse(localStorage.getItem(ADMIN_CHAT_SEEN_KEY), {}) || {};
+}
+
+function writeAdminChatSeenMap(map) {
+  try {
+    localStorage.setItem(ADMIN_CHAT_SEEN_KEY, JSON.stringify(map || {}));
+  } catch {}
+}
+
+function persistAdminChatSummary(items) {
+  try {
+    localStorage.setItem(ADMIN_CHAT_SUMMARY_KEY, JSON.stringify(Array.isArray(items) ? items.slice(0, 200) : []));
+  } catch {}
+}
+
+function toAdminChatTime(value) {
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function buildAdminChatNotifsFromSummary(items) {
+  const seenMap = readAdminChatSeenMap();
+  return (Array.isArray(items) ? items : []).map((item, index) => {
+    const latestAtRaw = item?.last_message_at || item?.last_at || item?.updated_at || null;
+    const latestAt = toAdminChatTime(latestAtRaw);
+    const seenAt = Number(seenMap[String(item?.conversation_id || item?.bankcode || index)] || 0);
+    return {
+      id: String(item?.conversation_id || `${item?.bankcode || "chat"}-${index}`),
+      conversation_id: Number(item?.conversation_id || 0),
+      bankcode: String(item?.bankcode || "Member"),
+      from: String(item?.bankcode || "Member"),
+      preview: String(item?.last_preview || item?.last_message || ""),
+      time: latestAtRaw ? new Date(latestAtRaw).toLocaleString() : "-",
+      latestAt,
+      unread_count: Number(item?.unread_count || 0),
+      read: latestAt > 0 ? seenAt >= latestAt : true,
+    };
+  });
+}
+
+function syncAdminChatNotifsFromStorage() {
+  const summary = safeJsonParse(localStorage.getItem(ADMIN_CHAT_SUMMARY_KEY), []);
+  chatNotifs.value = buildAdminChatNotifsFromSummary(summary)
+    .sort((a, b) => Number(b.latestAt || 0) - Number(a.latestAt || 0));
+}
+
+function markAdminChatSeen(conversationIds = []) {
+  const ids = Array.isArray(conversationIds) ? conversationIds : [conversationIds];
+  const summary = safeJsonParse(localStorage.getItem(ADMIN_CHAT_SUMMARY_KEY), []);
+  const seenMap = readAdminChatSeenMap();
+
+  for (const rawId of ids) {
+    const id = String(rawId || "").trim();
+    if (!id) continue;
+    const matched = summary.find((item) => String(item?.conversation_id || "") === id);
+    const latestAt = toAdminChatTime(matched?.last_message_at || matched?.last_at || matched?.updated_at || null) || Date.now();
+    seenMap[id] = latestAt;
+  }
+
+  writeAdminChatSeenMap(seenMap);
+  syncAdminChatNotifsFromStorage();
+}
+
+async function fetchAdminChatInboxSummary() {
+  if (!VITE_API_BASE_URL) return;
+
+  try {
+    if (adminChatAbortController) adminChatAbortController.abort();
+    adminChatAbortController = new AbortController();
+
+    const headers = { "x-role": "admin" };
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const opts = { headers, signal: adminChatAbortController.signal };
+    if (FETCH_CREDENTIALS) opts.credentials = FETCH_CREDENTIALS;
+
+    const res = await fetch(normalizeAdminChatApi("/api/chat/admin/banks"), opts);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`chat inbox failed (${res.status})${txt ? `: ${txt}` : ""}`);
+    }
+
+    const data = await res.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+
+    const normalized = items.map((it, index) => ({
+      id: String(it?.conversation_id || `${it?.bankcode || "chat"}-${index}`),
+      bankcode: String(it?.bankcode || "Member"),
+      conversation_id: Number(it?.conversation_id || it?.id || 0),
+      unread_count: Number(it?.unread_count || it?.admin_unread || 0),
+      last_preview: String(it?.last_preview || it?.last_message || ""),
+      last_message_at: it?.last_message_at || it?.last_at || it?.updated_at || null,
+      updated_at: it?.updated_at || null,
+    }));
+
+    persistAdminChatSummary(normalized);
+    syncAdminChatNotifsFromStorage();
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      console.warn("[main] fetchAdminChatInboxSummary failed", error);
+      syncAdminChatNotifsFromStorage();
+    }
+  }
+}
+
+function startAdminChatPolling() {
+  stopAdminChatPolling();
+  fetchAdminChatInboxSummary();
+  adminChatPollTimer = window.setInterval(fetchAdminChatInboxSummary, 8000);
+}
+
+function stopAdminChatPolling() {
+  if (adminChatPollTimer) {
+    window.clearInterval(adminChatPollTimer);
+    adminChatPollTimer = null;
+  }
+  if (adminChatAbortController) {
+    adminChatAbortController.abort();
+    adminChatAbortController = null;
+  }
+}
 
 function loadNotifs() {
   try {
@@ -1564,31 +1712,12 @@ function persistNotifs() {
 }
 watch(notifications, persistNotifs, { deep: true });
 
-function loadChatNotifs() {
-  try {
-    const raw = localStorage.getItem(CHAT_KEY);
-    const arr = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(arr)) chatNotifs.value = arr;
-  } catch {}
-  if (!chatNotifs.value.length) {
-    chatNotifs.value = [
-      { id: "c1", from: "Support", preview: "Hi admin, please check new request.", time: new Date().toLocaleString(), read: false },
-    ];
-  }
-}
-function persistChatNotifs() {
-  try {
-    localStorage.setItem(CHAT_KEY, JSON.stringify(chatNotifs.value.slice(0, 200)));
-  } catch {}
-}
-watch(chatNotifs, persistChatNotifs, { deep: true });
-
 const showNotifMenu = ref(false);
 const showChatMenu = ref(false);
 const showProfileMenu = ref(false);
 
 const notifUnreadCount = computed(() => (notifications.value || []).filter((x) => !x.read).length);
-const chatUnreadCount = computed(() => (chatNotifs.value || []).filter((x) => !x.read).length);
+const chatUnreadCount = computed(() => (chatNotifs.value || []).reduce((sum, x) => sum + (!x.read ? Math.max(Number(x.unread_count || 1), 1) : 0), 0));
 
 function toggleNotif() {
   showNotifMenu.value = !showNotifMenu.value;
@@ -1616,7 +1745,7 @@ function markAllNotifRead() {
   toast("Marked all notifications as read", "ok");
 }
 function markAllChatRead() {
-  chatNotifs.value = (chatNotifs.value || []).map((x) => ({ ...x, read: true }));
+  markAdminChatSeen((chatNotifs.value || []).map((x) => x.conversation_id || x.id));
   toast("Marked all chat notifications as read", "ok");
 }
 
@@ -1625,7 +1754,20 @@ function openNotification(n) {
 }
 
 function openChat(c) {
-  chatNotifs.value = (chatNotifs.value || []).map((x) => (x.id === c.id ? { ...x, read: true } : x));
+  const conversationId = Number(c?.conversation_id || c?.id || 0);
+  if (conversationId) {
+    markAdminChatSeen([conversationId]);
+    try {
+      localStorage.setItem(
+        ADMIN_CHAT_OPEN_TARGET_KEY,
+        JSON.stringify({
+          conversation_id: conversationId,
+          bankcode: String(c?.bankcode || c?.from || "").trim(),
+          at: Date.now(),
+        })
+      );
+    } catch {}
+  }
   goChat();
 }
 
@@ -1643,6 +1785,14 @@ const adminRole = computed(() => {
     return "Administrator";
   }
 });
+
+
+function handleAdminChatStorageSync(event) {
+  if (!event || !event.key) return;
+  if ([ADMIN_CHAT_SUMMARY_KEY, ADMIN_CHAT_SEEN_KEY].includes(event.key)) {
+    syncAdminChatNotifsFromStorage();
+  }
+}
 const adminAvatar = computed(() => {
   try {
     return localStorage.getItem("admin_avatar") || "";
@@ -2358,13 +2508,15 @@ function cardHover(e, enter) {
 
 onMounted(async () => {
   document.addEventListener("click", onDocClick, true);
+  window.addEventListener("storage", handleAdminChatStorageSync);
 
   const els = dashEl.value?.querySelectorAll?.(".js-reveal") || [];
   gsap.set(els, { opacity: 0, y: 12 });
   gsap.to(els, { opacity: 1, y: 0, stagger: 0.06, duration: 0.42, ease: "power3.out" });
 
   loadNotifs();
-  loadChatNotifs();
+  syncAdminChatNotifsFromStorage();
+  startAdminChatPolling();
 
   loadCalendar();
   calLoaded.value = true;
@@ -2377,6 +2529,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("click", onDocClick, true);
+  window.removeEventListener("storage", handleAdminChatStorageSync);
+  stopAdminChatPolling();
 
   memberAbortCtrl.value?.abort?.();
   boardAbortCtrl.value?.abort?.();

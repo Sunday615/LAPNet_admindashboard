@@ -116,8 +116,11 @@
                   <span class="mono">{{ b.bankcode }}</span>
                 </div>
 
-                <div v-if="Number(b.unread_count) > 0" class="badge mono">
-                  {{ b.unread_count > 99 ? "99+" : b.unread_count }}
+                <div class="itemTopRight">
+                  <span v-if="hasUnreadOrNew(b)" class="newChip">New</span>
+                  <div v-if="Number(b.unread_count) > 0" class="badge mono">
+                    {{ b.unread_count > 99 ? "99+" : b.unread_count }}
+                  </div>
                 </div>
               </div>
 
@@ -259,6 +262,63 @@ const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(
 const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
 if (!API_BASE) console.warn("[mainnotification] Missing VITE_API_BASE_URL in .env");
 
+const ADMIN_CHAT_SUMMARY_KEY = "lapnet_admin_chat_summary_v1";
+const ADMIN_CHAT_SEEN_KEY = "lapnet_admin_chat_seen_v1";
+const ADMIN_CHAT_OPEN_TARGET_KEY = "lapnet_admin_chat_open_target_v1";
+
+function readSeenMap() {
+  try {
+    const raw = localStorage.getItem(ADMIN_CHAT_SEEN_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSeenMap(map) {
+  try {
+    localStorage.setItem(ADMIN_CHAT_SEEN_KEY, JSON.stringify(map || {}));
+  } catch {}
+}
+
+function toTs(value) {
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function markConversationSeen(conversationId, latestAt = null) {
+  const cid = String(conversationId || "").trim();
+  if (!cid) return;
+  const seenMap = readSeenMap();
+  seenMap[cid] = toTs(latestAt) || Date.now();
+  writeSeenMap(seenMap);
+}
+
+function persistSharedChatSummary() {
+  try {
+    const payload = banks.map((b) => ({
+      bankcode: b.bankcode,
+      conversation_id: Number(b.conversation_id || 0),
+      unread_count: Number(b.unread_count || 0),
+      last_preview: b.last_preview || "",
+      last_message_at: b.last_message_at || b.updated_at || null,
+      updated_at: b.updated_at || null,
+    }));
+    localStorage.setItem(ADMIN_CHAT_SUMMARY_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+function consumePendingOpenTarget() {
+  try {
+    const raw = localStorage.getItem(ADMIN_CHAT_OPEN_TARGET_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(ADMIN_CHAT_OPEN_TARGET_KEY);
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function joinBaseAndPath(baseUrl, path) {
   const b = String(baseUrl || "").trim().replace(/\/+$/, "");
   let p = String(path || "").trim();
@@ -325,6 +385,16 @@ function formatTime(dt) {
   } catch {
     return "-";
   }
+}
+function hasUnreadOrNew(bank) {
+  if (!bank) return false;
+  if (Number(bank.unread_count || 0) > 0) return true;
+  const cid = String(bank.conversation_id || "").trim();
+  if (!cid) return false;
+  const seenMap = readSeenMap();
+  const seenTs = Number(seenMap[cid] || 0);
+  const latestTs = toTs(bank.last_message_at || bank.updated_at || null);
+  return latestTs > 0 && latestTs > seenTs;
 }
 async function scrollToBottom() {
   await nextTick();
@@ -394,6 +464,8 @@ async function fetchBanks() {
       _key: `${it.bankcode || "?"}:${it.conversation_id || it.id || Math.random()}`,
     });
   }
+
+  persistSharedChatSummary();
 }
 
 async function ensureConversationByBankcode(bankcode) {
@@ -491,14 +563,21 @@ function connectSocket() {
         if (!exists) messages.push({ ...msg, _pending: false, _failed: false, _key: makeKey(msg) });
       }
 
-      if (bi) bi.unread_count = 0;
+      if (bi) {
+        bi.unread_count = 0;
+        markConversationSeen(cid, msg?.created_at || bi.last_message_at || null);
+        persistSharedChatSummary();
+      }
       await animateLastRow();
       await scrollToBottom();
       return;
     }
 
     // ห้องอื่น: เพิ่ม unread
-    if (bi) bi.unread_count = Number(bi.unread_count || 0) + 1;
+    if (bi) {
+      bi.unread_count = Number(bi.unread_count || 0) + 1;
+      persistSharedChatSummary();
+    }
   });
 
   // inbox update สำหรับ admin ทุกคน (ถ้า backend ส่ง event นี้)
@@ -513,7 +592,11 @@ function connectSocket() {
       bumpConversationToTop(cid);
 
       if (active.value?.conversation_id !== cid) bi.unread_count = Number(bi.unread_count || 0) + 1;
-      else bi.unread_count = 0;
+      else {
+        bi.unread_count = 0;
+        markConversationSeen(cid, u.last_at || bi.last_message_at || null);
+      }
+      persistSharedChatSummary();
     } else {
       fetchBanks().catch(() => {});
     }
@@ -536,6 +619,8 @@ async function reloadAll(refreshActiveToo = false) {
       if (bi) {
         active.value = { ...active.value, ...bi, unread_count: 0 };
         bi.unread_count = 0;
+        markConversationSeen(cid, bi.last_message_at || bi.updated_at || null);
+        persistSharedChatSummary();
       }
       await loadMessages(cid);
       if (socket && socketStatus.value === "connected") socket.emit("chat:join", { conversation_id: cid }, () => {});
@@ -576,6 +661,8 @@ async function openConversation(item) {
       bi.conversation_id = conversation_id;
       bi.unread_count = 0;
       bumpConversationToTop(conversation_id);
+      markConversationSeen(conversation_id, bi.last_message_at || bi.updated_at || null);
+      persistSharedChatSummary();
     }
 
     await loadMessages(conversation_id);
@@ -651,6 +738,8 @@ async function send() {
     bi.last_preview = text;
     bi.last_message_at = new Date().toISOString();
     bumpConversationToTop(conversation_id);
+    markConversationSeen(conversation_id, bi.last_message_at);
+    persistSharedChatSummary();
   }
 }
 
@@ -664,6 +753,17 @@ onMounted(async () => {
   await nextTick();
   revealIn();
   await reloadAll(false);
+
+  const pendingTarget = consumePendingOpenTarget();
+  if (pendingTarget?.conversation_id || pendingTarget?.bankcode) {
+    const matched =
+      banks.find((b) => Number(b.conversation_id) === Number(pendingTarget?.conversation_id || 0)) ||
+      banks.find((b) => String(b.bankcode || "").trim() === String(pendingTarget?.bankcode || "").trim());
+    if (matched) {
+      await openConversation(matched);
+    }
+  }
+
   connectSocket();
 });
 
@@ -688,7 +788,9 @@ onBeforeUnmount(() => {
   display:flex;
   flex-direction: column;
   gap: 14px;
+  height: calc(100vh - 40px);
   min-height: calc(100vh - 40px);
+  overflow: hidden;
 }
 
 /* header */
@@ -791,7 +893,10 @@ onBeforeUnmount(() => {
   display:grid;
   grid-template-columns: 360px 1fr;
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* left panel */
@@ -806,7 +911,8 @@ onBeforeUnmount(() => {
 .left{
   display:flex;
   flex-direction: column;
-  min-height: 72vh;
+  min-height: 0;
+  height: 100%;
 }
 
 .leftTop{
@@ -860,6 +966,8 @@ onBeforeUnmount(() => {
 
 /* inbox list */
 .list{
+  flex: 1;
+  min-height: 0;
   padding: 10px;
   overflow: auto;
 }
@@ -891,13 +999,36 @@ onBeforeUnmount(() => {
   display:flex;
   align-items:center;
   justify-content:space-between;
+  gap: 10px;
   margin-bottom: 8px;
+}
+.itemTopRight{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .bank{
   display:flex;
   align-items:center;
   gap: 10px;
   font-weight: 950;
+}
+.newChip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255,93,93,.24), rgba(239,68,68,.18));
+  border: 1px solid rgba(255,93,93,.34);
+  color: rgba(255,235,235,.98);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(255,93,93,.14);
 }
 .badge{
   min-width: 28px;
@@ -930,7 +1061,9 @@ onBeforeUnmount(() => {
 .right{
   display:flex;
   flex-direction: column;
-  min-height: 72vh;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .roomTop{
@@ -957,9 +1090,11 @@ onBeforeUnmount(() => {
 /* messages */
 .msgs{
   flex: 1;
+  min-height: 0;
   padding: 14px;
   overflow: auto;
   scroll-behavior: smooth;
+  overscroll-behavior: contain;
 }
 .msgs::-webkit-scrollbar{ width: 10px; }
 .msgs::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.08); border-radius: 999px; }
@@ -1056,6 +1191,33 @@ onBeforeUnmount(() => {
   font-size: 12px;
   border-top: 1px solid rgba(255,255,255,.06);
   background: rgba(0,0,0,.10);
+}
+
+@media (max-width: 960px){
+  .chatAdmin{
+    height: auto;
+    min-height: calc(100vh - 40px);
+    overflow: visible;
+  }
+
+  .grid{
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .left,
+  .right{
+    height: auto;
+    min-height: 0;
+  }
+
+  .list{
+    max-height: 42vh;
+  }
+
+  .msgs{
+    max-height: 52vh;
+  }
 }
 
 @media (max-width: 980px){

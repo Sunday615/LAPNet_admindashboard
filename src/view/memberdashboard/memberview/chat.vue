@@ -145,7 +145,8 @@ import { io } from "socket.io-client";
 import gsap from "gsap";
 
 const route = useRoute();
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://175.0.198.10:3000").replace(/\/$/, "");
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+if (!API_BASE) console.warn("[chat] Missing VITE_API_BASE_URL in .env");
 
 // ---------- helpers ----------
 function safeJsonParse(x) {
@@ -274,6 +275,24 @@ function authHeaders(extra = {}) {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
+}
+
+async function pingAdmin(reason = "member-active") {
+  if (!API_BASE || !bankcode.value) return;
+
+  try {
+    await fetch(`${API_BASE}/api/chat/ping`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        reason,
+        bankcode: bankcode.value,
+        conversation_id: Number(conversationId.value || 0) || null,
+      }),
+    });
+  } catch (error) {
+    console.warn("[chat] pingAdmin failed", error);
+  }
 }
 
 /**
@@ -469,7 +488,7 @@ async function send() {
   await animateLastRow();
   await scrollToBottom();
 
-  socket?.emit("chat:send", { conversation_id: conversationId.value, body: text, client_msg_id }, (ack) => {
+  socket?.emit("chat:send", { conversation_id: conversationId.value, body: text, client_msg_id }, async (ack) => {
     if (!ack?.ok) {
       const i = pendingMap.get(client_msg_id);
       if (typeof i === "number" && messages[i]) {
@@ -478,7 +497,10 @@ async function send() {
         messages[i]._key = makeKey(messages[i]);
       }
       pendingMap.delete(client_msg_id);
+      return;
     }
+
+    await pingAdmin("member-send-message");
   });
 }
 
@@ -503,6 +525,7 @@ async function reload() {
 
     await ensureConversation();
     await loadMessages();
+    await pingAdmin("member-open-chat");
     connectSocket();
   } catch (e) {
     error.value = e?.message || String(e);
@@ -560,7 +583,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  height: calc(100vh - 40px);
   min-height: calc(100vh - 40px);
+  overflow: hidden;
 }
 
 /* header style consistent with your dashboards */
@@ -664,7 +689,10 @@ onBeforeUnmount(() => {
   display:grid;
   grid-template-columns: 1fr;
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* main card */
@@ -675,7 +703,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
   display:flex;
   flex-direction: column;
-  min-height: calc(100vh - 140px);
+  height: 100%;
+  min-height: 0;
   box-shadow: 0 18px 44px rgba(0,0,0,.28);
 }
 
@@ -704,9 +733,11 @@ onBeforeUnmount(() => {
 
 .list{
   flex: 1;
+  min-height: 0;
   padding: 14px;
   overflow: auto;
   scroll-behavior: smooth;
+  overscroll-behavior: contain;
 }
 .list::-webkit-scrollbar{ width: 10px; }
 .list::-webkit-scrollbar-thumb{
@@ -821,5 +852,26 @@ onBeforeUnmount(() => {
   font-size: 12px;
   border-top: 1px solid rgba(255,255,255,.06);
   background: rgba(0,0,0,.10);
+}
+
+@media (max-width: 960px){
+  .chatRoom{
+    height: auto;
+    min-height: calc(100vh - 40px);
+    overflow: visible;
+  }
+
+  .grid{
+    overflow: visible;
+  }
+
+  .card{
+    height: auto;
+    min-height: calc(100vh - 180px);
+  }
+
+  .list{
+    max-height: 56vh;
+  }
 }
 </style>
